@@ -2371,13 +2371,13 @@ class SmartDashboardView extends ItemView {
           mBtn.onclick = () => { mBtn.addClass('active'); yBtn.removeClass('active'); render('month'); };
           yBtn.onclick = () => { yBtn.addClass('active'); mBtn.removeClass('active'); render('year'); };
           render('month');  // 默认本月
-          // 周/月合计保留简洁一行
-          const sum = body.createDiv({ cls: 'sd-usage-summary' });
+          // 周/月合计 + 缓存命中率（同一行：左合计，右命中率）
+          const bottomRow = body.createDiv({ cls: 'sd-usage-bottom-row' });
+          const sum = bottomRow.createDiv({ cls: 'sd-usage-summary' });
           sum.setText('本周 ' + this.fmtTokens(this.sumRange(days, 7)) + ' ｜ 累计 ' + this.fmtTokens(this.allTotal(days)));
-          // 缓存命中率（右下角，3 位小数）
           const cs = this.cacheStats(days, monthKey);
           const rateStr = (cs.hit + cs.miss) > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + '%' : '—';
-          const rateLine = body.createDiv({ cls: 'sd-usage-cache-rate' });
+          const rateLine = bottomRow.createDiv({ cls: 'sd-usage-cache-rate' });
           rateLine.setText('缓存命中 ' + rateStr);
         } catch (e) {
           body.createDiv().setText('卡片渲染失败: ' + String(e));

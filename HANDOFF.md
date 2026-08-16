@@ -1,7 +1,8 @@
-# 🚀 项目交接文档 (HANDOFF.md) — Smart Dashboard Token 三源统计 + 版本 4.2.1
+# 🚀 项目交接文档 (HANDOFF.md) — Smart Dashboard Token 三源统计 + 布局压缩 + 版本 4.2.1
 
-> 生成时间：2026-08-16 17:15 ｜ 依据工作流：10_项目交接与上下文维持工作流 ｜ 模板：06_项目交接文档模板
+> 生成时间：2026-08-16 17:15（增写 17:45）｜ 依据工作流：10_项目交接与上下文维持工作流 ｜ 模板：06_项目交接文档模板
 > 本交接覆盖 2026-08-16 00:12 的 v4.2.0 交接（磁贴化重构已完成，历史内容见第 4 节）
+> **增写说明**：17:15 初版后新增「年视图截断修复 + Token 卡布局压缩」迭代（见第 4 节"本轮迭代修复"）
 
 ## 1. 项目概况与当前状态
 
@@ -41,6 +42,7 @@ flowchart TD
 
 - **核心交付物（本轮 2026-08-16）：**
   - [x] **Token 卡片三源升级**：`collect_usage.py` 新增 `parse_opencode()`（sqlite3 只读连接 `file:...?mode=ro&immutable=1`，查 `session` 表 `time_created/tokens_input/tokens_output/tokens_cache_read`，毫秒时间戳按天归类，口径 input 不含 cache 与 dsh 一致，库缺失仅 WARN 不中断）；`main.ts` 8 处三源聚合（renderUsageBody 本月/今日、allTotal、sumRange、月/年热力图 inp/out、cacheStats opencode 分支同 dsh 口径、口径注释）；`schema_version` 1→2（load_existing 校验同步）
+  - [x] **年视图截断修复 + Token 卡布局压缩**（用户实测反馈驱动，见第 6 节"年视图截断根因"）：①表头保持原位（撤销 `padding-top: 4px` 的 `:has` 压缩，body 顶部恢复 16px）②表头下方留白 15→6px（`#sd-usage-section .sd-section-title`）③「本月消耗」顶部 padding 10→2px ④今日行 mb 8→4px ⑤月/年切换 margin 6→3px ⑥caption 与「本周/累计」间距 10→4px（heatmap mb 6→2 + summary mt 4→2）⑦**缓存命中率并入「本周 ｜ 累计」同一行**（新容器 `.sd-usage-bottom-row`，flex space-between，左合计右命中率）——年视图总高 ~258→~225px < 268px 可用，底部行不再被裁
   - [x] **dsh 执行与验收**：TASK.md 规格书 → dsh headless 产出 deliverables/collect_usage.py.new + main.ts.new → Hermes diff 核对（只含预期改动）、BOM 检查（无）、数据对账（零误差）→ 落位 → `node esbuild.config.mjs` 构建成功（main.js 自动拷入 vault）
   - [x] **版本号 4.2.1**：manifest.json 源码 + vault 插件目录双端同步（实测确认 esbuild 脚本自动复制 manifest.json，无需手动 cp）
   - [x] **AGY 数据盘点**：定位全部 AGY 残留——`C:\Users\华为\.gemini\antigravity\`（conversations 144 个 SQLite db / 263MB、brain 146 目录 / 129MB、annotations 138、agyhub_summaries_proto.pb 207KB）、`antigravity-cli\brain\`（8 个含 transcript.jsonl）、`antigravity-ide\`、`config\sidecars\`（a_stock_conclude + news_collection）、`AppData\Roaming\Antigravity IDE\`、`AppData\Local\agy\`
@@ -64,7 +66,8 @@ flowchart TD
 ## 5. 待办事项与下一步行动 (Next Steps)
 
 - **⚡ 优先级最高（启动后立即执行）：**
-  - [ ] 用户侧验证：Obsidian `Ctrl+R` 重载插件 → 确认「⚡ Token 用量」卡片累计/本月/今日数字包含 opencode（预期累计显著增大，因 opencode 历史 input 53.7M + cache 1.26B）
+  - [ ] 用户侧验证：Obsidian `Ctrl+R` 重载插件 → 确认「⚡ Token 用量」卡片三源数字正确（含 opencode 历史）、年视图底部两行完整显示、缓存命中率与「本周/累计」同行
+  - [ ] **推送到 GitHub**：本地已有 2 个 commit 待推（a5b8072 + 布局压缩/HANDOFF 增写），上次 push 遇 Connection reset，重试 `git push origin main`
 - **📌 后续规划：**
   - [ ] AGY 统计报告是否存档知识库（01_Inbox 缓冲 → 提炼），`[待确认]`
   - [ ] AGY 数据后续处理：完整对话导出还原 / brain 记忆迁移 / 清理释放 ~400MB，三项任选或都做，`[待确认]`
@@ -73,14 +76,18 @@ flowchart TD
 ## 6. 踩坑记录与避坑指南 (Lessons Learned & Pitfalls)
 
 - **已踩过的坑（本轮新增）：**
+  - ⚠️ **年视图截断根因（v4.2.0 引入）**：磁贴化后 `.sd-card-body` 固定设计高 300px + `overflow: hidden`，年视图 365 格按天直排使热力图高度 +57px（~26→83px），总内容 ~258px 贴着 268px 可用上限，实际渲染溢出即从底部裁掉 caption/summary/cache-rate。当时只压了 caption margin（CSS 注释"问题4"）治标不治本；本次用压缩纵向留白（表头 mb 15→6、total pt 10→2、stats mb 8→4、seg 6→3、heatmap mb 6→2、summary mt 4→2）+ 底部行合并根治
+  - ⚠️ **改 body 顶部 padding 会顶动表头**：`padding-top: 4px` 的 `:has(> .sd-usage-body)` 压缩把「⚡ Token 用量」整行贴到卡片顶（用户明确要求表头原位）——表头位置由 body 顶部 padding 决定，要压缩只能压表头自身 margin/padding，不能动 body 顶距
   - ⚠️ **AGY conversations db 全是 protobuf 二进制**：steps.metadata / gen_metadata / executor_metadata 均为 protobuf（gen_metadata 里还有疑似 embedding 向量数据），非 JSON——用 json.loads 直接崩（bytes 不可序列化）；grep "usage/token" 命中是二进制字节巧合，**AGY 本地无 token 数据是硬事实**，勿再尝试解析
   - ⚠️ **opencode.db 不能普通连接**：直接 `sqlite3.connect()` 会创建 sidecar/lock 文件（目录不可写时直接失败）——必须 `sqlite3.connect("file:" + path + "?mode=ro&immutable=1", uri=True)` 只读连接
   - ⚠️ **esbuild 脚本自动复制 manifest.json**（实测确认）：`node esbuild.config.mjs` 会拷贝 main.js + manifest.json + styles.css 三件套到 vault，改版本号后重跑一次构建即可双端同步，无需手动 cp
   - ⚠️ **dsh 交付回归确认**：TASK.md 强约束"必须实际写文件"有效（本轮一次成功产出完整文件）；交付物 diff 纯净、无 BOM、自查无遗漏（dsh 报告 grep 断言 0 违规）
+  - ⚠️ **GitHub push 偶发 Connection reset**（2026-08-16 17:20）：`git push` 报 `Recv failure: Connection was reset`（本地无 git 代理配置），重试或稍后再试即可，非凭据问题
 - **已知 Bug / 限制：**
   - 🐛 AGY 8/16 异常会话：1 个 db（25 次调用）mtime 为 08-16 17:09（AGY 8/11 已卸载），疑似卸载残留进程 touch，非正常使用
   - 🐛 AGY 日期归类基于 db 文件 mtime（近似，会话多为单日完成，误差可忽略）
-  - 🐛 沿用 v4.2.0 已知项：年视图 caption 贴边、交易明细 36 行滚动显示、窄窗口 <900px 降为流式布局
+  - ✅ 年视图截断已修复（2026-08-16 17:45 布局压缩，见第 4 节）；`collect_usage.py.bak_20260816` / `main.ts.bak_20260816` 本地保留可回滚，不入 git（.gitignore `*.bak`）
+  - 🐛 沿用 v4.2.0 已知项：交易明细 36 行滚动显示、窄窗口 <900px 降为流式布局
 
 ## 7. 项目规范与硬性约束 (Rules & Constraints)
 
