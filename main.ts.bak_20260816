@@ -2345,8 +2345,8 @@ class SmartDashboardView extends ItemView {
           for (const k of Object.keys(days)) {
             if (!k.startsWith(monthKey)) continue;
             const d = days[k];
-            monthIn += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0);
-            monthOut += (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+            monthIn += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0);
+            monthOut += (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0);
           }
           const totalBox = body.createDiv({ cls: 'sd-usage-total' });
           totalBox.createDiv({ text: '本月消耗', cls: 'sd-usage-total-label' });
@@ -2354,8 +2354,8 @@ class SmartDashboardView extends ItemView {
           totalBox.createDiv({ text: '输入 ' + this.fmtTokens(monthIn) + ' ｜ 输出 ' + this.fmtTokens(monthOut), cls: 'sd-usage-total-sub' });
           // 今日
           const t = days[today] || {};
-          const tIn = (t.hermes && t.hermes.input || 0) + (t.dsh && t.dsh.input || 0) + (t.opencode && t.opencode.input || 0);
-          const tOut = (t.hermes && t.hermes.output || 0) + (t.dsh && t.dsh.output || 0) + (t.opencode && t.opencode.output || 0);
+          const tIn = (t.hermes && t.hermes.input || 0) + (t.dsh && t.dsh.input || 0);
+          const tOut = (t.hermes && t.hermes.output || 0) + (t.dsh && t.dsh.output || 0);
           const stat = body.createDiv({ cls: 'sd-usage-stats' });
           stat.setText('今日 ' + this.fmtTokens(tIn) + ' ｜ ' + this.fmtTokens(tOut));
           // 月/年切换
@@ -2388,8 +2388,8 @@ class SmartDashboardView extends ItemView {
         let total = 0;
         for (const k of Object.keys(days)) {
           const d = days[k];
-          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0)
-                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0)
+                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0);
         }
         return total;
       }
@@ -2398,7 +2398,6 @@ class SmartDashboardView extends ItemView {
        * 缓存命中统计（口径统一为 命中/(命中+未命中)）：
        * - hermes: cache=命中、input 含命中 → 未命中 = input - cache
        * - dsh:    cache=cacheReadTokens（不含于 inputTokens）→ 未命中 = input
-       * - opencode: cache=tokens_cache_read（不含于 inputTokens）→ 未命中 = input
        */
       private cacheStats(days: any, prefix: string): { hit: number; miss: number } {
         let hit = 0, miss = 0;
@@ -2413,10 +2412,6 @@ class SmartDashboardView extends ItemView {
           if (d.dsh) {
             hit += d.dsh.cache || 0;
             miss += d.dsh.input || 0;
-          }
-          if (d.opencode) {
-            hit += d.opencode.cache || 0;
-            miss += d.opencode.input || 0;
           }
         }
         return { hit, miss };
@@ -2435,8 +2430,8 @@ class SmartDashboardView extends ItemView {
         const recent = keys.slice(-n);
         for (const k of recent) {
           const d = days[k];
-          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0)
-                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0)
+                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0);
         }
         return total;
       }
@@ -2449,8 +2444,8 @@ class SmartDashboardView extends ItemView {
           for (let day = 1; day <= dayCount; day++) {
             const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
             const d = days[key];
-            const inp = d && (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0) || 0;
-            const out = d && (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0) || 0;
+            const inp = d && (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) || 0;
+            const out = d && (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) || 0;
             const cell = flow.createDiv({ cls: 'sd-usage-cell' });
             let lv = 0;
             if (inp > 2e8) lv = 4; else if (inp > 5e7) lv = 3; else if (inp > 1e7) lv = 2; else if (inp > 1e6) lv = 1;
@@ -2473,8 +2468,8 @@ class SmartDashboardView extends ItemView {
             const day = new Date(year, 0, d);          // 第 d 天（自动处理跨月）
             const key = day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
             const rec = days[key];
-            const inp = rec && (rec.hermes && rec.hermes.input || 0) + (rec.dsh && rec.dsh.input || 0) + (rec.opencode && rec.opencode.input || 0) || 0;
-            const out = rec && (rec.hermes && rec.hermes.output || 0) + (rec.dsh && rec.dsh.output || 0) + (rec.opencode && rec.opencode.output || 0) || 0;
+            const inp = rec && (rec.hermes && rec.hermes.input || 0) + (rec.dsh && rec.dsh.input || 0) || 0;
+            const out = rec && (rec.hermes && rec.hermes.output || 0) + (rec.dsh && rec.dsh.output || 0) || 0;
             const cell = grid.createDiv({ cls: 'sd-usage-yearcell' });
             let lv = 0;
             if (inp > 2e8) lv = 4; else if (inp > 5e7) lv = 3; else if (inp > 1e7) lv = 2; else if (inp > 1e6) lv = 1;

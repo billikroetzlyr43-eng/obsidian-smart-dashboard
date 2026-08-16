@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Collect daily token usage from Hermes agent.log and DSH session zstd logs.
+
+Outputs D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/usage_daily.json.
+
+Sources:
+  - hermes: D:/Hermes/logs/agent.log lines matching provider=opencode-go
+  - dsh:    C:/Users/华为/.dsh/sessions/*.jsonl.zstd assistant/message events
+"""
+
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+# ---------------------------------------------------------------- zstandard
+try:
+    import zstandard
+except ImportError:
+    print("zstandard not found, installing via pip ...", flush=True)
+    try:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "-i", "https://pypi.tuna.tsinghua.edu.cn/simple", "zstandard",
+        ])
+        import zstandard
+    except Exception as exc:  # pragma: no cover - install failure path
+        print("Failed to install zstandard:", exc, flush=True)
+        sys.exit(1)
+
+# ------------------------------------------------------------------ config
+HERMES_LOG = r"D:/Hermes/logs/agent.log"
+DSH_SESSIONS_DIR = r"C:/Users/华为/.dsh/sessions"
+OUT_JSON = r"D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/usage_daily.json"
+
+# ---------------------------------------------------------------- regexes
+HERMES_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}).*API call #\d+: model=\S+ provider=\S+"
+    r" in=(\d+) out=(\d+)"
+)
+HERMES_CACHE_RE = re.compile(r"cache=(\d+)/")
+
+
+def date_from_time(time_field):
+    """Extract 'YYYY-MM-DD' from a DSH event time field.
+
+    Handles ISO strings ('2026-07-29T...', possibly with timezone) and
+    numeric values that may be millisecond or second Unix timestamps.
+    """
+    if time_field is None:
+        return None
+    if isinstance(time_field, (int, float)):
+        ts = time_field
+        # millis (> 100 billion) vs seconds
+        if ts > 1e11:
+            ts = ts / 1000.0
+        return time.strftime("%Y-%m-%d", time.localtime(ts))
+    if isinstance(time_field, str):
+        m = re.match(r"(\d{4}-\d{2}-\d{2})", time_field)
+        if m:
+            return m.group(1)
+        try:
+            ts = float(time_field)
+            if ts > 1e11:
+                ts = ts / 1000.0
+            return time.strftime("%Y-%m-%d", time.localtime(ts))
+        except (ValueError, OSError, OverflowError):
+            return None
+    return None
+
+
+def parse_hermes(log_path):
+    """Return {date: {"input":.., "output":.., "cache":.., "calls":..}}.
+
+    Aggregates across agent.log AND rotated files (agent.log.1, .2, ...):
+    Hermes rotates agent.log to agent.log.1 at ~5MB; without reading the
+    rotated file, the pre-rotation portion of the current day is lost.
+    """
+    stats = {}
+    files = [log_path] + sorted(
+        glob.glob(log_path + ".*"),
+        key=os.path.getmtime,  # oldest first; aggregation is additive anyway
+    )
+    for path in files:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    m = HERMES_RE.search(line)
+                    if not m:
+                        continue
+                    date = m.group(1)
+                    try:
+                        inp = int(m.group(2))
+                        out = int(m.group(3))
+                    except ValueError:
+                        continue
+                    cm = HERMES_CACHE_RE.search(line)
+                    cache = int(cm.group(1)) if cm else 0
+                    rec = stats.setdefault(date, {"input": 0, "output": 0, "cache": 0, "calls": 0})
+                    rec["input"] += inp
+                    rec["output"] += out
+                    rec["cache"] += cache
+                    rec["calls"] += 1
+        except FileNotFoundError:
+            print("WARN: hermes log not found:", path, flush=True)
+    return stats
+
+
+def parse_dsh(sessions_dir):
+    """Return {date: {"input":.., "output":..}} from assistant/message events."""
+    stats = {}
+    if not os.path.isdir(sessions_dir):
+        print("WARN: dsh sessions dir not found:", sessions_dir, flush=True)
+        return stats
+    for root, _dirs, files in os.walk(sessions_dir):
+        for name in files:
+            if not name.endswith(".jsonl.zstd"):
+                continue
+            path = os.path.join(root, name)
+            try:
+                with open(path, "rb") as fh:
+                    opener = zstandard.ZstdDecompressor().stream_reader(fh)
+                    chunks = []
+                    while True:
+                        chunk = opener.read(1 << 20)
+                        if not chunk:
+                            break
+                        chunks.append(chunk)
+                    blob = b"".join(chunks)
+            except Exception:
+                # damaged file: skip entirely
+                continue
+            for raw in blob.split(b"\n"):
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    evt = json.loads(raw.decode("utf-8"))
+                except Exception:
+                    continue
+                if evt.get("type") != "assistant/message":
+                    continue
+                data = evt.get("data") or {}
+                usage = data.get("usage") if isinstance(data, dict) else None
+                if not isinstance(usage, dict):
+                    usage = evt.get("usage")
+                if not isinstance(usage, dict):
+                    continue
+                inp = usage.get("inputTokens")
+                out = usage.get("outputTokens")
+                cache_read = usage.get("cacheReadTokens")
+                try:
+                    inp = int(inp) if inp is not None else 0
+                    out = int(out) if out is not None else 0
+                    cache_read = int(cache_read) if cache_read is not None else 0
+                except (ValueError, TypeError):
+                    continue
+                date = date_from_time(evt.get("time"))
+                if not date:
+                    continue
+                rec = stats.setdefault(date, {"input": 0, "output": 0, "cache": 0})
+                rec["input"] += inp
+                rec["output"] += out
+                rec["cache"] += cache_read
+    return stats
+
+
+def load_existing(out_path):
+    if os.path.exists(out_path):
+        try:
+            with open(out_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if data.get("schema_version") == 1 and isinstance(data.get("days"), dict):
+                return data["days"]
+        except Exception:
+            pass
+    return {}
+
+
+def merge_days(existing, source, src_name):
+    for date, rec in source.items():
+        cur = existing.setdefault(date, {})
+        cur[src_name] = rec
+        existing[date] = cur
+    return existing
+
+
+def main():
+    quiet = "--quiet" in sys.argv
+    hermes = parse_hermes(HERMES_LOG)
+    dsh = parse_dsh(DSH_SESSIONS_DIR)
+
+    days = load_existing(OUT_JSON)
+    days = merge_days(days, hermes, "hermes")
+    days = merge_days(days, dsh, "dsh")
+
+    out_path = OUT_JSON
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    payload = {
+        "schema_version": 1,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "days": days,
+    }
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+
+    if quiet:
+        return
+    # summary
+    total_days = len(days)
+    print(f"days total: {total_days}", flush=True)
+    if days:
+        last_date = sorted(days.keys())[-1]
+        print(f"last day: {last_date} -> {days[last_date]}", flush=True)
+    print("written:", out_path, flush=True)
+
+
+if __name__ == "__main__":
+    main()
