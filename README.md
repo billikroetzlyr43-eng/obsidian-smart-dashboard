@@ -10,7 +10,7 @@ A magnetic-tile smart dashboard plugin for Obsidian. Nine live cards arranged on
 | Quick Jot | 1×1 | Fast capture box |
 | Vault Search | 1×2 | Full-vault search |
 | Create | 1×1 | Quick note creation |
-| Stats | 2×1 | Vault statistics & charts |
+| Stats | 2×2 | Vault statistics & charts |
 | Token Usage | 2×1 | LLM token consumption (from `.smart-dashboard/usage_daily.json`) |
 | Schedule | 1×1 | Upcoming schedule items |
 | Todos | 1×1 | Task list with subtasks |

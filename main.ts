@@ -2340,24 +2340,22 @@ class SmartDashboardView extends ItemView {
           const now = new Date();
           const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
           const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-          // 本月累计（总消耗，醒目显示）
-          let monthIn = 0, monthOut = 0;
+          // 本月累计（全部 token：输入+输出+缓存+推理，口径统一）
+          let monthAll = { input: 0, output: 0, cache: 0, reasoning: 0 };
           for (const k of Object.keys(days)) {
             if (!k.startsWith(monthKey)) continue;
-            const d = days[k];
-            monthIn += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0);
-            monthOut += (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+            const dt = this.dailyTokens(days[k]);
+            monthAll.input += dt.input; monthAll.output += dt.output;
+            monthAll.cache += dt.cache; monthAll.reasoning += dt.reasoning;
           }
           const totalBox = body.createDiv({ cls: 'sd-usage-total' });
           totalBox.createDiv({ text: '本月消耗', cls: 'sd-usage-total-label' });
-          totalBox.createDiv({ text: this.fmtTokens(monthIn + monthOut), cls: 'sd-usage-total-value' });
-          totalBox.createDiv({ text: '输入 ' + this.fmtTokens(monthIn) + ' ｜ 输出 ' + this.fmtTokens(monthOut), cls: 'sd-usage-total-sub' });
-          // 今日
-          const t = days[today] || {};
-          const tIn = (t.hermes && t.hermes.input || 0) + (t.dsh && t.dsh.input || 0) + (t.opencode && t.opencode.input || 0);
-          const tOut = (t.hermes && t.hermes.output || 0) + (t.dsh && t.dsh.output || 0) + (t.opencode && t.opencode.output || 0);
+          totalBox.createDiv({ text: this.fmtTokens(monthAll.input + monthAll.output + monthAll.cache + monthAll.reasoning), cls: 'sd-usage-total-value' });
+          totalBox.createDiv({ text: '输入 ' + this.fmtTokens(monthAll.input) + ' ｜ 输出 ' + this.fmtTokens(monthAll.output) + ' ｜ 缓存 ' + this.fmtTokens(monthAll.cache), cls: 'sd-usage-total-sub' });
+          // 今日（全部 token）
+          const t = this.dailyTokens(days[today]);
           const stat = body.createDiv({ cls: 'sd-usage-stats' });
-          stat.setText('今日 ' + this.fmtTokens(tIn) + ' ｜ ' + this.fmtTokens(tOut));
+          stat.setText('今日 ' + this.fmtTokens(t.input + t.output + t.cache + t.reasoning) + '（输入' + this.fmtTokens(t.input) + ' 输出' + this.fmtTokens(t.output) + ' 缓存' + this.fmtTokens(t.cache) + '）');
           // 月/年切换
           const seg = body.createDiv({ cls: 'sd-usage-seg' });
           const mBtn = seg.createEl('button', { text: '月', cls: 'sd-btn secondary active' });
@@ -2371,10 +2369,15 @@ class SmartDashboardView extends ItemView {
           mBtn.onclick = () => { mBtn.addClass('active'); yBtn.removeClass('active'); render('month'); };
           yBtn.onclick = () => { yBtn.addClass('active'); mBtn.removeClass('active'); render('year'); };
           render('month');  // 默认本月
-          // 周/月合计 + 缓存命中率（同一行：左合计，右命中率）
+          // 周/累计合计 + 缓存命中率（同一行：左合计，右命中率）
+          // 累计改为含 cache/reasoning 的全部 token，明细直接写在本行（不额外加行）
           const bottomRow = body.createDiv({ cls: 'sd-usage-bottom-row' });
           const sum = bottomRow.createDiv({ cls: 'sd-usage-summary' });
-          sum.setText('本周 ' + this.fmtTokens(this.sumRange(days, 7)) + ' ｜ 累计 ' + this.fmtTokens(this.allTotal(days)));
+          const totals = this.allTotalWithCache(days);
+          const totalAll = totals.input + totals.output + totals.cache + totals.reasoning;
+          sum.setText('本周 ' + this.fmtTokens(this.sumRange(days, 7)) + ' ｜ 累计 ' + this.fmtTokens(totalAll)
+            + '（输入' + this.fmtTokens(totals.input) + ' 输出' + this.fmtTokens(totals.output)
+            + ' 缓存' + this.fmtTokens(totals.cache) + ' 推理' + this.fmtTokens(totals.reasoning) + '）');
           const cs = this.cacheStats(days, monthKey);
           const rateStr = (cs.hit + cs.miss) > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + '%' : '—';
           const rateLine = bottomRow.createDiv({ cls: 'sd-usage-cache-rate' });
@@ -2384,14 +2387,34 @@ class SmartDashboardView extends ItemView {
         }
       }
 
-      private allTotal(days: any): number {
-        let total = 0;
+      /**
+       * 计算所有 token 总和（含 cache_read 和 reasoning）
+       */
+      private allTotalWithCache(days: any): { input: number; output: number; cache: number; reasoning: number } {
+        let input = 0, output = 0, cache = 0, reasoning = 0;
         for (const k of Object.keys(days)) {
           const d = days[k];
-          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0)
-                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+          // hermes
+          if (d.hermes) {
+            input += d.hermes.input || 0;
+            output += d.hermes.output || 0;
+            cache += d.hermes.cache || 0;
+          }
+          // dsh
+          if (d.dsh) {
+            input += d.dsh.input || 0;
+            output += d.dsh.output || 0;
+            cache += d.dsh.cache || 0;
+          }
+          // opencode
+          if (d.opencode) {
+            input += d.opencode.input || 0;
+            output += d.opencode.output || 0;
+            cache += d.opencode.cache || 0;
+            reasoning += d.opencode.reasoning || 0;
+          }
         }
-        return total;
+        return { input, output, cache, reasoning };
       }
 
       /**
@@ -2422,11 +2445,28 @@ class SmartDashboardView extends ItemView {
         return { hit, miss };
       }
 
+      /**
+       * 单日三源合并 token（口径统一：含 cache 与 reasoning）
+       * hermes/dsh/opencode 三源相加；reasoning 仅 opencode 有记录
+       */
+      private dailyTokens(d: any): { input: number; output: number; cache: number; reasoning: number } {
+        const h = d && d.hermes || {};
+        const s = d && d.dsh || {};
+        const o = d && d.opencode || {};
+        return {
+          input: (h.input || 0) + (s.input || 0) + (o.input || 0),
+          output: (h.output || 0) + (s.output || 0) + (o.output || 0),
+          cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0),
+          reasoning: (o.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0),
+        };
+      }
+
       private fmtTokens(n: number): string {
         if (!n) return '0';
-        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-        if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
-        return String(n);
+        const m = n / 1e6;
+        if (m >= 1) return m.toFixed(1) + 'M';          // 统一 M 单位（含 10 亿级以上也不升 G）
+        if (m >= 0.01) return m.toFixed(2) + 'M';       // 万级：0.16M
+        return String(Math.round(n));                   // 极小值显示原始数字
       }
 
       private sumRange(days: any, n: number): number {
@@ -2434,9 +2474,8 @@ class SmartDashboardView extends ItemView {
         const keys = Object.keys(days).sort();
         const recent = keys.slice(-n);
         for (const k of recent) {
-          const d = days[k];
-          total += (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0)
-                + (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0);
+          const dt = this.dailyTokens(days[k]);
+          total += dt.input + dt.output + dt.cache + dt.reasoning;
         }
         return total;
       }
@@ -2448,18 +2487,17 @@ class SmartDashboardView extends ItemView {
           const flow = container.createDiv({ cls: 'sd-usage-flow' });
           for (let day = 1; day <= dayCount; day++) {
             const key = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-            const d = days[key];
-            const inp = d && (d.hermes && d.hermes.input || 0) + (d.dsh && d.dsh.input || 0) + (d.opencode && d.opencode.input || 0) || 0;
-            const out = d && (d.hermes && d.hermes.output || 0) + (d.dsh && d.dsh.output || 0) + (d.opencode && d.opencode.output || 0) || 0;
+            const dt = this.dailyTokens(days[key]);
+            const total = dt.input + dt.output + dt.cache + dt.reasoning;
             const cell = flow.createDiv({ cls: 'sd-usage-cell' });
             let lv = 0;
-            if (inp > 2e8) lv = 4; else if (inp > 5e7) lv = 3; else if (inp > 1e7) lv = 2; else if (inp > 1e6) lv = 1;
+            if (total > 5e8) lv = 4; else if (total > 1.5e8) lv = 3; else if (total > 4e7) lv = 2; else if (total > 1e7) lv = 1;
             cell.addClass('sd-usage-lv' + lv);
             if (key === today) cell.addClass('sd-usage-today');
-            cell.setAttribute('title', key + ' 输入' + this.fmtTokens(inp) + ' 输出' + this.fmtTokens(out));
+            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + ' 缓存' + this.fmtTokens(dt.cache) + ' 推理' + this.fmtTokens(dt.reasoning) + '）');
           }
           const label = container.createDiv({ cls: 'sd-usage-caption' });
-          label.setText((month + 1) + '月 ' + dayCount + ' 天（绿=当日输入量）');
+          label.setText((month + 1) + '月 ' + dayCount + ' 天（绿=当日全量 token）');
         } catch (e) { /* 忽略 */ }
       }
 
@@ -2472,18 +2510,17 @@ class SmartDashboardView extends ItemView {
           for (let d = 1; d <= totalDays; d++) {
             const day = new Date(year, 0, d);          // 第 d 天（自动处理跨月）
             const key = day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0');
-            const rec = days[key];
-            const inp = rec && (rec.hermes && rec.hermes.input || 0) + (rec.dsh && rec.dsh.input || 0) + (rec.opencode && rec.opencode.input || 0) || 0;
-            const out = rec && (rec.hermes && rec.hermes.output || 0) + (rec.dsh && rec.dsh.output || 0) + (rec.opencode && rec.opencode.output || 0) || 0;
+            const dt = this.dailyTokens(days[key]);
+            const total = dt.input + dt.output + dt.cache + dt.reasoning;
             const cell = grid.createDiv({ cls: 'sd-usage-yearcell' });
             let lv = 0;
-            if (inp > 2e8) lv = 4; else if (inp > 5e7) lv = 3; else if (inp > 1e7) lv = 2; else if (inp > 1e6) lv = 1;
+            if (total > 5e8) lv = 4; else if (total > 1.5e8) lv = 3; else if (total > 4e7) lv = 2; else if (total > 1e7) lv = 1;
             cell.addClass('sd-usage-lv' + lv);
             if (key === today) cell.addClass('sd-usage-today');
-            cell.setAttribute('title', key + ' 输入' + this.fmtTokens(inp) + ' 输出' + this.fmtTokens(out));
+            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + ' 缓存' + this.fmtTokens(dt.cache) + ' 推理' + this.fmtTokens(dt.reasoning) + '）');
           }
           const label = container.createDiv({ cls: 'sd-usage-caption' });
-          label.setText(year + '年 1月-12月 每日一格（绿=当日输入量）');
+          label.setText(year + '年 1月-12月 每日一格（绿=当日全量 token）');
         } catch (e) { /* 忽略 */ }
       }
 }

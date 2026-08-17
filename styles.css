@@ -901,7 +901,7 @@
 .sd-usage-lv3 { background: #30a14e; }
 .sd-usage-lv4 { background: #216e39; }
 .sd-usage-today { outline: 2px solid var(--text-accent); }
-.sd-usage-summary { font-size: 12px; color: var(--text-muted); }
+.sd-usage-summary { font-size: 12px; color: var(--text-muted); flex: 1; min-width: 0; }
 .sd-usage-cache-rate { font-size: 11px; color: var(--text-muted); text-align: right; }
 
 /* 底部行：本周/累计（左） + 缓存命中率（右）同一行 */

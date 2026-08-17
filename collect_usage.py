@@ -175,7 +175,7 @@ def parse_dsh(sessions_dir):
 
 
 def parse_opencode(db_path):
-    """Return {date: {"input":.., "output":.., "cache":.., "calls":..}}.
+    """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "cache_write":.., "calls":..}}.
 
     Aggregates the opencode CLI session table (SQLite). time_created is a
     millisecond epoch timestamp; input excludes cache (consistent with dsh).
@@ -194,17 +194,20 @@ def parse_opencode(db_path):
         return stats
     try:
         cur = conn.execute(
-            "SELECT time_created, tokens_input, tokens_output, tokens_cache_read"
+            "SELECT time_created, tokens_input, tokens_output, tokens_cache_read,"
+            " tokens_reasoning, tokens_cache_write"
             " FROM session WHERE tokens_input > 0 OR tokens_output > 0"
         )
-        for time_created, inp, out, cache_read in cur.fetchall():
+        for time_created, inp, out, cache_read, reasoning, cache_write in cur.fetchall():
             date = date_from_time(time_created)
             if not date:
                 continue
-            rec = stats.setdefault(date, {"input": 0, "output": 0, "cache": 0, "calls": 0})
+            rec = stats.setdefault(date, {"input": 0, "output": 0, "cache": 0, "reasoning": 0, "cache_write": 0, "calls": 0})
             rec["input"] += int(inp or 0)
             rec["output"] += int(out or 0)
             rec["cache"] += int(cache_read or 0)
+            rec["reasoning"] += int(reasoning or 0)
+            rec["cache_write"] += int(cache_write or 0)
             rec["calls"] += 1
     except sqlite3.Error as exc:
         print("WARN: opencode db query failed:", exc, flush=True)
@@ -219,7 +222,7 @@ def load_existing(out_path):
         try:
             with open(out_path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
-            if data.get("schema_version") == 2 and isinstance(data.get("days"), dict):
+            if data.get("schema_version") == 3 and isinstance(data.get("days"), dict):
                 return data["days"]
         except Exception:
             pass
@@ -248,7 +251,7 @@ def main():
     out_path = OUT_JSON
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "days": days,
     }
