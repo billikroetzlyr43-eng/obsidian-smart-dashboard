@@ -14773,6 +14773,7 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
         VIEW_TYPE_SMART_DASHBOARD,
         (leaf) => new SmartDashboardView(leaf, this)
       );
+      this.addSettingTab(new SmartDashboardSettingTab(this.app, this));
       const ribbonIconEl = this.addRibbonIcon("layout-dashboard", `Smart Dashboard ${this.manifest.version}`, () => {
         this.activateView();
       });
@@ -14801,6 +14802,28 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
       workspace.revealLeaf(leaf);
     } catch (e) {
       console.error("SmartDashboard activateView error:", e);
+    }
+  }
+  async getCardVisibility() {
+    var _a;
+    const data = await this.loadData();
+    return (_a = data == null ? void 0 : data.cardVisibility) != null ? _a : {};
+  }
+  async setCardVisibility(cardId, visible) {
+    const data = await this.loadData() || {};
+    if (!data.cardVisibility) data.cardVisibility = {};
+    data.cardVisibility[cardId] = visible;
+    await this.saveData(data);
+  }
+  async refreshView() {
+    const { workspace } = this.app;
+    const leaves = workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD);
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view) {
+        await view.onClose();
+        await view.onOpen();
+      }
     }
   }
 };
@@ -15470,66 +15493,90 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     await this.loadLayout();
     const grid = content.createDiv("sd-grid");
     const cards = [];
-    const calendarCard = grid.createDiv("sd-card");
-    calendarCard.id = "sd-calendar-section";
-    this.applyCardSize(calendarCard);
-    const calendarBody = this.createCardBody(calendarCard);
-    cards.push(calendarCard);
-    await this.renderCalendarArea(calendarBody);
-    const quickJotCard = grid.createDiv("sd-card");
-    quickJotCard.id = "sd-quickjot-section";
-    this.applyCardSize(quickJotCard);
-    const quickJotBody = this.createCardBody(quickJotCard);
-    cards.push(quickJotCard);
-    this.renderQuickJotArea(quickJotBody);
-    const searchCard = grid.createDiv("sd-card");
-    searchCard.id = "sd-search-section";
-    this.applyCardSize(searchCard);
-    const searchBody = this.createCardBody(searchCard);
-    cards.push(searchCard);
-    this.renderSearchArea(searchBody);
-    const createCard = grid.createDiv("sd-card");
-    createCard.id = "sd-create-section";
-    this.applyCardSize(createCard);
-    const createBody = this.createCardBody(createCard);
-    cards.push(createCard);
-    this.renderCreateArea(createBody);
-    const statsCard = grid.createDiv("sd-card");
-    statsCard.id = "sd-stats-section";
-    this.applyCardSize(statsCard);
-    const statsBody = this.createCardBody(statsCard);
-    cards.push(statsCard);
-    this.renderStatsArea(statsBody);
-    const usageCard = grid.createDiv("sd-card");
-    usageCard.id = "sd-usage-section";
-    this.applyCardSize(usageCard);
-    const usageBody = this.createCardBody(usageCard);
-    cards.push(usageCard);
-    await this.renderUsageArea(usageBody);
-    const subscriptionsCard = grid.createDiv("sd-card");
-    subscriptionsCard.id = "sd-subscriptions-section";
-    this.applyCardSize(subscriptionsCard);
-    const subscriptionsBody = this.createCardBody(subscriptionsCard);
-    cards.push(subscriptionsCard);
-    await this.renderSubscriptionsArea(subscriptionsBody);
-    const scheduleCard = grid.createDiv("sd-card");
-    scheduleCard.id = "sd-schedule-section";
-    this.applyCardSize(scheduleCard);
-    const scheduleBody = this.createCardBody(scheduleCard);
-    cards.push(scheduleCard);
-    await this.renderScheduleArea(scheduleBody);
-    const todoCard = grid.createDiv("sd-card");
-    todoCard.id = "sd-todo-section";
-    this.applyCardSize(todoCard);
-    const todoBody = this.createCardBody(todoCard);
-    cards.push(todoCard);
-    await this.renderTodoArea(todoBody);
-    const tradingCard = grid.createDiv("sd-card");
-    tradingCard.id = "sd-trading-section";
-    this.applyCardSize(tradingCard);
-    const tradingBody = this.createCardBody(tradingCard);
-    cards.push(tradingCard);
-    this.renderTradingArea(tradingBody);
+    const visibility = await this.plugin.getCardVisibility();
+    const allCardIds = Object.keys(_SmartDashboardView.DEFAULT_LAYOUT);
+    const visibleIds = allCardIds.filter((id) => visibility[id] !== false);
+    await this.reflowLayoutForVisibleCards(visibleIds);
+    if (visibility["sd-calendar-section"] !== false) {
+      const calendarCard = grid.createDiv("sd-card");
+      calendarCard.id = "sd-calendar-section";
+      this.applyCardSize(calendarCard);
+      const calendarBody = this.createCardBody(calendarCard);
+      cards.push(calendarCard);
+      await this.renderCalendarArea(calendarBody);
+    }
+    if (visibility["sd-quickjot-section"] !== false) {
+      const quickJotCard = grid.createDiv("sd-card");
+      quickJotCard.id = "sd-quickjot-section";
+      this.applyCardSize(quickJotCard);
+      const quickJotBody = this.createCardBody(quickJotCard);
+      cards.push(quickJotCard);
+      this.renderQuickJotArea(quickJotBody);
+    }
+    if (visibility["sd-search-section"] !== false) {
+      const searchCard = grid.createDiv("sd-card");
+      searchCard.id = "sd-search-section";
+      this.applyCardSize(searchCard);
+      const searchBody = this.createCardBody(searchCard);
+      cards.push(searchCard);
+      this.renderSearchArea(searchBody);
+    }
+    if (visibility["sd-create-section"] !== false) {
+      const createCard = grid.createDiv("sd-card");
+      createCard.id = "sd-create-section";
+      this.applyCardSize(createCard);
+      const createBody = this.createCardBody(createCard);
+      cards.push(createCard);
+      this.renderCreateArea(createBody);
+    }
+    if (visibility["sd-stats-section"] !== false) {
+      const statsCard = grid.createDiv("sd-card");
+      statsCard.id = "sd-stats-section";
+      this.applyCardSize(statsCard);
+      const statsBody = this.createCardBody(statsCard);
+      cards.push(statsCard);
+      this.renderStatsArea(statsBody);
+    }
+    if (visibility["sd-usage-section"] !== false) {
+      const usageCard = grid.createDiv("sd-card");
+      usageCard.id = "sd-usage-section";
+      this.applyCardSize(usageCard);
+      const usageBody = this.createCardBody(usageCard);
+      cards.push(usageCard);
+      await this.renderUsageArea(usageBody);
+    }
+    if (visibility["sd-subscriptions-section"] !== false) {
+      const subscriptionsCard = grid.createDiv("sd-card");
+      subscriptionsCard.id = "sd-subscriptions-section";
+      this.applyCardSize(subscriptionsCard);
+      const subscriptionsBody = this.createCardBody(subscriptionsCard);
+      cards.push(subscriptionsCard);
+      await this.renderSubscriptionsArea(subscriptionsBody);
+    }
+    if (visibility["sd-schedule-section"] !== false) {
+      const scheduleCard = grid.createDiv("sd-card");
+      scheduleCard.id = "sd-schedule-section";
+      this.applyCardSize(scheduleCard);
+      const scheduleBody = this.createCardBody(scheduleCard);
+      cards.push(scheduleCard);
+      await this.renderScheduleArea(scheduleBody);
+    }
+    if (visibility["sd-todo-section"] !== false) {
+      const todoCard = grid.createDiv("sd-card");
+      todoCard.id = "sd-todo-section";
+      this.applyCardSize(todoCard);
+      const todoBody = this.createCardBody(todoCard);
+      cards.push(todoCard);
+      await this.renderTodoArea(todoBody);
+    }
+    if (visibility["sd-trading-section"] !== false) {
+      const tradingCard = grid.createDiv("sd-card");
+      tradingCard.id = "sd-trading-section";
+      this.applyCardSize(tradingCard);
+      const tradingBody = this.createCardBody(tradingCard);
+      cards.push(tradingCard);
+      this.renderTradingArea(tradingBody);
+    }
     this.applyLayout();
     this.applyScale();
     cards.forEach((c) => this.bindCardDrag(c));
@@ -15594,7 +15641,9 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async saveLayout() {
     try {
-      await this.plugin.saveData({ cardLayout: this.layoutData });
+      const data = await this.plugin.loadData() || {};
+      data.cardLayout = this.layoutData;
+      await this.plugin.saveData(data);
     } catch (e) {
     }
   }
@@ -15605,7 +15654,9 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     if (cols < 4) this.applyLayoutCompact();
     else this.applyLayout();
     try {
-      await this.plugin.saveData({ cardLayout: void 0 });
+      const data = await this.plugin.loadData() || {};
+      data.cardLayout = void 0;
+      await this.plugin.saveData(data);
     } catch (e) {
     }
     new import_obsidian.Notice("\u5E03\u5C40\u5DF2\u91CD\u7F6E\u4E3A\u9ED8\u8BA4");
@@ -15804,6 +15855,54 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
       if (!spot) spot = { x: 1, y: 501, w: p.w, h: p.h };
       placed.push(spot);
       next[id] = { x: spot.x, y: spot.y, w: p.w, h: p.h };
+    }
+    this.layoutData = next;
+    this.applyLayout();
+    await this.saveLayout();
+  }
+  async reflowLayoutForVisibleCards(visibleIds) {
+    const grid = this.getGrid();
+    if (!grid) return;
+    const m = this.getGridMetrics();
+    if (!m) return;
+    const { cols } = m;
+    if (cols < 4) return;
+    const visibleEntries = [];
+    for (const id of visibleIds) {
+      const existing = this.layoutData[id];
+      if (existing) {
+        visibleEntries.push({ id, w: existing.w, h: existing.h });
+      } else {
+        const defaultPos = _SmartDashboardView.DEFAULT_LAYOUT[id];
+        if (defaultPos) {
+          visibleEntries.push({ id, w: defaultPos.w, h: defaultPos.h });
+        } else {
+          visibleEntries.push({ id, w: 1, h: 1 });
+        }
+      }
+    }
+    visibleEntries.sort((a, b) => {
+      const posA = this.layoutData[a.id] || { y: 0, x: 0 };
+      const posB = this.layoutData[b.id] || { y: 0, x: 0 };
+      return posA.y - posB.y || posA.x - posB.x;
+    });
+    const placed = [];
+    const overlaps = (p) => placed.some((o) => p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y);
+    const next = {};
+    for (const { id, w, h } of visibleEntries) {
+      let spot = null;
+      for (let yy = 1; yy <= 500 && !spot; yy++) {
+        for (let xx = 1; xx <= cols - w + 1; xx++) {
+          const cand = { x: xx, y: yy, w, h };
+          if (!overlaps(cand)) {
+            spot = cand;
+            break;
+          }
+        }
+      }
+      if (!spot) spot = { x: 1, y: 501, w, h };
+      placed.push(spot);
+      next[id] = spot;
     }
     this.layoutData = next;
     this.applyLayout();
@@ -17164,6 +17263,39 @@ var ViewTradeModal = class extends import_obsidian.Modal {
   onClose() {
     const { contentEl } = this;
     contentEl.empty();
+  }
+};
+var CARD_LABELS = {
+  "sd-calendar-section": "\u65E5\u5386",
+  "sd-quickjot-section": "\u6781\u901F\u968F\u7B14",
+  "sd-search-section": "\u667A\u80FD\u68C0\u7D22",
+  "sd-create-section": "\u5FEB\u6377\u521B\u5EFA",
+  "sd-stats-section": "\u7EDF\u8BA1\u5206\u6790",
+  "sd-usage-section": "Token \u7528\u91CF",
+  "sd-subscriptions-section": "\u8BA2\u9605\u989D\u5EA6",
+  "sd-schedule-section": "\u65E5\u7A0B\u7BA1\u7406",
+  "sd-todo-section": "\u5F85\u529E\u4E8B\u9879",
+  "sd-trading-section": "\u4EA4\u6613\u590D\u76D8"
+};
+var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  async display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Smart Dashboard \u5361\u7247\u7BA1\u7406" });
+    containerEl.createEl("p", { text: "\u542F\u7528\u6216\u7981\u7528\u770B\u677F\u4E0A\u7684\u5361\u7247\u3002\u7981\u7528\u540E\u5361\u7247\u5C06\u9690\u85CF\u4E14\u529F\u80FD\u6682\u505C\u3002" });
+    const visibility = await this.plugin.getCardVisibility();
+    for (const [id, label] of Object.entries(CARD_LABELS)) {
+      new import_obsidian.Setting(containerEl).setName(label).setDesc(`\u63A7\u5236 ${label} \u5361\u7247\u7684\u663E\u793A\u4E0E\u529F\u80FD`).addToggle(
+        (toggle) => toggle.setValue(visibility[id] !== false).onChange(async (value) => {
+          await this.plugin.setCardVisibility(id, value);
+          await this.plugin.refreshView();
+        })
+      );
+    }
   }
 };
 /*! Bundled license information:

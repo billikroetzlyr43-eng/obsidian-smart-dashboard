@@ -1,142 +1,136 @@
-# HANDOFF — Smart Dashboard v4.2.4
+# HANDOFF — Smart Dashboard v4.3.0
 
 ## 版本信息
-- **版本**: 4.2.4
+- **版本**: 4.3.0
 - **发布日期**: 2026-08-17
-- **变更**: 新增订阅额度追踪卡片
+- **变更**: 新增卡片开关功能，支持隐藏/显示看板卡片并自动补位布局
 
 ---
 
 ## 本次更新内容
 
-### 新功能：订阅额度追踪卡片 (`sd-subscriptions-section`)
+### 新功能：卡片开关与自动补位布局
 
 #### 功能概述
-- 在 Smart Dashboard 中新增 2×1 尺寸的订阅额度卡片
-- 支持三种 AI 服务订阅：OpenCode Go、智谱 GLM、火山方舟
-- 实时显示各订阅的 5h/周/月 配额使用情况
-- 支持手动添加/删除订阅
-- 凭证加密存储
+- 在插件设置中新增 10 个卡片的启用/开关控制
+- 隐藏的卡片不显示在看板上，其功能（定时刷新、事件监听）暂停
+- 卡片隐藏后，其他卡片自动补位，保持布局紧凑
+- 重新启用卡片时，放置到第一个可用空位
+- 所有更改即时生效，无需重启 Obsidian
 
-#### 新增文件
-| 文件 | 说明 |
-|------|------|
-| `collect_subscriptions.py` | 配额采集脚本，支持三种订阅 + 加密存储 |
+#### 卡片列表
+| 卡片 ID | 名称 | 默认状态 |
+|---------|------|----------|
+| `sd-calendar-section` | 日历 | ✅ 启用 |
+| `sd-quickjot-section` | 极速随笔 | ✅ 启用 |
+| `sd-search-section` | 智能检索 | ✅ 启用 |
+| `sd-create-section` | 快捷创建 | ✅ 启用 |
+| `sd-stats-section` | 统计分析 | ✅ 启用 |
+| `sd-usage-section` | Token 用量 | ✅ 启用 |
+| `sd-subscriptions-section` | 订阅额度 | ✅ 启用 |
+| `sd-schedule-section` | 日程管理 | ✅ 启用 |
+| `sd-todo-section` | 待办事项 | ✅ 启用 |
+| `sd-trading-section` | 交易复盘 | ✅ 启用 |
 
-#### 修改文件
-| 文件 | 变更 |
-|------|------|
-| `main.ts` | 新增 3 个模态框类 + 卡片渲染逻辑 + 数据管理 |
-| `styles.css` | 新增模态框、删除按钮、订阅选择列表样式 |
-| `manifest.json` | 版本号 4.2.3 → 4.2.4 |
-| `package.json` | 版本号 4.2.3 → 4.2.4 |
-
-#### 布局调整
-```
-原布局 (v4.2.3):
-(1,5) 待办  (2,5) 日程  (3,4-5) 交易 2×2
-
-新布局 (v4.2.4):
-(1,5) 订阅额度 2×1  (3,5) 日程  (4,5) 待办  (3,4) 交易 2×1
-```
+#### 设置界面访问路径
+`设置 → 社区插件 → Smart Dashboard → 齿轮图标 → 卡片管理`
 
 ---
 
 ## 技术实现细节
 
-### 1. 数据存储
+### 1. 数据结构
+在 `data.json` 中新增 `cardVisibility` 字段：
+```json
+{
+  "cardLayout": { ... },
+  "cardVisibility": {
+    "sd-calendar-section": true,
+    "sd-quickjot-section": false,
+    ...
+  }
+}
 ```
-.smart-dashboard/
-  subscriptions.json           ← 配额数据（自动生成）
-  subscriptions_config.json    ← 凭证配置（加密存储）
-  .secret_key                  ← 加密密钥（机器绑定）
-```
+- 缺省值：未定义的卡片视为 `true`（向后兼容）
 
-### 2. 加密机制
-- 使用 XOR + Base64 加密
-- 密钥基于机器特征生成（hostname + machine + username）
-- 密钥存储在 `.secret_key` 文件中
-- 不同机器无法解密其他机器的凭证
+### 2. 设置界面
+- 新增 `SmartDashboardSettingTab` 类，继承 `PluginSettingTab`
+- 遍历所有卡片 ID，为每个卡片生成一个开关
+- 开关切换时调用 `plugin.setCardVisibility()` 并刷新视图
 
-### 3. API 接口
-| 服务 | API 端点 | 认证方式 |
-|------|----------|----------|
-| OpenCode Go | `GET https://opencode.ai/zen/go/v1/usage` | Bearer Token |
-| 智谱 GLM | `GET https://open.bigmodel.cn/api/monitor/usage/quota/limit` | Cookie |
-| 火山方舟 | 待实现 | API Key |
+### 3. 渲染逻辑修改
+在 `SmartDashboardView.onOpen()` 中：
+1. 获取 `visibility` 对象
+2. 调用 `reflowLayoutForVisibleCards(visibleIds)` 重排布局
+3. 为每个可见卡片创建 DOM，跳过隐藏卡片
 
-### 4. 模态框类
-| 类名 | 功能 |
+### 4. 布局自动补位算法
+新增 `reflowLayoutForVisibleCards()` 方法：
+- 收集所有可见卡片的尺寸（优先使用现有布局，否则用默认尺寸）
+- 按 `(y, x)` 顺序排序
+- 从 `(1,1)` 开始逐格扫描，放置到第一个不重叠的空位
+- 确保布局紧凑，无空洞
+- 与拖拽推挤算法一致
+
+### 5. 功能暂停机制
+- **定时器**：5 分钟刷新 Token 用量和订阅额度的定时器会检查 DOM 是否存在，隐藏卡片的 DOM 不存在，刷新自动跳过
+- **事件监听**：卡片 DOM 被移除后，其上的事件监听器自动垃圾回收
+- **数据采集**：后台 cron 任务持续运行，数据持久化在 JSON 文件中，卡片重新启用时直接读取最新数据
+
+### 6. 修改文件列表
+| 文件 | 变更 |
 |------|------|
-| `SelectSubscriptionModal` | 选择订阅类型 |
-| `AddSubscriptionModal` | 添加订阅（输入凭证） |
-| `DeleteConfirmModal` | 删除确认 |
+| `main.ts` | 新增设置标签页、卡片可见性检查、自动补位布局算法 |
+| `manifest.json` | 版本号 4.2.4 → 4.3.0 |
+| `package.json` | 版本号 4.2.4 → 4.3.0 |
 
 ---
 
 ## 使用方法
 
-### 添加订阅
-1. 点击 `📊 订阅额度` 卡片标题栏的 `➕` 按钮
-2. 选择订阅类型（OpenCode Go / 智谱 GLM / 火山方舟）
-3. 输入凭证（OpenCode Go 可留空自动读取）
-4. 点击确认
+### 隐藏/显示卡片
+1. 打开 Smart Dashboard 看板
+2. 进入插件设置（齿轮图标）
+3. 在“卡片管理”部分，切换对应卡片的开关
+4. 看板立即更新，隐藏的卡片消失，其他卡片自动补位
 
-### 删除订阅
-1. 点击订阅项右侧的 `🗑️` 按钮
-2. 在确认窗口点击"确认删除"
-
-### 手动采集
-```bash
-cd D:\workspace\01_Projects\obsidian-smart-dashboard
-python collect_subscriptions.py collect
-```
-
-### 管理命令
-```bash
-# 列出已配置的订阅
-python collect_subscriptions.py list
-
-# 添加订阅配置
-python collect_subscriptions.py add <provider_id> <key> <value>
-
-# 删除订阅配置
-python collect_subscriptions.py remove <provider_id>
-```
+### 布局重置
+- 点击看板右上角的“↺ 重置布局”按钮
+- 所有卡片恢复默认位置和尺寸
 
 ---
 
 ## 已知问题
-1. 智谱 GLM Cookie 会过期，需要定期手动更新
-2. 火山方舟 API 尚未实现（placeholder）
-3. 自动采集 cron 任务未配置
+1. 隐藏卡片后，其原有布局坐标被删除；启用时卡片会放置到第一个可用空位，可能改变用户自定义布局
+2. 窄模式（列数 < 4）下不触发自动补位，避免破坏流式布局
+3. 卡片开关状态存储在 `data.json` 中，手动删除该文件会重置所有开关为默认状态
 
 ---
 
 ## 后续扩展计划
-1. 实现火山方舟 API 采集
-2. 配置自动采集 cron 任务（每 10 分钟）
-3. 支持更多订阅类型（如 GitHub Copilot、Cursor 等）
-4. 添加配额告警功能
+1. 支持批量启用/禁用卡片
+2. 支持卡片分组管理（如“金融类”、“效率类”）
+3. 支持导出/导入卡片配置
+4. 添加卡片搜索功能（当卡片数量较多时）
 
 ---
 
 ## 构建信息
 - **构建命令**: `npm run build`
-- **构建产物**: `main.js` (551.4kb)
+- **构建产物**: `main.js` (556.3kb)
 - **部署位置**: `D:/Obsidian Vault/Obsidian Vault/.obsidian/plugins/obsidian-smart-dashboard/`
 
 ---
 
 ## Git 提交信息
 ```
-feat: 订阅额度追踪卡片 v4.2.4
+feat: 卡片开关功能 v4.3.0
 
-- 新增 sd-subscriptions-section 卡片（2×1）
-- 支持 OpenCode Go、智谱 GLM、火山方舟三种订阅
-- 凭证加密存储（XOR + Base64）
-- 支持手动添加/删除订阅
-- 新增 collect_subscriptions.py 采集脚本
+- 新增 SmartDashboardSettingTab 设置界面
+- 支持 10 个卡片的启用/禁用开关
+- 实现自动补位布局算法（reflowLayoutForVisibleCards）
+- 隐藏卡片时功能暂停，启用时恢复
+- 版本号升级至 4.3.0
 ```
 
 ---
