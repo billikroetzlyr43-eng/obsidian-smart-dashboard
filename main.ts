@@ -34,6 +34,201 @@ interface MoodItem {
     text: string;
 }
 
+// ===== 订阅模板配置 =====
+const SUBSCRIPTION_TEMPLATES: Record<string, {
+    name: string;
+    icon: string;
+    authType: 'api-key' | 'cookie';
+    authHint: string;
+    authPlaceholder: string;
+    autoDetect?: () => string;
+}> = {
+    'opencode-go': {
+        name: 'OpenCode Go',
+        icon: '🤖',
+        authType: 'api-key',
+        authHint: 'API Key 会自动从 auth.json 读取',
+        authPlaceholder: '留空则自动读取',
+        autoDetect: () => {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const authFile = path.join(require('os').homedir(), '.local/share/opencode/auth.json');
+                if (fs.existsSync(authFile)) {
+                    const auth = JSON.parse(fs.readFileSync(authFile, 'utf-8'));
+                    return auth['opencode-go']?.key || '';
+                }
+            } catch {}
+            return '';
+        }
+    },
+    'zhipu-glm': {
+        name: '智谱 GLM',
+        icon: '🔍',
+        authType: 'cookie',
+        authHint: '从浏览器登录 open.bigmodel.cn 后，F12 → Network → 复制 Cookie',
+        authPlaceholder: '粘贴 Cookie 值'
+    },
+    'volcengine': {
+        name: '火山方舟',
+        icon: '🌋',
+        authType: 'api-key',
+        authHint: '从火山方舟控制台获取 API Key',
+        authPlaceholder: '粘贴 API Key'
+    }
+};
+
+// ===== 添加订阅模态框 =====
+class AddSubscriptionModal extends Modal {
+    private providerId: string;
+    private credentialValue: string = '';
+    private onSubmit: (providerId: string, credential: string) => void;
+
+    constructor(app: App, providerId: string, onSubmit: (providerId: string, credential: string) => void) {
+        super(app);
+        this.providerId = providerId;
+        this.onSubmit = onSubmit;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        const template = SUBSCRIPTION_TEMPLATES[this.providerId];
+        
+        if (!template) {
+            contentEl.createDiv({ text: '未知的订阅类型' });
+            return;
+        }
+
+        // 标题
+        const header = contentEl.createDiv({ cls: 'sd-modal-header' });
+        header.createDiv({ text: template.icon, cls: 'sd-modal-icon' });
+        header.createDiv({ text: `添加 ${template.name}`, cls: 'sd-modal-title' });
+
+        // 认证方式说明
+        contentEl.createDiv({ 
+            text: template.authHint, 
+            cls: 'sd-modal-hint' 
+        });
+
+        // 输入框
+        const inputSetting = new Setting(contentEl)
+            .setName(template.authType === 'api-key' ? 'API Key' : 'Cookie')
+            .addText(text => {
+                text.setPlaceholder(template.authPlaceholder);
+                text.inputEl.style.width = '100%';
+                text.onChange(value => this.credentialValue = value);
+            });
+
+        // 如果有自动检测功能，尝试填充
+        if (template.autoDetect) {
+            const autoValue = template.autoDetect();
+            if (autoValue) {
+                inputSetting.setDesc('✅ 已自动检测到 API Key');
+            }
+        }
+
+        // 按钮
+        const buttonDiv = contentEl.createDiv({ cls: 'sd-modal-buttons' });
+        
+        buttonDiv.createEl('button', { text: '取消', cls: 'sd-btn' })
+            .addEventListener('click', () => this.close());
+        
+        buttonDiv.createEl('button', { text: '确认添加', cls: 'sd-btn primary' })
+            .addEventListener('click', () => {
+                this.onSubmit(this.providerId, this.credentialValue);
+                this.close();
+            });
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+// ===== 删除确认模态框 =====
+class DeleteConfirmModal extends Modal {
+    private providerName: string;
+    private providerIcon: string;
+    private onConfirm: () => void;
+
+    constructor(app: App, providerName: string, providerIcon: string, onConfirm: () => void) {
+        super(app);
+        this.providerName = providerName;
+        this.providerIcon = providerIcon;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+
+        // 标题
+        const header = contentEl.createDiv({ cls: 'sd-modal-header' });
+        header.createDiv({ text: '⚠️', cls: 'sd-modal-icon' });
+        header.createDiv({ text: '确认删除', cls: 'sd-modal-title' });
+
+        // 内容
+        contentEl.createDiv({ 
+            text: `确定要删除 ${this.providerIcon} ${this.providerName} 吗？`, 
+            cls: 'sd-modal-content' 
+        });
+        contentEl.createDiv({ 
+            text: '此操作不可撤销，需要重新添加才能恢复。', 
+            cls: 'sd-modal-warning' 
+        });
+
+        // 按钮
+        const buttonDiv = contentEl.createDiv({ cls: 'sd-modal-buttons' });
+        
+        buttonDiv.createEl('button', { text: '取消', cls: 'sd-btn' })
+            .addEventListener('click', () => this.close());
+        
+        buttonDiv.createEl('button', { text: '确认删除', cls: 'sd-btn danger' })
+            .addEventListener('click', () => {
+                this.onConfirm();
+                this.close();
+            });
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
+// ===== 选择订阅类型模态框 =====
+class SelectSubscriptionModal extends Modal {
+    private onSelect: (providerId: string) => void;
+
+    constructor(app: App, onSelect: (providerId: string) => void) {
+        super(app);
+        this.onSelect = onSelect;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+
+        // 标题
+        contentEl.createDiv({ text: '选择要添加的订阅', cls: 'sd-modal-title' });
+
+        // 订阅列表
+        const list = contentEl.createDiv({ cls: 'sd-subscription-select-list' });
+        
+        for (const [id, template] of Object.entries(SUBSCRIPTION_TEMPLATES)) {
+            const item = list.createDiv({ cls: 'sd-subscription-select-item' });
+            item.createDiv({ text: template.icon, cls: 'sd-subscription-select-icon' });
+            item.createDiv({ text: template.name, cls: 'sd-subscription-select-name' });
+            
+            item.addEventListener('click', () => {
+                this.onSelect(id);
+                this.close();
+            });
+        }
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
 class CreateTradeModal extends Modal {
     plugin: SmartDashboardPlugin;
     tickers: string[];
@@ -901,9 +1096,10 @@ class SmartDashboardView extends ItemView {
         'sd-create-section':    {x: 3, y: 2, w: 1, h: 1},
         'sd-stats-section':     {x: 1, y: 3, w: 2, h: 2},   // 统计 2×2
         'sd-usage-section':     {x: 3, y: 3, w: 2, h: 1},   // Token 改 2×1（年视图需宽度）
-        'sd-schedule-section':  {x: 2, y: 5, w: 1, h: 1},   // 日程移至 (2,5)
-        'sd-todo-section':      {x: 1, y: 5, w: 1, h: 1},   // 待办移至 (1,5)
-        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 2},   // 交易移至 (3,4) 2×2
+        'sd-subscriptions-section': {x: 1, y: 5, w: 2, h: 1}, // 订阅额度 2×1
+        'sd-schedule-section':  {x: 3, y: 5, w: 1, h: 1},   // 日程移至 (3,5)
+        'sd-todo-section':      {x: 4, y: 5, w: 1, h: 1},   // 待办移至 (4,5)
+        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 1},   // 交易改为 2×1（压缩高度）
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
@@ -1057,6 +1253,13 @@ class SmartDashboardView extends ItemView {
         cards.push(usageCard);
         await this.renderUsageArea(usageBody);
 
+        const subscriptionsCard = grid.createDiv('sd-card');
+        subscriptionsCard.id = 'sd-subscriptions-section';
+        this.applyCardSize(subscriptionsCard);
+        const subscriptionsBody = this.createCardBody(subscriptionsCard);
+        cards.push(subscriptionsCard);
+        await this.renderSubscriptionsArea(subscriptionsBody);
+
         const scheduleCard = grid.createDiv('sd-card');
         scheduleCard.id = 'sd-schedule-section';
         this.applyCardSize(scheduleCard);
@@ -1107,6 +1310,11 @@ class SmartDashboardView extends ItemView {
             if (el) {
                 const body = el.querySelector('.sd-usage-body') as HTMLElement | null;
                 if (body) { body.empty(); this.renderUsageBody(body); }
+            }
+            const subEl = document.getElementById('sd-subscriptions-section');
+            if (subEl) {
+                const subBody = subEl.querySelector('.sd-subscriptions-body') as HTMLElement | null;
+                if (subBody) { subBody.empty(); this.renderSubscriptionsBody(subBody); }
             }
         }, 300000));
     }
@@ -2522,6 +2730,229 @@ class SmartDashboardView extends ItemView {
           const label = container.createDiv({ cls: 'sd-usage-caption' });
           label.setText(year + '年 1月-12月 每日一格（绿=当日全量 token）');
         } catch (e) { /* 忽略 */ }
+      }
+
+      // ===== 订阅额度卡片 =====
+
+      private async renderSubscriptionsArea(card: HTMLElement): Promise<void> {
+        try {
+          // 标题 + 按钮
+          const header = card.createDiv({ cls: 'sd-section-title' });
+          header.setText('📊 订阅额度');
+          
+          // 添加按钮
+          const addBtn = header.createEl('button', { text: '➕', cls: 'sd-btn secondary' });
+          addBtn.style.marginLeft = '8px';
+          addBtn.style.padding = '0 6px';
+          addBtn.setAttribute('title', '添加订阅');
+          addBtn.addEventListener('click', () => {
+            new SelectSubscriptionModal(this.app, (providerId) => {
+              const template = SUBSCRIPTION_TEMPLATES[providerId];
+              if (template) {
+                new AddSubscriptionModal(this.app, providerId, async (id, credential) => {
+                  // 保存凭证并刷新
+                  await this.saveSubscriptionCredential(id, credential);
+                  const body = card.querySelector('.sd-subscriptions-body') as HTMLElement | null;
+                  if (body) { body.empty(); this.renderSubscriptionsBody(body); }
+                }).open();
+              }
+            }).open();
+          });
+          
+          // 刷新按钮
+          const refreshBtn = header.createEl('button', { text: '🔄', cls: 'sd-btn secondary' });
+          refreshBtn.style.marginLeft = '4px';
+          refreshBtn.style.padding = '0 6px';
+          refreshBtn.addEventListener('click', () => {
+            const body = card.querySelector('.sd-subscriptions-body') as HTMLElement | null;
+            if (body) { body.empty(); this.renderSubscriptionsBody(body); }
+          });
+          
+          // 数据区
+          const body = card.createDiv({ cls: 'sd-subscriptions-body' });
+          await this.renderSubscriptionsBody(body);
+        } catch (e) {
+          card.createDiv().setText('卡片渲染失败: ' + String(e));
+        }
+      }
+
+      private async saveSubscriptionCredential(providerId: string, credential: string): Promise<void> {
+        // 调用 Python 脚本保存凭证
+        const scriptPath = 'D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py';
+        const vaultPath = 'D:/Obsidian Vault/Obsidian Vault/.smart-dashboard';
+        
+        try {
+          const credKey = SUBSCRIPTION_TEMPLATES[providerId]?.authType === 'cookie' ? 'cookie' : 'apiKey';
+          
+          // 读取现有配置
+          const configPath = `${vaultPath}/subscriptions_config.json`;
+          let config: any = { providers: {} };
+          try {
+            const raw = await this.app.vault.adapter.read(configPath);
+            config = JSON.parse(raw);
+          } catch {}
+          
+          // 更新配置
+          if (!config.providers) config.providers = {};
+          config.providers[providerId] = {
+            enabled: true,
+            credentials: { [credKey]: credential },
+            added_at: new Date().toISOString()
+          };
+          
+          // 保存配置
+          await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+          
+          // 运行采集脚本
+          const { exec } = require('child_process');
+          exec(`python "${scriptPath}" collect`, (error: any, stdout: string, stderr: string) => {
+            if (error) {
+              console.error('Collect error:', error);
+            }
+          });
+          
+          new Notice(`已添加 ${SUBSCRIPTION_TEMPLATES[providerId]?.name || providerId}`);
+        } catch (e) {
+          new Notice('保存失败: ' + String(e));
+        }
+      }
+
+      private async renderSubscriptionsBody(body: HTMLElement): Promise<void> {
+        try {
+          // 读数据
+          let raw: string;
+          try {
+            raw = await this.app.vault.adapter.read('.smart-dashboard/subscriptions.json');
+          } catch (e) {
+            body.createDiv({ cls: 'sd-subscriptions-empty' }).setText('暂无订阅数据：点击 ➕ 添加');
+            return;
+          }
+          const data = JSON.parse(raw);
+          const providers = data.providers || [];
+          
+          if (providers.length === 0) {
+            body.createDiv({ cls: 'sd-subscriptions-empty' }).setText('暂无订阅数据：点击 ➕ 添加');
+            return;
+          }
+
+          // 渲染每个订阅
+          const list = body.createDiv({ cls: 'sd-subscriptions-list' });
+          for (const provider of providers) {
+            const item = list.createDiv({ cls: 'sd-subscriptions-item' });
+            
+            // 图标 + 名称
+            const info = item.createDiv({ cls: 'sd-subscriptions-info' });
+            info.createDiv({ cls: 'sd-subscriptions-icon', text: provider.icon || '📦' });
+            info.createDiv({ cls: 'sd-subscriptions-name', text: provider.name || provider.provider });
+            
+            // 配额窗口
+            const windows = provider.windows || {};
+            const windowsDiv = item.createDiv({ cls: 'sd-subscriptions-windows' });
+            
+            // Rolling (5h)
+            if (windows.rolling) {
+              const windowDiv = windowsDiv.createDiv({ cls: 'sd-subscriptions-window' });
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-label', text: '5h' });
+              const bar = windowDiv.createDiv({ cls: 'sd-subscriptions-bar' });
+              const fill = bar.createDiv({ cls: 'sd-subscriptions-bar-fill' });
+              fill.style.width = `${windows.rolling.percent || 0}%`;
+              this.applySubscriptionBarColor(fill, windows.rolling.percent || 0);
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-value', text: `${windows.rolling.percent || 0}%` });
+            }
+            
+            // Weekly
+            if (windows.weekly) {
+              const windowDiv = windowsDiv.createDiv({ cls: 'sd-subscriptions-window' });
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-label', text: '周' });
+              const bar = windowDiv.createDiv({ cls: 'sd-subscriptions-bar' });
+              const fill = bar.createDiv({ cls: 'sd-subscriptions-bar-fill' });
+              fill.style.width = `${windows.weekly.percent || 0}%`;
+              this.applySubscriptionBarColor(fill, windows.weekly.percent || 0);
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-value', text: `${windows.weekly.percent || 0}%` });
+            }
+            
+            // Monthly
+            if (windows.monthly) {
+              const windowDiv = windowsDiv.createDiv({ cls: 'sd-subscriptions-window' });
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-label', text: '月' });
+              const bar = windowDiv.createDiv({ cls: 'sd-subscriptions-bar' });
+              const fill = bar.createDiv({ cls: 'sd-subscriptions-bar-fill' });
+              fill.style.width = `${windows.monthly.percent || 0}%`;
+              this.applySubscriptionBarColor(fill, windows.monthly.percent || 0);
+              windowDiv.createDiv({ cls: 'sd-subscriptions-window-value', text: `${windows.monthly.percent || 0}%` });
+            }
+            
+            // 删除按钮
+            const deleteBtn = item.createEl('button', { 
+              text: '🗑️', 
+              cls: 'sd-subscriptions-delete-btn',
+              attr: { title: '删除' }
+            });
+            deleteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              new DeleteConfirmModal(
+                this.app, 
+                provider.name || provider.provider, 
+                provider.icon || '📦',
+                async () => {
+                  await this.deleteSubscription(provider.provider);
+                  body.empty();
+                  this.renderSubscriptionsBody(body);
+                }
+              ).open();
+            });
+          }
+          
+          // 更新时间
+          const footer = body.createDiv({ cls: 'sd-subscriptions-footer' });
+          footer.setText(`更新: ${data.updated_at ? new Date(data.updated_at).toLocaleString() : '未知'}`);
+          
+        } catch (e) {
+          body.createDiv().setText('卡片渲染失败: ' + String(e));
+        }
+      }
+
+      private async deleteSubscription(providerId: string): Promise<void> {
+        const vaultPath = 'D:/Obsidian Vault/Obsidian Vault/.smart-dashboard';
+        
+        try {
+          // 删除配置
+          const configPath = `${vaultPath}/subscriptions_config.json`;
+          try {
+            const raw = await this.app.vault.adapter.read(configPath);
+            const config = JSON.parse(raw);
+            if (config.providers && config.providers[providerId]) {
+              delete config.providers[providerId];
+              await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+            }
+          } catch {}
+          
+          // 删除配额数据
+          const dataPath = `${vaultPath}/subscriptions.json`;
+          try {
+            const raw = await this.app.vault.adapter.read(dataPath);
+            const data = JSON.parse(raw);
+            data.providers = (data.providers || []).filter((p: any) => p.provider !== providerId);
+            data.updated_at = new Date().toISOString();
+            await this.app.vault.adapter.write(dataPath, JSON.stringify(data, null, 2));
+          } catch {}
+          
+          new Notice(`已删除 ${SUBSCRIPTION_TEMPLATES[providerId]?.name || providerId}`);
+        } catch (e) {
+          new Notice('删除失败: ' + String(e));
+        }
+      }
+
+      private applySubscriptionBarColor(fill: HTMLElement, percent: number): void {
+        if (percent >= 90) {
+          fill.style.backgroundColor = 'var(--color-red)';
+        } else if (percent >= 70) {
+          fill.style.backgroundColor = 'var(--color-orange)';
+        } else if (percent >= 50) {
+          fill.style.backgroundColor = 'var(--color-yellow)';
+        } else {
+          fill.style.backgroundColor = 'var(--color-green)';
+        }
       }
 }
 

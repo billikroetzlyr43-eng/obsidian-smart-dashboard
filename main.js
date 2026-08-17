@@ -14507,6 +14507,140 @@ var auto_default = Chart;
 
 // main.ts
 var VIEW_TYPE_SMART_DASHBOARD = "smart-dashboard-view";
+var SUBSCRIPTION_TEMPLATES = {
+  "opencode-go": {
+    name: "OpenCode Go",
+    icon: "\u{1F916}",
+    authType: "api-key",
+    authHint: "API Key \u4F1A\u81EA\u52A8\u4ECE auth.json \u8BFB\u53D6",
+    authPlaceholder: "\u7559\u7A7A\u5219\u81EA\u52A8\u8BFB\u53D6",
+    autoDetect: () => {
+      var _a;
+      try {
+        const fs = require("fs");
+        const path = require("path");
+        const authFile = path.join(require("os").homedir(), ".local/share/opencode/auth.json");
+        if (fs.existsSync(authFile)) {
+          const auth = JSON.parse(fs.readFileSync(authFile, "utf-8"));
+          return ((_a = auth["opencode-go"]) == null ? void 0 : _a.key) || "";
+        }
+      } catch (e) {
+      }
+      return "";
+    }
+  },
+  "zhipu-glm": {
+    name: "\u667A\u8C31 GLM",
+    icon: "\u{1F50D}",
+    authType: "cookie",
+    authHint: "\u4ECE\u6D4F\u89C8\u5668\u767B\u5F55 open.bigmodel.cn \u540E\uFF0CF12 \u2192 Network \u2192 \u590D\u5236 Cookie",
+    authPlaceholder: "\u7C98\u8D34 Cookie \u503C"
+  },
+  "volcengine": {
+    name: "\u706B\u5C71\u65B9\u821F",
+    icon: "\u{1F30B}",
+    authType: "api-key",
+    authHint: "\u4ECE\u706B\u5C71\u65B9\u821F\u63A7\u5236\u53F0\u83B7\u53D6 API Key",
+    authPlaceholder: "\u7C98\u8D34 API Key"
+  }
+};
+var AddSubscriptionModal = class extends import_obsidian.Modal {
+  constructor(app, providerId, onSubmit) {
+    super(app);
+    this.credentialValue = "";
+    this.providerId = providerId;
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    const template = SUBSCRIPTION_TEMPLATES[this.providerId];
+    if (!template) {
+      contentEl.createDiv({ text: "\u672A\u77E5\u7684\u8BA2\u9605\u7C7B\u578B" });
+      return;
+    }
+    const header = contentEl.createDiv({ cls: "sd-modal-header" });
+    header.createDiv({ text: template.icon, cls: "sd-modal-icon" });
+    header.createDiv({ text: `\u6DFB\u52A0 ${template.name}`, cls: "sd-modal-title" });
+    contentEl.createDiv({
+      text: template.authHint,
+      cls: "sd-modal-hint"
+    });
+    const inputSetting = new import_obsidian.Setting(contentEl).setName(template.authType === "api-key" ? "API Key" : "Cookie").addText((text) => {
+      text.setPlaceholder(template.authPlaceholder);
+      text.inputEl.style.width = "100%";
+      text.onChange((value) => this.credentialValue = value);
+    });
+    if (template.autoDetect) {
+      const autoValue = template.autoDetect();
+      if (autoValue) {
+        inputSetting.setDesc("\u2705 \u5DF2\u81EA\u52A8\u68C0\u6D4B\u5230 API Key");
+      }
+    }
+    const buttonDiv = contentEl.createDiv({ cls: "sd-modal-buttons" });
+    buttonDiv.createEl("button", { text: "\u53D6\u6D88", cls: "sd-btn" }).addEventListener("click", () => this.close());
+    buttonDiv.createEl("button", { text: "\u786E\u8BA4\u6DFB\u52A0", cls: "sd-btn primary" }).addEventListener("click", () => {
+      this.onSubmit(this.providerId, this.credentialValue);
+      this.close();
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var DeleteConfirmModal = class extends import_obsidian.Modal {
+  constructor(app, providerName, providerIcon, onConfirm) {
+    super(app);
+    this.providerName = providerName;
+    this.providerIcon = providerIcon;
+    this.onConfirm = onConfirm;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    const header = contentEl.createDiv({ cls: "sd-modal-header" });
+    header.createDiv({ text: "\u26A0\uFE0F", cls: "sd-modal-icon" });
+    header.createDiv({ text: "\u786E\u8BA4\u5220\u9664", cls: "sd-modal-title" });
+    contentEl.createDiv({
+      text: `\u786E\u5B9A\u8981\u5220\u9664 ${this.providerIcon} ${this.providerName} \u5417\uFF1F`,
+      cls: "sd-modal-content"
+    });
+    contentEl.createDiv({
+      text: "\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\uFF0C\u9700\u8981\u91CD\u65B0\u6DFB\u52A0\u624D\u80FD\u6062\u590D\u3002",
+      cls: "sd-modal-warning"
+    });
+    const buttonDiv = contentEl.createDiv({ cls: "sd-modal-buttons" });
+    buttonDiv.createEl("button", { text: "\u53D6\u6D88", cls: "sd-btn" }).addEventListener("click", () => this.close());
+    buttonDiv.createEl("button", { text: "\u786E\u8BA4\u5220\u9664", cls: "sd-btn danger" }).addEventListener("click", () => {
+      this.onConfirm();
+      this.close();
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var SelectSubscriptionModal = class extends import_obsidian.Modal {
+  constructor(app, onSelect) {
+    super(app);
+    this.onSelect = onSelect;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.createDiv({ text: "\u9009\u62E9\u8981\u6DFB\u52A0\u7684\u8BA2\u9605", cls: "sd-modal-title" });
+    const list = contentEl.createDiv({ cls: "sd-subscription-select-list" });
+    for (const [id, template] of Object.entries(SUBSCRIPTION_TEMPLATES)) {
+      const item = list.createDiv({ cls: "sd-subscription-select-item" });
+      item.createDiv({ text: template.icon, cls: "sd-subscription-select-icon" });
+      item.createDiv({ text: template.name, cls: "sd-subscription-select-name" });
+      item.addEventListener("click", () => {
+        this.onSelect(id);
+        this.close();
+      });
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
 var CreateTradeModal = class extends import_obsidian.Modal {
   constructor(app, plugin, tickers, onSubmit) {
     super(app);
@@ -15372,6 +15506,12 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     const usageBody = this.createCardBody(usageCard);
     cards.push(usageCard);
     await this.renderUsageArea(usageBody);
+    const subscriptionsCard = grid.createDiv("sd-card");
+    subscriptionsCard.id = "sd-subscriptions-section";
+    this.applyCardSize(subscriptionsCard);
+    const subscriptionsBody = this.createCardBody(subscriptionsCard);
+    cards.push(subscriptionsCard);
+    await this.renderSubscriptionsArea(subscriptionsBody);
     const scheduleCard = grid.createDiv("sd-card");
     scheduleCard.id = "sd-schedule-section";
     this.applyCardSize(scheduleCard);
@@ -15417,6 +15557,14 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
         if (body) {
           body.empty();
           this.renderUsageBody(body);
+        }
+      }
+      const subEl = document.getElementById("sd-subscriptions-section");
+      if (subEl) {
+        const subBody = subEl.querySelector(".sd-subscriptions-body");
+        if (subBody) {
+          subBody.empty();
+          this.renderSubscriptionsBody(subBody);
         }
       }
     }, 3e5));
@@ -16769,6 +16917,191 @@ journal:
     } catch (e) {
     }
   }
+  // ===== 订阅额度卡片 =====
+  async renderSubscriptionsArea(card) {
+    try {
+      const header = card.createDiv({ cls: "sd-section-title" });
+      header.setText("\u{1F4CA} \u8BA2\u9605\u989D\u5EA6");
+      const addBtn = header.createEl("button", { text: "\u2795", cls: "sd-btn secondary" });
+      addBtn.style.marginLeft = "8px";
+      addBtn.style.padding = "0 6px";
+      addBtn.setAttribute("title", "\u6DFB\u52A0\u8BA2\u9605");
+      addBtn.addEventListener("click", () => {
+        new SelectSubscriptionModal(this.app, (providerId) => {
+          const template = SUBSCRIPTION_TEMPLATES[providerId];
+          if (template) {
+            new AddSubscriptionModal(this.app, providerId, async (id, credential) => {
+              await this.saveSubscriptionCredential(id, credential);
+              const body2 = card.querySelector(".sd-subscriptions-body");
+              if (body2) {
+                body2.empty();
+                this.renderSubscriptionsBody(body2);
+              }
+            }).open();
+          }
+        }).open();
+      });
+      const refreshBtn = header.createEl("button", { text: "\u{1F504}", cls: "sd-btn secondary" });
+      refreshBtn.style.marginLeft = "4px";
+      refreshBtn.style.padding = "0 6px";
+      refreshBtn.addEventListener("click", () => {
+        const body2 = card.querySelector(".sd-subscriptions-body");
+        if (body2) {
+          body2.empty();
+          this.renderSubscriptionsBody(body2);
+        }
+      });
+      const body = card.createDiv({ cls: "sd-subscriptions-body" });
+      await this.renderSubscriptionsBody(body);
+    } catch (e) {
+      card.createDiv().setText("\u5361\u7247\u6E32\u67D3\u5931\u8D25: " + String(e));
+    }
+  }
+  async saveSubscriptionCredential(providerId, credential) {
+    var _a, _b;
+    const scriptPath = "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py";
+    const vaultPath = "D:/Obsidian Vault/Obsidian Vault/.smart-dashboard";
+    try {
+      const credKey = ((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.authType) === "cookie" ? "cookie" : "apiKey";
+      const configPath = `${vaultPath}/subscriptions_config.json`;
+      let config = { providers: {} };
+      try {
+        const raw = await this.app.vault.adapter.read(configPath);
+        config = JSON.parse(raw);
+      } catch (e) {
+      }
+      if (!config.providers) config.providers = {};
+      config.providers[providerId] = {
+        enabled: true,
+        credentials: { [credKey]: credential },
+        added_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+      const { exec } = require("child_process");
+      exec(`python "${scriptPath}" collect`, (error, stdout, stderr) => {
+        if (error) {
+          console.error("Collect error:", error);
+        }
+      });
+      new import_obsidian.Notice(`\u5DF2\u6DFB\u52A0 ${((_b = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _b.name) || providerId}`);
+    } catch (e) {
+      new import_obsidian.Notice("\u4FDD\u5B58\u5931\u8D25: " + String(e));
+    }
+  }
+  async renderSubscriptionsBody(body) {
+    try {
+      let raw;
+      try {
+        raw = await this.app.vault.adapter.read(".smart-dashboard/subscriptions.json");
+      } catch (e) {
+        body.createDiv({ cls: "sd-subscriptions-empty" }).setText("\u6682\u65E0\u8BA2\u9605\u6570\u636E\uFF1A\u70B9\u51FB \u2795 \u6DFB\u52A0");
+        return;
+      }
+      const data = JSON.parse(raw);
+      const providers = data.providers || [];
+      if (providers.length === 0) {
+        body.createDiv({ cls: "sd-subscriptions-empty" }).setText("\u6682\u65E0\u8BA2\u9605\u6570\u636E\uFF1A\u70B9\u51FB \u2795 \u6DFB\u52A0");
+        return;
+      }
+      const list = body.createDiv({ cls: "sd-subscriptions-list" });
+      for (const provider of providers) {
+        const item = list.createDiv({ cls: "sd-subscriptions-item" });
+        const info = item.createDiv({ cls: "sd-subscriptions-info" });
+        info.createDiv({ cls: "sd-subscriptions-icon", text: provider.icon || "\u{1F4E6}" });
+        info.createDiv({ cls: "sd-subscriptions-name", text: provider.name || provider.provider });
+        const windows = provider.windows || {};
+        const windowsDiv = item.createDiv({ cls: "sd-subscriptions-windows" });
+        if (windows.rolling) {
+          const windowDiv = windowsDiv.createDiv({ cls: "sd-subscriptions-window" });
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-label", text: "5h" });
+          const bar = windowDiv.createDiv({ cls: "sd-subscriptions-bar" });
+          const fill2 = bar.createDiv({ cls: "sd-subscriptions-bar-fill" });
+          fill2.style.width = `${windows.rolling.percent || 0}%`;
+          this.applySubscriptionBarColor(fill2, windows.rolling.percent || 0);
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-value", text: `${windows.rolling.percent || 0}%` });
+        }
+        if (windows.weekly) {
+          const windowDiv = windowsDiv.createDiv({ cls: "sd-subscriptions-window" });
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-label", text: "\u5468" });
+          const bar = windowDiv.createDiv({ cls: "sd-subscriptions-bar" });
+          const fill2 = bar.createDiv({ cls: "sd-subscriptions-bar-fill" });
+          fill2.style.width = `${windows.weekly.percent || 0}%`;
+          this.applySubscriptionBarColor(fill2, windows.weekly.percent || 0);
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-value", text: `${windows.weekly.percent || 0}%` });
+        }
+        if (windows.monthly) {
+          const windowDiv = windowsDiv.createDiv({ cls: "sd-subscriptions-window" });
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-label", text: "\u6708" });
+          const bar = windowDiv.createDiv({ cls: "sd-subscriptions-bar" });
+          const fill2 = bar.createDiv({ cls: "sd-subscriptions-bar-fill" });
+          fill2.style.width = `${windows.monthly.percent || 0}%`;
+          this.applySubscriptionBarColor(fill2, windows.monthly.percent || 0);
+          windowDiv.createDiv({ cls: "sd-subscriptions-window-value", text: `${windows.monthly.percent || 0}%` });
+        }
+        const deleteBtn = item.createEl("button", {
+          text: "\u{1F5D1}\uFE0F",
+          cls: "sd-subscriptions-delete-btn",
+          attr: { title: "\u5220\u9664" }
+        });
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          new DeleteConfirmModal(
+            this.app,
+            provider.name || provider.provider,
+            provider.icon || "\u{1F4E6}",
+            async () => {
+              await this.deleteSubscription(provider.provider);
+              body.empty();
+              this.renderSubscriptionsBody(body);
+            }
+          ).open();
+        });
+      }
+      const footer = body.createDiv({ cls: "sd-subscriptions-footer" });
+      footer.setText(`\u66F4\u65B0: ${data.updated_at ? new Date(data.updated_at).toLocaleString() : "\u672A\u77E5"}`);
+    } catch (e) {
+      body.createDiv().setText("\u5361\u7247\u6E32\u67D3\u5931\u8D25: " + String(e));
+    }
+  }
+  async deleteSubscription(providerId) {
+    var _a;
+    const vaultPath = "D:/Obsidian Vault/Obsidian Vault/.smart-dashboard";
+    try {
+      const configPath = `${vaultPath}/subscriptions_config.json`;
+      try {
+        const raw = await this.app.vault.adapter.read(configPath);
+        const config = JSON.parse(raw);
+        if (config.providers && config.providers[providerId]) {
+          delete config.providers[providerId];
+          await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+        }
+      } catch (e) {
+      }
+      const dataPath = `${vaultPath}/subscriptions.json`;
+      try {
+        const raw = await this.app.vault.adapter.read(dataPath);
+        const data = JSON.parse(raw);
+        data.providers = (data.providers || []).filter((p) => p.provider !== providerId);
+        data.updated_at = (/* @__PURE__ */ new Date()).toISOString();
+        await this.app.vault.adapter.write(dataPath, JSON.stringify(data, null, 2));
+      } catch (e) {
+      }
+      new import_obsidian.Notice(`\u5DF2\u5220\u9664 ${((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.name) || providerId}`);
+    } catch (e) {
+      new import_obsidian.Notice("\u5220\u9664\u5931\u8D25: " + String(e));
+    }
+  }
+  applySubscriptionBarColor(fill2, percent) {
+    if (percent >= 90) {
+      fill2.style.backgroundColor = "var(--color-red)";
+    } else if (percent >= 70) {
+      fill2.style.backgroundColor = "var(--color-orange)";
+    } else if (percent >= 50) {
+      fill2.style.backgroundColor = "var(--color-yellow)";
+    } else {
+      fill2.style.backgroundColor = "var(--color-green)";
+    }
+  }
 };
 // 磁贴内容等比缩放：设计基准每格 300px，网格 gap 12px
 _SmartDashboardView.DESIGN_CELL = 300;
@@ -16784,12 +17117,14 @@ _SmartDashboardView.DEFAULT_LAYOUT = {
   // 统计 2×2
   "sd-usage-section": { x: 3, y: 3, w: 2, h: 1 },
   // Token 改 2×1（年视图需宽度）
-  "sd-schedule-section": { x: 2, y: 5, w: 1, h: 1 },
-  // 日程移至 (2,5)
-  "sd-todo-section": { x: 1, y: 5, w: 1, h: 1 },
-  // 待办移至 (1,5)
-  "sd-trading-section": { x: 3, y: 4, w: 2, h: 2 }
-  // 交易移至 (3,4) 2×2
+  "sd-subscriptions-section": { x: 1, y: 5, w: 2, h: 1 },
+  // 订阅额度 2×1
+  "sd-schedule-section": { x: 3, y: 5, w: 1, h: 1 },
+  // 日程移至 (3,5)
+  "sd-todo-section": { x: 4, y: 5, w: 1, h: 1 },
+  // 待办移至 (4,5)
+  "sd-trading-section": { x: 3, y: 4, w: 2, h: 1 }
+  // 交易改为 2×1（压缩高度）
 };
 var SmartDashboardView = _SmartDashboardView;
 var ViewTradeModal = class extends import_obsidian.Modal {
