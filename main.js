@@ -15439,11 +15439,12 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async getTheme() {
     const path = "00_System/theme.json";
-    if (!await this.app.vault.adapter.exists(path)) return "light";
+    if (!await this.app.vault.adapter.exists(path)) return "auto";
     try {
-      return JSON.parse(await this.app.vault.adapter.read(path)).theme || "light";
+      const t = JSON.parse(await this.app.vault.adapter.read(path)).theme;
+      return t === "dark" || t === "light" ? t : "auto";
     } catch (e) {
-      return "light";
+      return "auto";
     }
   }
   async saveTheme(theme) {
@@ -15456,21 +15457,21 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     container.empty();
     container.addClass("smart-dashboard-container");
     const savedTheme = await this.getTheme();
-    if (savedTheme === "dark") container.addClass("theme-dark");
+    const bodyDark = document.body.classList.contains("theme-dark");
+    const effectiveDark = savedTheme === "dark" || savedTheme === "auto" && bodyDark;
+    if (effectiveDark) container.addClass("theme-dark");
     const scrollContainer = container.createDiv("sd-tab-content-container");
     const content = scrollContainer.createDiv("sd-tab-content fade-in");
     const header = content.createDiv("sd-header");
     const titleContainer = header.createDiv({ attr: { style: "display:flex; align-items:center; gap: 15px; flex-wrap:wrap" } });
     titleContainer.createEl("h1", { text: `\u{1F680} Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: { style: "margin:0" } });
-    const themeBtn = titleContainer.createEl("button", { text: savedTheme === "dark" ? "\u{1F31E} \u4EAE\u8272" : "\u{1F319} \u6DF1\u8272", cls: "sd-btn secondary" });
+    const themeBtn = titleContainer.createEl("button", { text: effectiveDark ? "\u{1F31E} \u4EAE\u8272" : "\u{1F319} \u6DF1\u8272", cls: "sd-btn secondary" });
     themeBtn.onclick = async () => {
-      const isDark = container.hasClass("theme-dark");
-      const newTheme = isDark ? "light" : "dark";
-      if (newTheme === "dark") container.addClass("theme-dark");
-      else container.removeClass("theme-dark");
-      themeBtn.innerText = newTheme === "dark" ? "\u{1F31E} \u4EAE\u8272" : "\u{1F319} \u6DF1\u8272";
-      await this.saveTheme(newTheme);
-      this.updateCharts(true);
+      const current = await this.getTheme();
+      const bodyDarkNow = document.body.classList.contains("theme-dark");
+      const effDark = current === "dark" || current === "auto" && bodyDarkNow;
+      await this.saveTheme(effDark ? "light" : "dark");
+      this.refreshView();
     };
     const resetLayoutBtn = titleContainer.createEl("button", { text: "\u21BA \u91CD\u7F6E\u5E03\u5C40", cls: "sd-btn secondary", attr: { style: "padding: 6px 12px; font-size: 0.85em;" } });
     resetLayoutBtn.onclick = () => {
@@ -16465,7 +16466,7 @@ journal:
     } else if (this.lineChart) {
       return;
     }
-    const isDark = (_a = document.querySelector(".smart-dashboard-container")) == null ? void 0 : _a.classList.contains("theme-dark");
+    const isDark = document.body.classList.contains("theme-dark") || ((_a = document.querySelector(".smart-dashboard-container")) == null ? void 0 : _a.classList.contains("theme-dark"));
     const gridColor = isDark ? "#444444" : "#E6C280";
     const textColor = isDark ? "#E0E0E0" : "#5D4037";
     auto_default.defaults.color = textColor;
@@ -17043,12 +17044,32 @@ journal:
       const refreshBtn = header.createEl("button", { text: "\u{1F504}", cls: "sd-btn secondary" });
       refreshBtn.style.marginLeft = "4px";
       refreshBtn.style.padding = "0 6px";
-      refreshBtn.addEventListener("click", () => {
+      refreshBtn.addEventListener("click", async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.setText("\u23F3");
         const body2 = card.querySelector(".sd-subscriptions-body");
         if (body2) {
           body2.empty();
-          this.renderSubscriptionsBody(body2);
+          body2.createDiv({ cls: "sd-subscriptions-loading" }).setText("\u6B63\u5728\u91C7\u96C6\u6700\u65B0\u6570\u636E...");
+          try {
+            const { exec } = require("child_process");
+            await new Promise((resolve2, reject) => {
+              exec(
+                'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
+                (error) => {
+                  if (error) reject(error);
+                  else resolve2();
+                }
+              );
+            });
+          } catch (e) {
+            console.error("Subscription collect error:", e);
+          }
+          body2.empty();
+          await this.renderSubscriptionsBody(body2);
         }
+        refreshBtn.disabled = false;
+        refreshBtn.setText("\u{1F504}");
       });
       const body = card.createDiv({ cls: "sd-subscriptions-body" });
       await this.renderSubscriptionsBody(body);

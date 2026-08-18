@@ -323,26 +323,25 @@ def main():
     config = load_config()
     providers_config = config.get("providers", {})
     
-    # Fetch OpenCode Go
-    if providers_config.get("opencode-go", {}).get("enabled"):
-        api_key = get_provider_credential("opencode-go", "apiKey")
-        if not api_key:
-            # Try auto-detect from auth.json
-            auth_file = os.path.expanduser("~/.local/share/opencode/auth.json")
-            if os.path.exists(auth_file):
-                try:
-                    with open(auth_file, "r") as f:
-                        auth = json.load(f)
-                    api_key = auth.get("opencode-go", {}).get("key", "")
-                except:
-                    pass
-        
-        if api_key:
-            result = fetch_opencode_go(api_key)
-            if result:
-                data = merge_providers(data, result)
-                if not quiet:
-                    print(f"OpenCode Go: rolling={result['windows'].get('rolling', {}).get('percent', '?')}%", flush=True)
+    # Fetch OpenCode Go (always try — auto-detect from auth.json if no config)
+    api_key = get_provider_credential("opencode-go", "apiKey")
+    if not api_key:
+        # Auto-detect from auth.json
+        auth_file = os.path.expanduser("~/.local/share/opencode/auth.json")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "r") as f:
+                    auth = json.load(f)
+                api_key = auth.get("opencode-go", {}).get("key", "")
+            except:
+                pass
+    
+    if api_key:
+        result = fetch_opencode_go(api_key)
+        if result:
+            data = merge_providers(data, result)
+            if not quiet:
+                print(f"OpenCode Go: rolling={result['windows'].get('rolling', {}).get('percent', '?')}%", flush=True)
     
     # Fetch Zhipu GLM
     if providers_config.get("zhipu-glm", {}).get("enabled"):

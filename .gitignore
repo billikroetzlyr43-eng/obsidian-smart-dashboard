@@ -4,3 +4,4 @@ TASK*.md
 fix_jot.js
 .DS_Store
 data.json
+.env
