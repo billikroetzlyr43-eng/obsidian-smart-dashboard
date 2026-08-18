@@ -1181,8 +1181,11 @@ class SmartDashboardView extends ItemView {
     }
     async getTheme(): Promise<string> {
         const path = '00_System/theme.json';
-        if (!(await this.app.vault.adapter.exists(path))) return 'light';
-        try { return JSON.parse(await this.app.vault.adapter.read(path)).theme || 'light'; } catch { return 'light'; }
+        if (!(await this.app.vault.adapter.exists(path))) return 'auto';
+        try {
+            const t = JSON.parse(await this.app.vault.adapter.read(path)).theme;
+            return (t === 'dark' || t === 'light') ? t : 'auto';
+        } catch { return 'auto'; }
     }
     async saveTheme(theme: string) {
         const path = '00_System/theme.json';
@@ -1196,7 +1199,9 @@ class SmartDashboardView extends ItemView {
         container.addClass('smart-dashboard-container');
 
         const savedTheme = await this.getTheme();
-        if (savedTheme === 'dark') container.addClass('theme-dark');
+        const bodyDark = document.body.classList.contains('theme-dark');
+        const effectiveDark = savedTheme === 'dark' || (savedTheme === 'auto' && bodyDark);
+        if (effectiveDark) container.addClass('theme-dark');
 
         const scrollContainer = container.createDiv('sd-tab-content-container');
         const content = scrollContainer.createDiv('sd-tab-content fade-in');
@@ -1205,15 +1210,14 @@ class SmartDashboardView extends ItemView {
         const titleContainer = header.createDiv({attr: {style: 'display:flex; align-items:center; gap: 15px; flex-wrap:wrap'}});
         titleContainer.createEl('h1', { text: `🚀 Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: {style: 'margin:0'} });
         
-        const themeBtn = titleContainer.createEl('button', {text: savedTheme === 'dark' ? '🌞 亮色' : '🌙 深色', cls: 'sd-btn secondary'});
+        const themeBtn = titleContainer.createEl('button', {text: effectiveDark ? '🌞 亮色' : '🌙 深色', cls: 'sd-btn secondary'});
         themeBtn.onclick = async () => {
-            const isDark = container.hasClass('theme-dark');
-            const newTheme = isDark ? 'light' : 'dark';
-            if (newTheme === 'dark') container.addClass('theme-dark');
-            else container.removeClass('theme-dark');
-            themeBtn.innerText = newTheme === 'dark' ? '🌞 亮色' : '🌙 深色';
-            await this.saveTheme(newTheme);
-            this.updateCharts(true); 
+            // 方案A（2026-08-19）：默认 auto 跟随 Obsidian 全局；点击 = 手动固定为当前生效色的反向
+            const current = await this.getTheme();
+            const bodyDarkNow = document.body.classList.contains('theme-dark');
+            const effDark = current === 'dark' || (current === 'auto' && bodyDarkNow);
+            await this.saveTheme(effDark ? 'light' : 'dark');
+            this.refreshView();
         };
 
         const resetLayoutBtn = titleContainer.createEl('button', {text: '↺ 重置布局', cls: 'sd-btn secondary', attr: {style: 'padding: 6px 12px; font-size: 0.85em;'}});
@@ -2264,7 +2268,9 @@ class SmartDashboardView extends ItemView {
             // But since mode changes call this function, we do want to redraw.
         }
 
-        const isDark = document.querySelector('.smart-dashboard-container')?.classList.contains('theme-dark');
+        // 方案A（2026-08-19）：图表颜色跟随全局主题（body.theme-dark）+ 容器手动深色覆盖，双源兜底
+        const isDark = document.body.classList.contains('theme-dark')
+            || document.querySelector('.smart-dashboard-container')?.classList.contains('theme-dark');
         const gridColor = isDark ? '#444444' : '#E6C280';
         const textColor = isDark ? '#E0E0E0' : '#5D4037';
 
@@ -2882,9 +2888,27 @@ class SmartDashboardView extends ItemView {
           const refreshBtn = header.createEl('button', { text: '🔄', cls: 'sd-btn secondary' });
           refreshBtn.style.marginLeft = '4px';
           refreshBtn.style.padding = '0 6px';
-          refreshBtn.addEventListener('click', () => {
+          refreshBtn.addEventListener('click', async () => {
+            refreshBtn.disabled = true;
+            refreshBtn.setText('⏳');
             const body = card.querySelector('.sd-subscriptions-body') as HTMLElement | null;
-            if (body) { body.empty(); this.renderSubscriptionsBody(body); }
+            if (body) {
+              body.empty();
+              body.createDiv({ cls: 'sd-subscriptions-loading' }).setText('正在采集最新数据...');
+              try {
+                const { exec } = require('child_process');
+                await new Promise<void>((resolve, reject) => {
+                  exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
+                    (error: any) => { if (error) reject(error); else resolve(); });
+                });
+              } catch (e) {
+                console.error('Subscription collect error:', e);
+              }
+              body.empty();
+              await this.renderSubscriptionsBody(body);
+            }
+            refreshBtn.disabled = false;
+            refreshBtn.setText('🔄');
           });
           
           // 数据区

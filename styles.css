@@ -1,22 +1,35 @@
 /* styles.css */
 :root {
-    --sd-warm-bg: #FFFDF7;
-    --sd-warm-card-bg: #FFFFFF;
-    --sd-warm-border: #E6C280;
+    /* 方案A（2026-08-19）：颜色源统一到 Obsidian 核心变量，跟随全局主题（深浅自动适配）。
+       背景/文字用主题变量；强调色保留暖橙品牌色（深浅两主题下对比度均足够）。 */
+    --sd-warm-bg: var(--background-secondary);
+    --sd-warm-card-bg: var(--background-primary);
+    --sd-warm-border: var(--background-modifier-border);
     --sd-warm-accent: #F4A261;
     --sd-warm-accent-hover: #E76F51;
-        --sd-text: #5D4037;
-    --sd-text-light: #8D6E63;
+    --sd-text: var(--text-normal);
+    --sd-text-light: var(--text-muted);
 }
 
-.theme-dark {
+/* 手动深色覆盖：仅在用户"手动固定深色"（🌙按钮）且全局为浅色时，容器挂 .theme-dark。
+   全局深色时由上面 :root 映射自动生效，无需此块。
+   除 --sd-* 外，还须同步覆盖容器内用到的 Obsidian 核心变量
+   （Token/订阅/交易/统计卡直接引用它们，容器级遮蔽生效于容器后代）。 */
+.smart-dashboard-container.theme-dark {
     --sd-warm-bg: #1A1A1A;
     --sd-warm-card-bg: #2D2D2D;
     --sd-warm-border: #444444;
-    --sd-warm-accent: #E76F51;
-    --sd-warm-accent-hover: #F4A261;
     --sd-text: #E0E0E0;
-    --sd-text-light: #9E9E9E;
+    --sd-text-light: #B0B0B0;
+    --text-normal: #DCDDDE;
+    --text-muted: #ABABAB;
+    --text-faint: #8A8A8A;
+    --text-accent: #A98FFB;
+    --text-on-accent: #FFFFFF;
+    --background-secondary: #1F1F1F;
+    --background-modifier-border: #444444;
+    --background-modifier-hover: rgba(255, 255, 255, 0.06);
+    --interactive-accent: #8A5CF5;
 }
 
 .smart-dashboard-container {
@@ -58,13 +71,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    background: rgba(255, 253, 247, 0.97);
-    border-bottom: 1px solid rgba(230, 194, 128, 0.3);
-}
-
-.theme-dark .sd-nav-bar {
-    background: rgba(26, 26, 26, 0.97);
-    border-bottom: 1px solid rgba(68, 68, 68, 0.3);
+    background: var(--sd-warm-bg);
+    border-bottom: 1px solid var(--sd-warm-border);
 }
 
 .sd-nav-tabs-container {
@@ -161,7 +169,7 @@
     grid-auto-rows: var(--sd-cell, 280px);
     gap: 12px;
     /* 移除 grid-auto-flow: dense（显式坐标定位不需要 dense，会干扰） */
-    background: rgba(0, 0, 0, 0.03);  /* gap 露出的底色形成方格线视觉 */
+    background: color-mix(in srgb, var(--sd-warm-border) 35%, transparent);  /* gap 露出的底色形成方格线视觉，深浅主题自适应 */
     border-radius: 12px;
     padding: 12px;
     position: relative;  /* 拖拽占位 div 的定位基准 */
@@ -179,22 +187,16 @@
 .sd-size-1x1 { grid-column: span 1; grid-row: span 1; }
 
 .sd-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(255, 253, 247, 0.99));
-    border: 1px solid rgba(230, 194, 128, 0.3);
+    background: var(--sd-warm-card-bg);
+    border: 1px solid var(--sd-warm-border);
     border-radius: 12px;
     padding: 0;                    /* padding 移入 .sd-card-body 内部 */
-    box-shadow: 0 4px 12px rgba(230, 194, 128, 0.1);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--sd-warm-accent) 15%, transparent);
     transition: box-shadow 0.3s ease, grid-row 0.25s ease, grid-column 0.25s ease;
     position: relative;
     overflow: hidden;
     z-index: 1;
     /* 等比缩放：.sd-card 仅作定位容器，内容由 .sd-card-body 按设计尺寸渲染并整体 scale */
-}
-
-.theme-dark .sd-card {
-    background: linear-gradient(135deg, rgba(45, 45, 45, 0.97), rgba(26, 26, 26, 0.99));
-    border: 1px solid rgba(68, 68, 68, 0.3);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* 等比缩放内容容器：按设计尺寸（--sd-scale）整体缩放，无滚动、无变形 */
@@ -211,10 +213,10 @@
 }
 
 .sd-card:hover {
-    box-shadow: 0 12px 40px rgba(230, 194, 128, 0.25);
+    box-shadow: 0 12px 40px color-mix(in srgb, var(--sd-warm-accent) 30%, transparent);
 }
 
-.theme-dark .sd-card:hover {
+body.theme-dark .sd-card:hover {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
@@ -495,7 +497,7 @@
     position: relative;
 }
 .sd-calendar-day:hover { background-color: var(--sd-warm-bg); }
-.sd-calendar-day.other-month { color: #ccc; border-color: #eee; }
+.sd-calendar-day.other-month { color: var(--text-faint); border-color: var(--background-modifier-border); }
 .sd-calendar-day.today { background-color: rgba(244, 162, 97, 0.1); border-color: var(--sd-warm-accent); font-weight: bold; }
 .sd-calendar-emoji { 
     position: absolute;
@@ -558,7 +560,7 @@
 .sd-todo-subtasks {
     margin-top: 5px;
     padding-left: 10px;
-    border-left: 2px solid rgba(230, 194, 128, 0.4);
+    border-left: 2px solid var(--sd-warm-border);
     font-size: 0.9em;
 }
 
@@ -632,7 +634,7 @@
     bottom: 0;
     left: 24px;
     width: 2px;
-    background: rgba(230, 194, 128, 0.3);
+    background: var(--sd-warm-border);
 }
 
 .sd-timeline-item {
@@ -673,15 +675,10 @@
 }
 
 .sd-timeline-content {
-    background: rgba(255, 253, 247, 0.5);
-    border: 1px solid rgba(230, 194, 128, 0.2);
+    background: var(--sd-warm-card-bg);
+    border: 1px solid var(--sd-warm-border);
     padding: 10px 15px;
     border-radius: 8px;
-}
-
-.theme-dark .sd-timeline-content {
-    background: rgba(45, 45, 45, 0.5);
-    border: 1px solid rgba(68, 68, 68, 0.2);
 }
 
 .sd-timeline-time {
@@ -773,7 +770,7 @@
     display: flex;
     justify-content: space-around;
     padding: 8px;          /* 问题3：统计数字行 padding 减半 */
-    background: rgba(244, 162, 97, 0.1);
+    background: rgba(244, 162, 97, 0.06); /* 0.1→0.06：浅色下橙字对比升到 ~3:1，深色下合成更贴近卡片底色 */
     border-radius: 8px;
     margin-bottom: 8px;
 }
@@ -900,6 +897,18 @@
 .sd-usage-lv2 { background: #40c463; }
 .sd-usage-lv3 { background: #30a14e; }
 .sd-usage-lv4 { background: #216e39; }
+/* 深色主题热力图（GitHub 深色风格）：lv0 改深灰避免"全白误亮"，色阶整体加深。
+   双选择器：全局深色（body.theme-dark）+ 手动深色（容器 .theme-dark，全局浅色时） */
+body.theme-dark .sd-usage-lv0,
+.smart-dashboard-container.theme-dark .sd-usage-lv0 { background: #373737; }
+body.theme-dark .sd-usage-lv1,
+.smart-dashboard-container.theme-dark .sd-usage-lv1 { background: #0e4429; }
+body.theme-dark .sd-usage-lv2,
+.smart-dashboard-container.theme-dark .sd-usage-lv2 { background: #006d32; }
+body.theme-dark .sd-usage-lv3,
+.smart-dashboard-container.theme-dark .sd-usage-lv3 { background: #26a641; }
+body.theme-dark .sd-usage-lv4,
+.smart-dashboard-container.theme-dark .sd-usage-lv4 { background: #39d353; }
 .sd-usage-today { outline: 2px solid var(--text-accent); }
 .sd-usage-summary { font-size: 12px; color: var(--text-muted); flex: 1; min-width: 0; }
 .sd-usage-cache-rate { font-size: 11px; color: var(--text-muted); text-align: right; }
@@ -920,7 +929,7 @@
 .sd-usage-yearcell { width: 8px; height: 7px; border-radius: 1px; flex-shrink: 0; } /* 改动1：固定 8×7px 格子 */
 .sd-usage-yearlabel { font-size: 9px; color: var(--text-muted); }
 .sd-usage-yearval { font-size: 8px; font-weight: 600; color: var(--text-normal); }
-.sd-usage-caption { font-size: 10px; color: var(--text-faint); margin-top: 2px; } /* 问题4：caption margin 压缩 */
+.sd-usage-caption { font-size: 10px; color: var(--text-muted); margin-top: 2px; } /* 问题4：caption margin 压缩 */
 /* Token 用量卡片 v3 */
 .sd-usage-flow { display: flex; flex-wrap: wrap; gap: 3px; }
 
@@ -942,7 +951,8 @@
     overflow: hidden;
 }
 
-.sd-subscriptions-empty {
+.sd-subscriptions-empty,
+.sd-subscriptions-loading {
     font-size: 12px;
     color: var(--text-muted);
     text-align: center;
@@ -1031,7 +1041,7 @@
 
 .sd-subscriptions-footer {
     font-size: 10px;
-    color: var(--text-faint);
+    color: var(--text-muted);
     text-align: right;
     margin-top: 4px;
 }
