@@ -2745,6 +2745,13 @@ class SmartDashboardView extends ItemView {
             cache += d.workbuddy.cache || 0;
             reasoning += d.workbuddy.reasoning || 0;
           }
+          // codebuddy
+          if (d.codebuddy) {
+            input += d.codebuddy.input || 0;
+            output += d.codebuddy.output || 0;
+            cache += d.codebuddy.cache || 0;
+            reasoning += d.codebuddy.reasoning || 0;
+          }
         }
         return { input, output, cache, reasoning };
       }
@@ -2755,6 +2762,7 @@ class SmartDashboardView extends ItemView {
        * - dsh:    cache=cacheReadTokens（不含于 inputTokens）→ 未命中 = input
        * - opencode: cache=tokens_cache_read（不含于 inputTokens）→ 未命中 = input
        * - workbuddy: inputTokens 已含 cached_tokens，采集时已折算为未命中 → 未命中 = input
+       * - codebuddy: 同 workbuddy，inputTokens 已含 cached_tokens，采集时已折算为未命中 → 未命中 = input
        */
       private cacheStats(days: any, prefix: string): { hit: number; miss: number } {
         let hit = 0, miss = 0;
@@ -2778,24 +2786,29 @@ class SmartDashboardView extends ItemView {
             hit += d.workbuddy.cache || 0;
             miss += d.workbuddy.input || 0;
           }
+          if (d.codebuddy) {
+            hit += d.codebuddy.cache || 0;
+            miss += d.codebuddy.input || 0;
+          }
         }
         return { hit, miss };
       }
 
       /**
-       * 单日四源合并 token（口径统一：含 cache 与 reasoning）
-       * hermes/dsh/opencode/workbuddy 四源相加；reasoning 来自 opencode/workbuddy
+       * 单日五源合并 token（口径统一：含 cache 与 reasoning）
+       * hermes/dsh/opencode/workbuddy/codebuddy 五源相加；reasoning 来自 opencode/workbuddy/codebuddy
        */
       private dailyTokens(d: any): { input: number; output: number; cache: number; reasoning: number } {
         const h = d && d.hermes || {};
         const s = d && d.dsh || {};
         const o = d && d.opencode || {};
         const w = d && d.workbuddy || {};
+        const c = d && d.codebuddy || {};
         return {
-          input: (h.input || 0) + (s.input || 0) + (o.input || 0) + (w.input || 0),
-          output: (h.output || 0) + (s.output || 0) + (o.output || 0) + (w.output || 0),
-          cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0) + (w.cache || 0),
-          reasoning: (o.reasoning || 0) + (w.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0),
+          input: (h.input || 0) + (s.input || 0) + (o.input || 0) + (w.input || 0) + (c.input || 0),
+          output: (h.output || 0) + (s.output || 0) + (o.output || 0) + (w.output || 0) + (c.output || 0),
+          cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0) + (w.cache || 0) + (c.cache || 0),
+          reasoning: (o.reasoning || 0) + (w.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0) + (c.reasoning || 0),
         };
       }
 

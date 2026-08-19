@@ -9,6 +9,7 @@ Sources:
   - dsh:    C:/Users/华为/.dsh/sessions/*.jsonl.zstd assistant/message events
   - opencode: C:/Users/华为/.local/share/opencode/opencode.db session table
   - workbuddy: C:/Users/华为/.workbuddy/projects/**/*.jsonl message events
+  - codebuddy: C:/Users/华为/.codebuddy/projects/**/*.jsonl message events
 """
 
 import glob
@@ -40,6 +41,7 @@ HERMES_LOG = r"D:/Hermes/logs/agent.log"
 DSH_SESSIONS_DIR = r"C:/Users/华为/.dsh/sessions"
 OPENCODE_DB = r"C:/Users/华为/.local/share/opencode/opencode.db"
 WORKBUDDY_PROJECTS_DIR = r"C:/Users/华为/.workbuddy/projects"
+CODEBUDDY_PROJECTS_DIR = r"C:/Users/华为/.codebuddy/projects"
 OUT_JSON = r"D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/usage_daily.json"
 
 # ---------------------------------------------------------------- regexes
@@ -252,6 +254,84 @@ def parse_workbuddy(projects_dir):
     return stats
 
 
+def parse_codebuddy(projects_dir):
+    """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "calls":..}}.
+
+    Walks CodeBuddy CLI session jsonl files under projects_dir. Token data
+    lives in evt.providerData.usage (NOT evt.usage, NOT evt.data.usage).
+    inputTokens already includes cached_tokens (OpenAI style) → stored input
+    is the cache-miss value max(0, inputTokens - cache), aligned with
+    workbuddy/dsh/opencode (prevents cache from being double-counted in
+    totals). Events without providerData.usage (reasoning /
+    function_call_result / file-history-snapshot / ...) are skipped.
+    Damaged lines are skipped. Missing dir yields {} with WARN.
+    """
+    stats = {}
+    if not os.path.isdir(projects_dir):
+        print("WARN: codebuddy projects dir not found:", projects_dir, flush=True)
+        return stats
+    for root, _dirs, files in os.walk(projects_dir):
+        for name in files:
+            if not name.endswith(".jsonl"):
+                continue
+            path = os.path.join(root, name)
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    for raw in fh:
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        try:
+                            evt = json.loads(raw)
+                        except Exception:
+                            continue
+                        provider_data = evt.get("providerData")
+                        if not isinstance(provider_data, dict):
+                            continue
+                        usage = provider_data.get("usage")
+                        if not isinstance(usage, dict):
+                            continue
+                        try:
+                            input_tokens = int(usage.get("inputTokens") or 0)
+                            output_tokens = int(usage.get("outputTokens") or 0)
+                        except (ValueError, TypeError):
+                            continue
+                        if input_tokens == 0 and output_tokens == 0:
+                            continue
+                        cache = sum(
+                            d.get("cached_tokens", 0)
+                            for d in (usage.get("inputTokensDetails") or [])
+                            if isinstance(d, dict)
+                        )
+                        reasoning = sum(
+                            d.get("reasoning_tokens", 0)
+                            for d in (usage.get("outputTokensDetails") or [])
+                            if isinstance(d, dict)
+                        )
+                        try:
+                            cache = int(cache)
+                            reasoning = int(reasoning)
+                        except (ValueError, TypeError):
+                            cache = 0
+                            reasoning = 0
+                        miss_input = max(0, input_tokens - cache)
+                        date = date_from_time(evt.get("timestamp"))
+                        if not date:
+                            continue
+                        rec = stats.setdefault(
+                            date,
+                            {"input": 0, "output": 0, "cache": 0, "reasoning": 0, "calls": 0},
+                        )
+                        rec["input"] += miss_input
+                        rec["output"] += output_tokens
+                        rec["cache"] += cache
+                        rec["reasoning"] += reasoning
+                        rec["calls"] += 1
+            except OSError:
+                continue
+    return stats
+
+
 def parse_opencode(db_path):
     """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "cache_write":.., "calls":..}}.
 
@@ -300,7 +380,7 @@ def load_existing(out_path):
         try:
             with open(out_path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
-            if data.get("schema_version") in (3, 4) and isinstance(data.get("days"), dict):
+            if data.get("schema_version") in (3, 4, 5) and isinstance(data.get("days"), dict):
                 return data["days"]
         except Exception:
             pass
@@ -321,17 +401,19 @@ def main():
     dsh = parse_dsh(DSH_SESSIONS_DIR)
     opencode = parse_opencode(OPENCODE_DB)
     workbuddy = parse_workbuddy(WORKBUDDY_PROJECTS_DIR)
+    codebuddy = parse_codebuddy(CODEBUDDY_PROJECTS_DIR)
 
     days = load_existing(OUT_JSON)
     days = merge_days(days, hermes, "hermes")
     days = merge_days(days, dsh, "dsh")
     days = merge_days(days, opencode, "opencode")
     days = merge_days(days, workbuddy, "workbuddy")
+    days = merge_days(days, codebuddy, "codebuddy")
 
     out_path = OUT_JSON
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     payload = {
-        "schema_version": 4,
+        "schema_version": 5,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "days": days,
     }
