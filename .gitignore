@@ -5,3 +5,4 @@ fix_jot.js
 .DS_Store
 data.json
 .env
+__pycache__/
