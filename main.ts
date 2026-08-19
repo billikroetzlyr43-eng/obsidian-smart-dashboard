@@ -2621,25 +2621,25 @@ class SmartDashboardView extends ItemView {
           const refreshBtn = header.createEl('button', { text: '🔄', cls: 'sd-btn secondary' });
           refreshBtn.style.marginLeft = '8px';
           refreshBtn.style.padding = '0 6px';
+          const statusEl = header.createEl('span', { text: '⏳ 正在获取数据...', cls: 'sd-usage-refresh-status' });
+          statusEl.style.display = 'none';
           refreshBtn.addEventListener('click', async () => {
             refreshBtn.disabled = true;
             refreshBtn.setText('⏳');
+            statusEl.style.display = '';
             const body = card.querySelector('.sd-usage-body') as HTMLElement | null;
-            if (body) {
-              body.empty();
-              body.createDiv({ cls: 'sd-usage-loading' }).setText('正在采集最新数据...');
-              try {
-                const { exec } = require('child_process');
-                await new Promise<void>((resolve, reject) => {
-                  exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
-                    (error: any) => { if (error) reject(error); else resolve(); });
-                });
-              } catch (e) {
-                console.error('Usage collect error:', e);
-              }
-              body.empty();
-              await this.renderUsageBody(body);
+            try {
+              const { exec } = require('child_process');
+              await new Promise<void>((resolve, reject) => {
+                exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
+                  (error: any) => { if (error) reject(error); else resolve(); });
+              });
+            } catch (e) {
+              console.error('Usage collect error:', e);
             }
+            // 采集完成（含失败）：整体重渲染（读 JSON 兜底），面板不因刷新变空
+            if (body) { body.empty(); await this.renderUsageBody(body); }
+            statusEl.style.display = 'none';
             refreshBtn.disabled = false;
             refreshBtn.setText('🔄');
           });
@@ -2677,11 +2677,11 @@ class SmartDashboardView extends ItemView {
           const totalBox = body.createDiv({ cls: 'sd-usage-total' });
           totalBox.createDiv({ text: '本月消耗', cls: 'sd-usage-total-label' });
           totalBox.createDiv({ text: this.fmtTokens(monthAll.input + monthAll.output + monthAll.cache + monthAll.reasoning), cls: 'sd-usage-total-value' });
-          totalBox.createDiv({ text: '输入 ' + this.fmtTokens(monthAll.input) + ' ｜ 输出 ' + this.fmtTokens(monthAll.output) + ' ｜ 缓存 ' + this.fmtTokens(monthAll.cache), cls: 'sd-usage-total-sub' });
+          totalBox.createDiv({ text: '输入 ' + this.fmtTokens(monthAll.input) + ' ｜ 输出 ' + this.fmtTokens(monthAll.output), cls: 'sd-usage-total-sub' });
           // 今日（全部 token）
           const t = this.dailyTokens(days[today]);
           const stat = body.createDiv({ cls: 'sd-usage-stats' });
-          stat.setText('今日 ' + this.fmtTokens(t.input + t.output + t.cache + t.reasoning) + '（输入' + this.fmtTokens(t.input) + ' 输出' + this.fmtTokens(t.output) + ' 缓存' + this.fmtTokens(t.cache) + '）');
+          stat.setText('今日 ' + this.fmtTokens(t.input + t.output + t.cache + t.reasoning) + '（输入' + this.fmtTokens(t.input) + ' 输出' + this.fmtTokens(t.output) + '）');
           // 月/年切换
           const seg = body.createDiv({ cls: 'sd-usage-seg' });
           const mBtn = seg.createEl('button', { text: '月', cls: 'sd-btn secondary active' });
@@ -2702,8 +2702,7 @@ class SmartDashboardView extends ItemView {
           const totals = this.allTotalWithCache(days);
           const totalAll = totals.input + totals.output + totals.cache + totals.reasoning;
           sum.setText('本周 ' + this.fmtTokens(this.sumRange(days, 7)) + ' ｜ 累计 ' + this.fmtTokens(totalAll)
-            + '（输入' + this.fmtTokens(totals.input) + ' 输出' + this.fmtTokens(totals.output)
-            + ' 缓存' + this.fmtTokens(totals.cache) + ' 推理' + this.fmtTokens(totals.reasoning) + '）');
+            + '（输入' + this.fmtTokens(totals.input) + ' 输出' + this.fmtTokens(totals.output) + '）');
           const cs = this.cacheStats(days, monthKey);
           const rateStr = (cs.hit + cs.miss) > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + '%' : '—';
           const rateLine = bottomRow.createDiv({ cls: 'sd-usage-cache-rate' });
@@ -2820,7 +2819,7 @@ class SmartDashboardView extends ItemView {
             if (total > 5e8) lv = 4; else if (total > 1.5e8) lv = 3; else if (total > 4e7) lv = 2; else if (total > 1e7) lv = 1;
             cell.addClass('sd-usage-lv' + lv);
             if (key === today) cell.addClass('sd-usage-today');
-            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + ' 缓存' + this.fmtTokens(dt.cache) + ' 推理' + this.fmtTokens(dt.reasoning) + '）');
+            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + '）');
           }
           const label = container.createDiv({ cls: 'sd-usage-caption' });
           label.setText((month + 1) + '月 ' + dayCount + ' 天（绿=当日全量 token）');
@@ -2843,7 +2842,7 @@ class SmartDashboardView extends ItemView {
             if (total > 5e8) lv = 4; else if (total > 1.5e8) lv = 3; else if (total > 4e7) lv = 2; else if (total > 1e7) lv = 1;
             cell.addClass('sd-usage-lv' + lv);
             if (key === today) cell.addClass('sd-usage-today');
-            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + ' 缓存' + this.fmtTokens(dt.cache) + ' 推理' + this.fmtTokens(dt.reasoning) + '）');
+            cell.setAttribute('title', key + ' 总' + this.fmtTokens(total) + '（输入' + this.fmtTokens(dt.input) + ' 输出' + this.fmtTokens(dt.output) + '）');
           }
           const label = container.createDiv({ cls: 'sd-usage-caption' });
           label.setText(year + '年 1月-12月 每日一格（绿=当日全量 token）');
@@ -2881,25 +2880,24 @@ class SmartDashboardView extends ItemView {
           const refreshBtn = header.createEl('button', { text: '🔄', cls: 'sd-btn secondary' });
           refreshBtn.style.marginLeft = '4px';
           refreshBtn.style.padding = '0 6px';
+          const statusEl = header.createEl('span', { text: '⏳ 正在获取数据...', cls: 'sd-subscriptions-refresh-status' });
+          statusEl.style.display = 'none';
           refreshBtn.addEventListener('click', async () => {
             refreshBtn.disabled = true;
             refreshBtn.setText('⏳');
+            statusEl.style.display = '';
             const body = card.querySelector('.sd-subscriptions-body') as HTMLElement | null;
-            if (body) {
-              body.empty();
-              body.createDiv({ cls: 'sd-subscriptions-loading' }).setText('正在采集最新数据...');
-              try {
-                const { exec } = require('child_process');
-                await new Promise<void>((resolve, reject) => {
-                  exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
-                    (error: any) => { if (error) reject(error); else resolve(); });
-                });
-              } catch (e) {
-                console.error('Subscription collect error:', e);
-              }
-              body.empty();
-              await this.renderSubscriptionsBody(body);
+            try {
+              const { exec } = require('child_process');
+              await new Promise<void>((resolve, reject) => {
+                exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
+                  (error: any) => { if (error) reject(error); else resolve(); });
+              });
+            } catch (e) {
+              console.error('Subscription collect error:', e);
             }
+            if (body) { body.empty(); await this.renderSubscriptionsBody(body); }
+            statusEl.style.display = 'none';
             refreshBtn.disabled = false;
             refreshBtn.setText('🔄');
           });

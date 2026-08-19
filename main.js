@@ -16781,30 +16781,32 @@ journal:
       const refreshBtn = header.createEl("button", { text: "\u{1F504}", cls: "sd-btn secondary" });
       refreshBtn.style.marginLeft = "8px";
       refreshBtn.style.padding = "0 6px";
+      const statusEl = header.createEl("span", { text: "\u23F3 \u6B63\u5728\u83B7\u53D6\u6570\u636E...", cls: "sd-usage-refresh-status" });
+      statusEl.style.display = "none";
       refreshBtn.addEventListener("click", async () => {
         refreshBtn.disabled = true;
         refreshBtn.setText("\u23F3");
+        statusEl.style.display = "";
         const body2 = card.querySelector(".sd-usage-body");
+        try {
+          const { exec } = require("child_process");
+          await new Promise((resolve2, reject) => {
+            exec(
+              'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
+              (error) => {
+                if (error) reject(error);
+                else resolve2();
+              }
+            );
+          });
+        } catch (e) {
+          console.error("Usage collect error:", e);
+        }
         if (body2) {
-          body2.empty();
-          body2.createDiv({ cls: "sd-usage-loading" }).setText("\u6B63\u5728\u91C7\u96C6\u6700\u65B0\u6570\u636E...");
-          try {
-            const { exec } = require("child_process");
-            await new Promise((resolve2, reject) => {
-              exec(
-                'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
-                (error) => {
-                  if (error) reject(error);
-                  else resolve2();
-                }
-              );
-            });
-          } catch (e) {
-            console.error("Usage collect error:", e);
-          }
           body2.empty();
           await this.renderUsageBody(body2);
         }
+        statusEl.style.display = "none";
         refreshBtn.disabled = false;
         refreshBtn.setText("\u{1F504}");
       });
@@ -16840,10 +16842,10 @@ journal:
       const totalBox = body.createDiv({ cls: "sd-usage-total" });
       totalBox.createDiv({ text: "\u672C\u6708\u6D88\u8017", cls: "sd-usage-total-label" });
       totalBox.createDiv({ text: this.fmtTokens(monthAll.input + monthAll.output + monthAll.cache + monthAll.reasoning), cls: "sd-usage-total-value" });
-      totalBox.createDiv({ text: "\u8F93\u5165 " + this.fmtTokens(monthAll.input) + " \uFF5C \u8F93\u51FA " + this.fmtTokens(monthAll.output) + " \uFF5C \u7F13\u5B58 " + this.fmtTokens(monthAll.cache), cls: "sd-usage-total-sub" });
+      totalBox.createDiv({ text: "\u8F93\u5165 " + this.fmtTokens(monthAll.input) + " \uFF5C \u8F93\u51FA " + this.fmtTokens(monthAll.output), cls: "sd-usage-total-sub" });
       const t = this.dailyTokens(days[today]);
       const stat = body.createDiv({ cls: "sd-usage-stats" });
-      stat.setText("\u4ECA\u65E5 " + this.fmtTokens(t.input + t.output + t.cache + t.reasoning) + "\uFF08\u8F93\u5165" + this.fmtTokens(t.input) + " \u8F93\u51FA" + this.fmtTokens(t.output) + " \u7F13\u5B58" + this.fmtTokens(t.cache) + "\uFF09");
+      stat.setText("\u4ECA\u65E5 " + this.fmtTokens(t.input + t.output + t.cache + t.reasoning) + "\uFF08\u8F93\u5165" + this.fmtTokens(t.input) + " \u8F93\u51FA" + this.fmtTokens(t.output) + "\uFF09");
       const seg = body.createDiv({ cls: "sd-usage-seg" });
       const mBtn = seg.createEl("button", { text: "\u6708", cls: "sd-btn secondary active" });
       const yBtn = seg.createEl("button", { text: "\u5E74", cls: "sd-btn secondary" });
@@ -16868,7 +16870,7 @@ journal:
       const sum = bottomRow.createDiv({ cls: "sd-usage-summary" });
       const totals = this.allTotalWithCache(days);
       const totalAll = totals.input + totals.output + totals.cache + totals.reasoning;
-      sum.setText("\u672C\u5468 " + this.fmtTokens(this.sumRange(days, 7)) + " \uFF5C \u7D2F\u8BA1 " + this.fmtTokens(totalAll) + "\uFF08\u8F93\u5165" + this.fmtTokens(totals.input) + " \u8F93\u51FA" + this.fmtTokens(totals.output) + " \u7F13\u5B58" + this.fmtTokens(totals.cache) + " \u63A8\u7406" + this.fmtTokens(totals.reasoning) + "\uFF09");
+      sum.setText("\u672C\u5468 " + this.fmtTokens(this.sumRange(days, 7)) + " \uFF5C \u7D2F\u8BA1 " + this.fmtTokens(totalAll) + "\uFF08\u8F93\u5165" + this.fmtTokens(totals.input) + " \u8F93\u51FA" + this.fmtTokens(totals.output) + "\uFF09");
       const cs = this.cacheStats(days, monthKey);
       const rateStr = cs.hit + cs.miss > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + "%" : "\u2014";
       const rateLine = bottomRow.createDiv({ cls: "sd-usage-cache-rate" });
@@ -16979,7 +16981,7 @@ journal:
         else if (total > 1e7) lv = 1;
         cell.addClass("sd-usage-lv" + lv);
         if (key === today) cell.addClass("sd-usage-today");
-        cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + " \u7F13\u5B58" + this.fmtTokens(dt.cache) + " \u63A8\u7406" + this.fmtTokens(dt.reasoning) + "\uFF09");
+        cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + "\uFF09");
       }
       const label = container.createDiv({ cls: "sd-usage-caption" });
       label.setText(month + 1 + "\u6708 " + dayCount + " \u5929\uFF08\u7EFF=\u5F53\u65E5\u5168\u91CF token\uFF09");
@@ -17005,7 +17007,7 @@ journal:
         else if (total > 1e7) lv = 1;
         cell.addClass("sd-usage-lv" + lv);
         if (key === today) cell.addClass("sd-usage-today");
-        cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + " \u7F13\u5B58" + this.fmtTokens(dt.cache) + " \u63A8\u7406" + this.fmtTokens(dt.reasoning) + "\uFF09");
+        cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + "\uFF09");
       }
       const label = container.createDiv({ cls: "sd-usage-caption" });
       label.setText(year + "\u5E74 1\u6708-12\u6708 \u6BCF\u65E5\u4E00\u683C\uFF08\u7EFF=\u5F53\u65E5\u5168\u91CF token\uFF09");
@@ -17039,30 +17041,32 @@ journal:
       const refreshBtn = header.createEl("button", { text: "\u{1F504}", cls: "sd-btn secondary" });
       refreshBtn.style.marginLeft = "4px";
       refreshBtn.style.padding = "0 6px";
+      const statusEl = header.createEl("span", { text: "\u23F3 \u6B63\u5728\u83B7\u53D6\u6570\u636E...", cls: "sd-subscriptions-refresh-status" });
+      statusEl.style.display = "none";
       refreshBtn.addEventListener("click", async () => {
         refreshBtn.disabled = true;
         refreshBtn.setText("\u23F3");
+        statusEl.style.display = "";
         const body2 = card.querySelector(".sd-subscriptions-body");
+        try {
+          const { exec } = require("child_process");
+          await new Promise((resolve2, reject) => {
+            exec(
+              'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
+              (error) => {
+                if (error) reject(error);
+                else resolve2();
+              }
+            );
+          });
+        } catch (e) {
+          console.error("Subscription collect error:", e);
+        }
         if (body2) {
-          body2.empty();
-          body2.createDiv({ cls: "sd-subscriptions-loading" }).setText("\u6B63\u5728\u91C7\u96C6\u6700\u65B0\u6570\u636E...");
-          try {
-            const { exec } = require("child_process");
-            await new Promise((resolve2, reject) => {
-              exec(
-                'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
-                (error) => {
-                  if (error) reject(error);
-                  else resolve2();
-                }
-              );
-            });
-          } catch (e) {
-            console.error("Subscription collect error:", e);
-          }
           body2.empty();
           await this.renderSubscriptionsBody(body2);
         }
+        statusEl.style.display = "none";
         refreshBtn.disabled = false;
         refreshBtn.setText("\u{1F504}");
       });
