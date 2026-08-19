@@ -1179,28 +1179,13 @@ class SmartDashboardView extends ItemView {
         if (!(await this.app.vault.adapter.exists('00_System'))) await this.app.vault.createFolder('00_System');
         await this.app.vault.adapter.write(path, JSON.stringify(moods, null, 2));
     }
-    async getTheme(): Promise<string> {
-        const path = '00_System/theme.json';
-        if (!(await this.app.vault.adapter.exists(path))) return 'auto';
-        try {
-            const t = JSON.parse(await this.app.vault.adapter.read(path)).theme;
-            return (t === 'dark' || t === 'light') ? t : 'auto';
-        } catch { return 'auto'; }
-    }
-    async saveTheme(theme: string) {
-        const path = '00_System/theme.json';
-        if (!(await this.app.vault.adapter.exists('00_System'))) await this.app.vault.createFolder('00_System');
-        await this.app.vault.adapter.write(path, JSON.stringify({theme}, null, 2));
-    }
     
     async onOpen() {
         const container = this.containerEl.children[1];
         container.empty();
         container.addClass('smart-dashboard-container');
 
-        const savedTheme = await this.getTheme();
-        const bodyDark = document.body.classList.contains('theme-dark');
-        const effectiveDark = savedTheme === 'dark' || (savedTheme === 'auto' && bodyDark);
+        const effectiveDark = document.body.classList.contains('theme-dark');
         if (effectiveDark) container.addClass('theme-dark');
 
         const scrollContainer = container.createDiv('sd-tab-content-container');
@@ -1210,16 +1195,6 @@ class SmartDashboardView extends ItemView {
         const titleContainer = header.createDiv({attr: {style: 'display:flex; align-items:center; gap: 15px; flex-wrap:wrap'}});
         titleContainer.createEl('h1', { text: `🚀 Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: {style: 'margin:0'} });
         
-        const themeBtn = titleContainer.createEl('button', {text: effectiveDark ? '🌞 亮色' : '🌙 深色', cls: 'sd-btn secondary'});
-        themeBtn.onclick = async () => {
-            // 方案A（2026-08-19）：默认 auto 跟随 Obsidian 全局；点击 = 手动固定为当前生效色的反向
-            const current = await this.getTheme();
-            const bodyDarkNow = document.body.classList.contains('theme-dark');
-            const effDark = current === 'dark' || (current === 'auto' && bodyDarkNow);
-            await this.saveTheme(effDark ? 'light' : 'dark');
-            this.refreshView();
-        };
-
         const resetLayoutBtn = titleContainer.createEl('button', {text: '↺ 重置布局', cls: 'sd-btn secondary', attr: {style: 'padding: 6px 12px; font-size: 0.85em;'}});
         resetLayoutBtn.onclick = () => { this.resetLayout(); };
 
@@ -2646,9 +2621,27 @@ class SmartDashboardView extends ItemView {
           const refreshBtn = header.createEl('button', { text: '🔄', cls: 'sd-btn secondary' });
           refreshBtn.style.marginLeft = '8px';
           refreshBtn.style.padding = '0 6px';
-          refreshBtn.addEventListener('click', () => {
+          refreshBtn.addEventListener('click', async () => {
+            refreshBtn.disabled = true;
+            refreshBtn.setText('⏳');
             const body = card.querySelector('.sd-usage-body') as HTMLElement | null;
-            if (body) { body.empty(); this.renderUsageBody(body); }
+            if (body) {
+              body.empty();
+              body.createDiv({ cls: 'sd-usage-loading' }).setText('正在采集最新数据...');
+              try {
+                const { exec } = require('child_process');
+                await new Promise<void>((resolve, reject) => {
+                  exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
+                    (error: any) => { if (error) reject(error); else resolve(); });
+                });
+              } catch (e) {
+                console.error('Usage collect error:', e);
+              }
+              body.empty();
+              await this.renderUsageBody(body);
+            }
+            refreshBtn.disabled = false;
+            refreshBtn.setText('🔄');
           });
           // 数据区（可整体刷新）
           const body = card.createDiv({ cls: 'sd-usage-body' });

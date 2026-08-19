@@ -1,13 +1,54 @@
-# HANDOFF — Smart Dashboard v4.3.1
+# HANDOFF — Smart Dashboard v4.3.2
 
 ## 版本信息
-- **版本**: 4.3.1
+- **版本**: 4.3.2
 - **发布日期**: 2026-08-19
-- **变更**: 深色模式可读性修复 —— 颜色源统一到 Obsidian 核心变量（方案A），修复"深色模式下文字不清"问题
+- **变更**: 移除看板标题栏主题切换按钮（看板纯跟随 Obsidian 全局主题）+ Token 卡刷新按钮直连采集脚本（去掉 cron 依赖）
 
 ---
 
 ## 本次更新内容
+
+### 1. 移除主题切换按钮（🌙/🌞）
+
+#### 根因
+- v4.3.1 深色修复时引入 `themeBtn`（手动固定深/亮色）+ `00_System/theme.json` 持久化机制，与"看板默认跟随 Obsidian 全局主题"的设计意图冲突
+- `theme.json` 残留状态会锁死看板主题（如 `{"theme":"light"}` 时看板不随全局切深色），属于交接文档遗留的待清理项
+
+#### 修改内容（main.ts）
+- 删除 `themeBtn` 按钮创建与 onclick（仅保留 `↺ 重置布局` + Inbox 徽标）
+- 删除死代码 `saveTheme()`，删除 `getTheme()` 定义（调用点已无）
+- `onOpen()` 中 `effectiveDark` 简化为直判 `document.body.classList.contains('theme-dark')` → 看板**100% 跟随 Obsidian 全局深浅**
+
+#### 数据清理
+- 删除 `00_System/theme.json`（无文件 = auto 跟随全局，不留孤儿配置）
+
+#### 行为变化
+- 看板深浅完全由 Obsidian 全局主题决定，移除手动固定入口
+- 主题按钮在"Obsidian 全局深色"下无法强制浅色的已知限制已随按钮移除而消失
+
+### 2. Token 卡刷新按钮直连采集（去 cron 依赖）
+
+#### 根因
+- 原数据链路：外部 cron（`b9e7918def15`，每 10 分钟）→ `collect_usage.py --quiet` → `.smart-dashboard/usage_daily.json` → 卡片读 JSON
+- Token 卡刷新按钮此前**只重读 JSON 渲染、不触发采集脚本**，数据新鲜度完全依赖 cron 是否按时跑
+
+#### 修改内容（main.ts `renderUsageArea`）
+- 刷新按钮点击改为：置 `⏳`+禁用 → `exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet')` → 完成后重读 `usage_daily.json` 渲染 → 恢复 `🔄`
+- 采用与订阅额度卡刷新按钮相同的 try/catch/exec/finally 模式（代码风格一致）
+- `renderUsageBody` 本身不改（仍是读 JSON 渲染）
+
+#### 数据链路
+- 删除了 cron 任务 `b9e7918def15`（Token 用量采集），**不再定时采集**
+- 点击 🔄 刷新按钮即主动采集最新数据；卡片打开/5 分钟定时重渲染读的是缓存 JSON（无害兜底）
+
+#### 验证（点击刷新实测）
+- 点击前 `usage_daily.json` `updated_at=13:42:08` → 点击后 `13:42:15`（7 秒内被刷新按钮主动更新）✅
+- 今日数据 33.5M → 40.3M（重新采集到新消耗），页面渲染最新 ✅
+
+---
+
+## 上一版更新内容（v4.3.1）
 
 ### 修复：深色模式文字显示不清（方案A：颜色源统一）
 

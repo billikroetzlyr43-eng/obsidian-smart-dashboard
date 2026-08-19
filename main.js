@@ -15437,42 +15437,17 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
     await this.app.vault.adapter.write(path, JSON.stringify(moods, null, 2));
   }
-  async getTheme() {
-    const path = "00_System/theme.json";
-    if (!await this.app.vault.adapter.exists(path)) return "auto";
-    try {
-      const t = JSON.parse(await this.app.vault.adapter.read(path)).theme;
-      return t === "dark" || t === "light" ? t : "auto";
-    } catch (e) {
-      return "auto";
-    }
-  }
-  async saveTheme(theme) {
-    const path = "00_System/theme.json";
-    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
-    await this.app.vault.adapter.write(path, JSON.stringify({ theme }, null, 2));
-  }
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("smart-dashboard-container");
-    const savedTheme = await this.getTheme();
-    const bodyDark = document.body.classList.contains("theme-dark");
-    const effectiveDark = savedTheme === "dark" || savedTheme === "auto" && bodyDark;
+    const effectiveDark = document.body.classList.contains("theme-dark");
     if (effectiveDark) container.addClass("theme-dark");
     const scrollContainer = container.createDiv("sd-tab-content-container");
     const content = scrollContainer.createDiv("sd-tab-content fade-in");
     const header = content.createDiv("sd-header");
     const titleContainer = header.createDiv({ attr: { style: "display:flex; align-items:center; gap: 15px; flex-wrap:wrap" } });
     titleContainer.createEl("h1", { text: `\u{1F680} Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: { style: "margin:0" } });
-    const themeBtn = titleContainer.createEl("button", { text: effectiveDark ? "\u{1F31E} \u4EAE\u8272" : "\u{1F319} \u6DF1\u8272", cls: "sd-btn secondary" });
-    themeBtn.onclick = async () => {
-      const current = await this.getTheme();
-      const bodyDarkNow = document.body.classList.contains("theme-dark");
-      const effDark = current === "dark" || current === "auto" && bodyDarkNow;
-      await this.saveTheme(effDark ? "light" : "dark");
-      this.refreshView();
-    };
     const resetLayoutBtn = titleContainer.createEl("button", { text: "\u21BA \u91CD\u7F6E\u5E03\u5C40", cls: "sd-btn secondary", attr: { style: "padding: 6px 12px; font-size: 0.85em;" } });
     resetLayoutBtn.onclick = () => {
       this.resetLayout();
@@ -16806,12 +16781,32 @@ journal:
       const refreshBtn = header.createEl("button", { text: "\u{1F504}", cls: "sd-btn secondary" });
       refreshBtn.style.marginLeft = "8px";
       refreshBtn.style.padding = "0 6px";
-      refreshBtn.addEventListener("click", () => {
+      refreshBtn.addEventListener("click", async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.setText("\u23F3");
         const body2 = card.querySelector(".sd-usage-body");
         if (body2) {
           body2.empty();
-          this.renderUsageBody(body2);
+          body2.createDiv({ cls: "sd-usage-loading" }).setText("\u6B63\u5728\u91C7\u96C6\u6700\u65B0\u6570\u636E...");
+          try {
+            const { exec } = require("child_process");
+            await new Promise((resolve2, reject) => {
+              exec(
+                'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
+                (error) => {
+                  if (error) reject(error);
+                  else resolve2();
+                }
+              );
+            });
+          } catch (e) {
+            console.error("Usage collect error:", e);
+          }
+          body2.empty();
+          await this.renderUsageBody(body2);
         }
+        refreshBtn.disabled = false;
+        refreshBtn.setText("\u{1F504}");
       });
       const body = card.createDiv({ cls: "sd-usage-body" });
       await this.renderUsageBody(body);
