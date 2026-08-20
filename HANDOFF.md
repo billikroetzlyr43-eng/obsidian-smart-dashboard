@@ -57,6 +57,19 @@ flowchart TD
 | **月窗口剩余credit明细** | 火山显示 `2127/100000 AFP` | **移除，与 OpenCode Go 格式一致** | 删除 sd-subscriptions-window-detail 渲染块 |
 | **受影响文件** | - | **7 + 2 新增** | collect_subscriptions.py / main.ts / styles.css / main.js / manifest.json / package.json / HANDOFF.md + 新增 scripts/volcengine_daily_collect.py |
 
+## 3.1 主要项目进程扫描 (Project Progress Scan)
+> 横向列出当前所有主要项目快照，供新会话全景接管（数据源：`04_当前长期项目状态.md` §1 核心项目看板）。
+
+| 主要项目 | 当前阶段/版本 | 本次进展 | 下一步 |
+| :--- | :--- | :--- | :--- |
+| **Smart Dashboard 插件** | **v4.6.0（2026-08-21）** | 订阅卡接入火山方舟 Agent Plan 第2源（Cookie BFF 网关，替代已移除 SCNet）；SCNet cron 迁移为火山 watchdog；订阅卡显示修复（低百分比进度条 + 去剩余 credit 明细）；本次 git 提交 + push 完成 | 观察火山 Cookie 登录态有效期；评估 AFPDaily 第4窗口/用量明细 |
+| **Obsidian 知识库 LLM Wiki 重构** | 方案一/二/三 100% 落地 | — | 持续维护事件记录/知识卡片 |
+| **Hermes 消息通道 QQ 迁移** | 100% 完成（2026-08-12） | — | 旧微信凭据备份待清理 |
+| **新闻获取能力升级** | 基础设施 100% 部署（2026-08-12） | — | 服务持久化 [待确认]；AnySearch 提额评估 |
+| **A股全流程盯盘 cron 化** | 8 个定时任务运行中 | — | 期权 PCR [待确认]；历史缺口补全 |
+| **抓取工具链 CLI 化** | v1 已完成（2026-08-17） | — | 小红书批量实战；scraper 入 memory |
+| **dsh 部署与入口** | 部署 100% | — | Web UI 开机常驻 [待确认] |
+
 ## 4. 已完成工作 (Completed)
 - **核心功能/交付物：**
   - [x] `collect_subscriptions.py` 新增 `fetch_volcengine(cookie)`（Cookie 认证 GET `GetAgentPlanAFPUsage`，解析 AFPFiveHour/AFPWeekly/AFPMonthly → rolling/weekly/monthly，回传 percent/usedAmount/totalAmount/unit/resetsAt）；main() 改读 `cookie` 凭证
