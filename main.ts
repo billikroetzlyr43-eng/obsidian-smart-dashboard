@@ -75,6 +75,13 @@ const SUBSCRIPTION_TEMPLATES: Record<string, {
         authType: 'api-key',
         authHint: '从火山方舟控制台获取 API Key',
         authPlaceholder: '粘贴 API Key'
+    },
+    'scnet-tokenplan': {
+        name: '超算 Token Plan',
+        icon: '🖥️',
+        authType: 'cookie',
+        authHint: '登录 scnet.cn 控制台后，F12 → Console → document.cookie，复制 Token= 后面的值',
+        authPlaceholder: '粘贴 Token 值'
     }
 };
 
@@ -2937,38 +2944,31 @@ class SmartDashboardView extends ItemView {
       }
 
       private async saveSubscriptionCredential(providerId: string, credential: string): Promise<void> {
-        // 调用 Python 脚本保存凭证
+        // 调用 Python 脚本保存凭证（加密存储 + 合并，而非明文覆盖）
         const scriptPath = 'D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py';
-        const vaultPath = 'D:/Obsidian Vault/Obsidian Vault/.smart-dashboard';
         
         try {
-          const credKey = SUBSCRIPTION_TEMPLATES[providerId]?.authType === 'cookie' ? 'cookie' : 'apiKey';
+          // 凭证键名：SCNet 用 token（登录态 cookie），其余按 authType 映射
+          const credKey = providerId === 'scnet-tokenplan' ? 'token'
+            : SUBSCRIPTION_TEMPLATES[providerId]?.authType === 'cookie' ? 'cookie' : 'apiKey';
+          const key = credential.trim();
           
-          // 读取现有配置
-          const configPath = `${vaultPath}/subscriptions_config.json`;
-          let config: any = { providers: {} };
-          try {
-            const raw = await this.app.vault.adapter.read(configPath);
-            config = JSON.parse(raw);
-          } catch {}
-          
-          // 更新配置
-          if (!config.providers) config.providers = {};
-          config.providers[providerId] = {
-            enabled: true,
-            credentials: { [credKey]: credential },
-            added_at: new Date().toISOString()
-          };
-          
-          // 保存配置
-          await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+          // 先启用 provider（加密写入 + enabled），再运行采集
+          const { exec } = require('child_process');
+          await new Promise<void>((resolve) => {
+            exec(`python "${scriptPath}" add ${providerId} ${credKey} "${key.replace(/"/g, '\\"')}"`,
+              (error: any) => {
+                if (error) console.error('Add credential error:', error);
+                resolve();
+              });
+          });
           
           // 运行采集脚本
-          const { exec } = require('child_process');
-          exec(`python "${scriptPath}" collect`, (error: any, stdout: string, stderr: string) => {
-            if (error) {
-              console.error('Collect error:', error);
-            }
+          await new Promise<void>((resolve) => {
+            exec(`python "${scriptPath}" collect`, (error: any) => {
+              if (error) console.error('Collect error:', error);
+              resolve();
+            });
           });
           
           new Notice(`已添加 ${SUBSCRIPTION_TEMPLATES[providerId]?.name || providerId}`);
@@ -3040,6 +3040,14 @@ class SmartDashboardView extends ItemView {
               fill.style.width = `${windows.monthly.percent || 0}%`;
               this.applySubscriptionBarColor(fill, windows.monthly.percent || 0);
               windowDiv.createDiv({ cls: 'sd-subscriptions-window-value', text: `${windows.monthly.percent || 0}%` });
+              // 实际用量（如 credits 余额）：显示 已用/总额 + 单位
+              if (windows.monthly.usedAmount !== undefined && windows.monthly.totalAmount !== undefined) {
+                const unit = windows.monthly.unit || '';
+                windowDiv.createDiv({
+                  cls: 'sd-subscriptions-window-detail',
+                  text: `${windows.monthly.usedAmount} / ${windows.monthly.totalAmount} ${unit}`
+                });
+              }
             }
             
             // 删除按钮

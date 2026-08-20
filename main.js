@@ -14542,6 +14542,13 @@ var SUBSCRIPTION_TEMPLATES = {
     authType: "api-key",
     authHint: "\u4ECE\u706B\u5C71\u65B9\u821F\u63A7\u5236\u53F0\u83B7\u53D6 API Key",
     authPlaceholder: "\u7C98\u8D34 API Key"
+  },
+  "scnet-tokenplan": {
+    name: "\u8D85\u7B97 Token Plan",
+    icon: "\u{1F5A5}\uFE0F",
+    authType: "cookie",
+    authHint: "\u767B\u5F55 scnet.cn \u63A7\u5236\u53F0\u540E\uFF0CF12 \u2192 Console \u2192 document.cookie\uFF0C\u590D\u5236 Token= \u540E\u9762\u7684\u503C",
+    authPlaceholder: "\u7C98\u8D34 Token \u503C"
   }
 };
 var AddSubscriptionModal = class extends import_obsidian.Modal {
@@ -17103,28 +17110,24 @@ journal:
   async saveSubscriptionCredential(providerId, credential) {
     var _a, _b;
     const scriptPath = "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py";
-    const vaultPath = "D:/Obsidian Vault/Obsidian Vault/.smart-dashboard";
     try {
-      const credKey = ((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.authType) === "cookie" ? "cookie" : "apiKey";
-      const configPath = `${vaultPath}/subscriptions_config.json`;
-      let config = { providers: {} };
-      try {
-        const raw = await this.app.vault.adapter.read(configPath);
-        config = JSON.parse(raw);
-      } catch (e) {
-      }
-      if (!config.providers) config.providers = {};
-      config.providers[providerId] = {
-        enabled: true,
-        credentials: { [credKey]: credential },
-        added_at: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
+      const credKey = providerId === "scnet-tokenplan" ? "token" : ((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.authType) === "cookie" ? "cookie" : "apiKey";
+      const key = credential.trim();
       const { exec } = require("child_process");
-      exec(`python "${scriptPath}" collect`, (error, stdout, stderr) => {
-        if (error) {
-          console.error("Collect error:", error);
-        }
+      await new Promise((resolve2) => {
+        exec(
+          `python "${scriptPath}" add ${providerId} ${credKey} "${key.replace(/"/g, '\\"')}"`,
+          (error) => {
+            if (error) console.error("Add credential error:", error);
+            resolve2();
+          }
+        );
+      });
+      await new Promise((resolve2) => {
+        exec(`python "${scriptPath}" collect`, (error) => {
+          if (error) console.error("Collect error:", error);
+          resolve2();
+        });
       });
       new import_obsidian.Notice(`\u5DF2\u6DFB\u52A0 ${((_b = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _b.name) || providerId}`);
     } catch (e) {
@@ -17180,6 +17183,13 @@ journal:
           fill2.style.width = `${windows.monthly.percent || 0}%`;
           this.applySubscriptionBarColor(fill2, windows.monthly.percent || 0);
           windowDiv.createDiv({ cls: "sd-subscriptions-window-value", text: `${windows.monthly.percent || 0}%` });
+          if (windows.monthly.usedAmount !== void 0 && windows.monthly.totalAmount !== void 0) {
+            const unit = windows.monthly.unit || "";
+            windowDiv.createDiv({
+              cls: "sd-subscriptions-window-detail",
+              text: `${windows.monthly.usedAmount} / ${windows.monthly.totalAmount} ${unit}`
+            });
+          }
         }
         const deleteBtn = item.createEl("button", {
           text: "\u{1F5D1}\uFE0F",

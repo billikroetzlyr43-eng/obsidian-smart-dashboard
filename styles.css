@@ -1039,6 +1039,16 @@ body.theme-dark .sd-usage-lv4,
     text-align: right;
 }
 
+.sd-subscriptions-window-detail {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+
 .sd-subscriptions-footer {
     font-size: 10px;
     color: var(--text-muted);

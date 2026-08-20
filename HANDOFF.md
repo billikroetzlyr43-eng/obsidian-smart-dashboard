@@ -1,100 +1,108 @@
-# HANDOFF — Smart Dashboard v4.5.0（CodeBuddy CLI 第 5 数据源接入）
+# HANDOFF — Smart Dashboard v4.5.1（SCNet Token Plan 订阅额度接入）
 
-> 本次交接聚焦：Token 用量卡片接入第 5 个数据源 CodeBuddy CLI。三端版本对齐 ship 惯例（manifest.json / package.json 已 4.5.0，HANDOFF.md 由 4.4.0 同步至 4.5.0）。严格套用《06_项目交接文档模板》8 节结构。
+> 本次交接聚焦：订阅额度卡接入第 2 个数据源 SCNet（国家超算互联网）Token Plan，含登录态 Cookie 认证、credits 明细展示、每日采集 cron 与 watchdog 提醒。三端版本对齐 ship 惯例（manifest.json / package.json / HANDOFF.md 均 4.5.1）。严格套用《06_项目交接文档模板》8 节结构。
 
 ## 1. 项目概况与当前状态
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 侧边栏提供统一智能看板，聚合日历/待办/日程/Token 用量/订阅额度等卡片，以 Knowledge OS 方式整合笔记与时间管理。
-- **当前阶段：** CodeBuddy 第 5 源接入开发完成，`collect_usage.py` / `main.ts` / `main.js` 均已改好并部署到 vault；Obsidian 需完全重启（非热加载）后 Token 卡才会显示五源 [待确认：重启后实测]。
-- **版本：** 交接版本 **v4.5.0**（manifest.json 4.5.0 / package.json 4.5.0 / HANDOFF.md 4.4.0→4.5.0 三端对齐）；日期 **2026-08-20**
+- **当前阶段：** SCNet Token Plan 订阅额度接入完成，`collect_subscriptions.py` / `main.ts` / `styles.css` / `main.js` 均已改好并部署到 vault；CDP 实测卡片渲染无裁切、添加订阅弹窗含超算选项；每日 09:00 cron（`5fb9ce1ed6e4`）已建并手动触发验证 ok。
+- **版本：** 交接版本 **v4.5.1**（manifest.json 4.5.1 / package.json 4.5.1 / HANDOFF.md 4.5.0→4.5.1 三端对齐）；日期 **2026-08-20**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
 ```mermaid
 flowchart TD
-    A[需求: Token 卡接入 CodeBuddy 第5源] --> B[定位数据源 .codebuddy/projects/**/*.jsonl]
-    B --> C[写 parse_codebuddy 解析 providerData.usage]
-    C --> D[口径折算: inputTokens 含 cached_tokens → miss_input=max0,input-cache]
-    D --> E[输出 schema_version 升 4→5 / load_existing 兼容 3,4,5]
-    E --> F[前端 3 处合并函数并入 codebuddy 不新增 UI 行]
-    F --> G[npm run build 产物 main.js 部署 vault]
-    G --> H[Obsidian 完全重启 非热加载 验证五源显示]
-    H --> I[更新 HANDOFF.md 至 v4.5.0 + git 提交]
+    A[需求: 超算中心 Token Plan credits 接入订阅卡] --> B[调研: SCNet 无 API-key 余额接口]
+    B --> C[探索控制台前端 JS: 定位 /acx/ 内部 API 与 Cookie 认证]
+    C --> D[实测: Token Cookie 直连 tokenplan/list 返回 200 完整数据]
+    D --> E[collect_subscriptions.py 新增 fetch_scnet_tokenplan + 采集逻辑]
+    E --> F[main.ts/styles.css 增强: 月窗口显示 已用/总额 unit 明细行]
+    F --> G[修复 add 命令覆盖 bug + saveSubscriptionCredential 明文覆盖 bug]
+    G --> H[SUBSCRIPTION_TEMPLATES 新增超算 Token Plan 选项]
+    H --> I[npm run build 部署 vault + CDP 实测验证]
+    I --> J[新建每日 09:00 cron + Token 过期 QQ 提醒 watchdog]
+    J --> K[版本号升 4.5.1 + 更新 HANDOFF.md + git 提交]
 ```
 
 ## 3. 治理/交付核心成果与数据对比 (Metrics & Data Comparison)
 | 指标/维度 | 治理/执行前状态 | 治理/执行后状态 | 优化效果与说明 |
 | :--- | :---: | :---: | :--- |
-| **Token 用量数据源数** | 4（hermes/dsh/opencode/workbuddy） | **5（+codebuddy）** | 新增 CodeBuddy CLI 采集源 |
-| **CodeBuddy 当日贡献（2026-08-19 实测）** | 未采集 | **input 172,655 / output 24,895 / cache 1,311,693 / reasoning 15,631 / calls 47**（合计约 1.52M） | 来自 `C:/Users/华为/.codebuddy/projects/**/*.jsonl` 的 `providerData.usage` |
-| **本月消耗总量（2026-08-19）** | 2206.6M（四源） | **[待确认]**（五源） | codebuddy 月度需重跑完整采集后并入；当日已确认约 1.52M |
-| **输出 schema_version** | 4 | **5** | days 新增 codebuddy 子键；load_existing 兼容 3/4/5 |
-| **前端显示口径** | 四源合计（不单列） | **五源合计（不单列）** | allTotalWithCache/cacheStats/dailyTokens 三处并入 codebuddy，不新增 UI 行 |
-| **受影响文件** | - | **4 + 1 临时** | collect_usage.py / main.ts / main.js / HANDOFF.md（+ TASK.md 临时任务文件不入库） |
+| **订阅额度数据源数** | 1（OpenCode Go） | **2（+SCNet Token Plan）** | 新增超算中心 Token Plan credits 采集 |
+| **SCNet 套餐（2026-08-20 实测）** | 未接入 | **基础版，0 / 60000 credits，0% used** | 来自 `/acx/charge/account/currentuser/tokenplan/list` |
+| **订阅卡月窗口展示** | 仅百分比（如 `0%`） | **百分比 + `已用/总额 unit` 明细行** | 新 class `sd-subscriptions-window-detail`（styles.css） |
+| **凭证存储** | 卡片 ➕ 添加时**明文覆盖** | **加密存储 + 字段合并** | 修复 saveSubscriptionCredential 明文覆盖 bug；改用 Python `add` 命令 |
+| **add 命令行为** | 整体覆盖 provider 凭证（二次 add 丢字段） | **合并已有字段** | 修复 add_provider_config 覆盖 bug |
+| **每日自动采集** | 无 | **cron `5fb9ce1ed6e4` 09:00 + Token 过期 QQ 提醒** | no_agent 纯脚本 watchdog，正常静默、失败提醒 |
+| **受影响文件** | - | **6 + 2 新增** | collect_subscriptions.py / main.ts / styles.css / main.js / manifest.json / package.json / HANDOFF.md + 新增 scripts/scnet_daily_collect.py |
 
 ## 4. 已完成工作 (Completed)
 - **核心功能/交付物：**
-  - [x] `collect_usage.py` 新增 `parse_codebuddy()`，遍历 `C:/Users/华为/.codebuddy/projects/**/*.jsonl`
-  - [x] 口径折算：CodeBuddy `inputTokens` 已含 `cached_tokens`（OpenAI 风格）→ 存 `miss_input = max(0, inputTokens - cache)`，与 workbuddy/dsh/opencode 对齐
-  - [x] 输出 `schema_version` 升至 5；`load_existing` 兼容 schema 3/4/5（旧数据可读）
-  - [x] `main.ts` 3 处合并函数并入 codebuddy（不单独显示、不新增 UI 行）：`allTotalWithCache` / `cacheStats` / `dailyTokens`
-  - [x] `main.js` 构建产物已生成并部署到 vault 插件目录
-  - [ ] [待确认] Obsidian 完全重启后 Token 卡实测显示五源
+  - [x] `collect_subscriptions.py` 新增 `fetch_scnet_tokenplan()`（Cookie 认证直连 `/acx/charge/account/currentuser/tokenplan/list`），返回 `provider: scnet-tokenplan` + monthly 窗口（percent/usedAmount/totalAmount/unit/status/resetsAt）
+  - [x] `main.ts` 订阅卡月窗口新增 `sd-subscriptions-window-detail` 明细行（`已用 / 总额 unit`）；`SUBSCRIPTION_TEMPLATES` 新增 `scnet-tokenplan` 选项（🖥️ 超算 Token Plan）
+  - [x] `styles.css` 新增 `.sd-subscriptions-window-detail` 样式（9px/muted/ellipsis）
+  - [x] 修复 `add_provider_config` 覆盖 bug（改为合并已有 credentials）
+  - [x] 修复 `saveSubscriptionCredential` 明文覆盖 bug（改调 Python `add` 命令，走加密+合并）
+  - [x] 新增 `D:/Hermes/scripts/scnet_daily_collect.py`（每日采集 + Token 过期检测 + QQ 提醒 watchdog）
+  - [x] 新建 cron `5fb9ce1ed6e4`（每天 09:00，no_agent，deliver qqbot）并手动触发验证 ok（silent）
+  - [x] 版本号三端升 4.5.1（manifest.json / package.json / HANDOFF.md）
 - **关键代码/文件路径：**
-  - `collect_usage.py` — 采集脚本：`CODEBUDDY_PROJECTS_DIR` 常量(L44)、`parse_codebuddy()`(L257-332)、`main()` 五源合并(L404-411)、`load_existing` 兼容 3/4/5(L378-387)、`schema_version: 5`(L416)
-  - `main.ts` — 前端渲染：`allTotalWithCache()`(L2718，codebuddy 合并 L2748-2754)、`cacheStats()`(L2767，codebuddy 合并 L2789-2792)、`dailyTokens()`(L2801，codebuddy 合并 L2806/2808-2811)
-  - `main.js` — 构建产物（已部署到 `D:/Obsidian Vault/Obsidian Vault/.obsidian/plugins/obsidian-smart-dashboard/`）
+  - `D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py` — `SCNET_TOKENPLAN_LIST_URL`(L35) / `SCNET_APIKEY_QUERY_URL`(L36) / `fetch_scnet_tokenplan()`(L263-330) / `add_provider_config` 合并修复(L106-131) / main() 采集分支(L428-441)
+  - `D:/workspace/01_Projects/obsidian-smart-dashboard/main.ts` — `SUBSCRIPTION_TEMPLATES.scnet-tokenplan`(L81-86) / 月窗口 detail 行(L3043-3050) / `saveSubscriptionCredential` 加密改造(L2939-2972)
+  - `D:/workspace/01_Projects/obsidian-smart-dashboard/styles.css` — `.sd-subscriptions-window-detail`(L1042-1051)
+  - `D:/Hermes/scripts/scnet_daily_collect.py` — 每日采集 watchdog（新增）
+  - `main.js` — 构建产物（已部署 `D:/Obsidian Vault/Obsidian Vault/.obsidian/plugins/obsidian-smart-dashboard/`）
 - **技术方案与架构：**
-  - 数据位置：`C:/Users/华为/.codebuddy/projects/**/*.jsonl`，token 在 `evt.providerData.usage`（**非** `evt.usage`、**非** `evt.data.usage`）
-  - 缓存口径：CodeBuddy `inputTokens` 为 OpenAI 风格（含 `cached_tokens`），从 `inputTokensDetails[].cached_tokens` 求和得 cache，再 `miss_input = max(0, inputTokens - cache)`；reasoning 从 `outputTokensDetails[].reasoning_tokens` 求和；output 直接取
-  - 前端"不单独显示 CodeBuddy"：仅在三个合并函数把 `codebuddy.input/output/cache/reasoning` 并入总量，UI 小分类仍按 v4.3.3 只显示输入+输出，不新增单独数据源列
+  - **SCNet 无 API-key 余额接口**：`sk-tp-` 专属 key 只能调模型（`/api/llm/v1/models` 200），所有 `api.scnet.cn` 余额端点（usage/balance/billing）返回 401「用户未登录」——credits 查询只能走控制台网页登录态
+  - **认证**：Cookie `Token=<uuid>`（base64 编码 UUID，非 HttpOnly，可从 `document.cookie` 读）+ 可选 `userName`，访问 `www.scnet.cn/acx/` 前缀内部 API
+  - **数据接口**：`/acx/charge/account/currentuser/tokenplan/list` 直接返回套餐（`name`/`usedAmount`/`totalAmount`/`unit`/`status`/`maxExpireTime`）；`/acx/llm/api-key/token-plan/query` 返回专属 key + Base URL
+  - **cron watchdog**：no_agent 模式，stdout 空=静默成功；仅 Token 过期时输出提醒投递 QQ（6 小时去重）
 
 ## 5. 待办事项与下一步行动 (Next Steps)
-- **优先级最高（启动后立即执行）：**
-  - [ ] 完成本次 git 提交（collect_usage.py / main.ts / main.js / HANDOFF.md）并由监督方处理 push
-- **后续规划：**
-  - [ ] Obsidian 完全重启后验证 Token 卡显示五源
-  - [ ] 观察 CodeBuddy 数据稳定性（jsonl 落盘是否连续、与 WorkBuddy 是否有重叠/漂移）
-  - [ ] 评估是否为 CodeBuddy 加 `cache_write` 维度（当前 schema v5 未单独采集，与 opencode 不一致）
-  - [ ] 考虑把 `.codebuddy` 数据源位置纳入设置项（当前硬编码在 collect_usage.py L44）
-  - [ ] 本月消耗五源总量待重跑采集后回填第 3 节 [待确认]
+- **⚡ 优先级最高（启动后立即执行）：**
+  - [ ] 完成本次 git 提交（collect_subscriptions.py / main.ts / styles.css / main.js / manifest.json / package.json / HANDOFF.md / 新脚本 scnet_daily_collect.py）并由监督方处理 push
+- **📌 后续规划：**
+  - [ ] 观察 SCNet Token 登录态有效期（过期后 cron watchdog 应触发 QQ 提醒，验证链路）
+  - [ ] 评估 `usage/amount` 接口（需 `accountId`+`startTime`+`endTime` 参数）是否补充按模型/按日用量明细展示
+  - [ ] 考虑 `userName` 是否通过弹窗录入（当前 SCNet 添加只需 Token，userName 可选）
+  - [ ] 更新知识库 `00_System/06_个人偏好与长期记忆/04_当前长期项目状态.md` 与 Smart Dashboard 版本事实
 
 ## 6. 踩坑记录与避坑指南 (Lessons Learned & Pitfalls)
 - **已踩过的坑：**
-  - **[v4.5.0 新增] acceptEdits 权限在非交互模式下 Bash/Grep/跨工作区 Read 被拒**：验证/构建/git 操作中断，需用 `bypassPermissions` 权限模式重跑（`codebuddy -p --permission-mode bypassPermissions`），或在 settings 的 `permissions.allow` 中加入 `Bash` / `Read` 白名单。
-  - **[v4.5.0 新增] git push 因网络超时失败**：`github.com` 不通，最终由监督方走 GitHub REST API 推送成功。本地 commit `e039bae`，远程为 `1a5954bf`，**tree 内容一致、sha 不同**（REST API 推送产生的 commit sha 与本地不同），后续需 `git fetch` 对齐本地与远程的 sha 引用。
-  - **[v4.5.0 新增] Obsidian 需完全重启（非热加载）Token 卡才显示五源**：热加载/Reload 插件不会刷新采集数据合并逻辑，必须完全退出 Obsidian 进程后重启。
-  - WorkBuddy（v4.4.0）的 `inputTokens` **已包含 `cached_tokens`**（OpenAI 风格），若不折算直接计入 input，会导致 cache 与 input 重复计 → 总量虚高。已用 `miss_input = max(0, inputTokens - cache)` 折算对齐 dsh/opencode。CodeBuddy 同口径。
-  - WorkBuddy 的 `workbuddy.db` 中 `session_usage.used` 字段是**上下文窗口占用**（单次会话峰值），**不是累计 token 消耗**，不能用来做用量统计；必须用 `*.jsonl` 里 `providerData.usage` 才是真实计费口径。CodeBuddy 同理（仅采 jsonl）。
-  - `obs_cdp_restart.py` 重启 Obsidian 调试模式时缺 `--remote-allow-origins=*` 参数 → CDP 9223 端口连接返回 403；必须带该参数才能被外部 CDP 客户端访问。
-  - 刷新机制已无 cron（v4.3.2 已删 cron 任务 `b9e7918def15`）：Token 卡刷新按钮 `exec collect_usage.py --quiet` 主动采集；卡片打开与每 5 分钟定时只重读 JSON 渲染（不触发采集）。
+  - **[v4.5.1 新增] SCNet 无 API-key 余额接口**：`sk-tp-` key 只能调模型，所有余额端点 401「用户未登录」。DeepSeek 那种 `GET /user/balance` API-key 方案在 SCNet **不适用**——GitHub 项目（如 `jryang1997/hermes-opencode-go-quota`）的 OpenCode Go 模式（登录态 Cookie 抓取）才是正确参照
+  - **[v4.5.1 新增] Edge 151 App-Bound 加密**：复制 Edge profile 到临时目录启动 CDP 无法解密 cookie/localStorage（登录态丢失跳转 sso/login）——不能用 edge-cdp-driver 复制登录态方案。改用"用户在已登录浏览器 F12 Console 读 `document.cookie` 拿 Token"方案
+  - **[v4.5.1 新增] collect_subscriptions.py `add` 命令覆盖 bug**：原 `add_provider_config` 整体替换 provider 凭证，第二次 `add` 丢第一次字段（实测第二次 add userName 覆盖了 token）→ 已改为合并
+  - **[v4.5.1 新增] main.ts `saveSubscriptionCredential` 明文覆盖 bug**：卡片 ➕ 添加凭证时直接明文写 JSON 且整体覆盖 provider 配置（绕过 Python 加密、丢已有字段）→ 已改调 Python `add` 命令
+  - **Obsidian 需完全重启（非热加载）**：热加载/Reload 插件不会刷新采集合并逻辑，必须完全退出 Obsidian 进程后重启（CDP 实测：`obs_cdp_restart.py` 重启后订阅卡才显示超算条目）
+  - **cdp 截图保存路径坑**：`obs_cdp_shot.js` 截图文件受 cwd 影响可能存到非预期位置；用绝对路径 + `fs.statSync` 验证
 - **已知 Bug / 限制：**
-  - CodeBuddy 数据依赖其 jsonl 持续落盘；CodeBuddy CLI 未运行或目录变更时，`parse_codebuddy` 会 WARN 返回 `{}`（不影响其他源）
-  - schema v4→v5 向后兼容靠 `load_existing`，但若 days 内已有 codebuddy 键又被旧版脚本覆盖会丢数据；升级后避免回退到 v4 脚本
+  - 🐛 SCNet Token 登录态会过期（需重新登录控制台更新 cookie）——cron watchdog 会在过期时 QQ 提醒，但更新需手动（无 API 方式绕开）
+  - 🐛 订阅卡 detail 行在 2×1 卡片（612×300px）内实测无裁切（scrollH==clientH==262），但若日后加更多 provider 或更长文本需复查高度
 
 ## 7. 项目规范与硬性约束 (Rules & Constraints)
 - **代码/文件规范：**
   - 提交身份固定为 kroetz；远端 origin 已配凭据 store
-  - commit message 遵循 `vX.Y.Z: 描述` 格式（本次用 `chore(v4.5.0): HANDOFF 同步至 v4.5.0 对齐 CodeBuddy 第5源接入`）
-  - Python 采集脚本依赖 zstandard（自动从清华源 pip install）；输出固定写到 `D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/usage_daily.json`
-  - 构建命令 `npm run build`；产物 main.js 部署到 vault 插件目录
-  - `__pycache__/` 不入库（Python 字节码缓存）；`TASK.md` 为临时任务文件不入库
+  - commit message 遵循 `vX.Y.Z: 描述` 格式
+  - 构建命令 `npm run build`；产物 main.js + manifest.json + styles.css 三件套自动部署 vault 插件目录
+  - Python 采集脚本输出固定写到 `D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/`；凭证加密存储于 `subscriptions_config.json`（机器绑定 XOR+Base64）
+  - cron 脚本目录 `D:/Hermes/scripts/`；watchdog 状态文件 `.scnet_token_expired.json` 同目录
+  - `__pycache__/`、`*.bak*`、`TASK*.md`、`data.json` 不入库
 - **业务/逻辑底线：**
-  - Token 总量口径不可破：input/output/cache/reasoning 四维全口径相加（月/今日/本周/累计一致）
-  - 新数据源接入必须做"含不含 cache"的口径对齐，否则总量失真（CodeBuddy 与 WorkBuddy 同为 OpenAI 风格，均需折算 miss_input）
-  - 前端小分类按 v4.3.3 决议只显示"输入+输出"（缓存命中率作为独立指标行保留），不新增单独数据源列
+  - 凭证**必须加密存储**（走 Python `encrypt_value`），禁止前端明文写配置
+  - `add` 命令**合并**凭证字段，禁止整体覆盖
   - 三端版本对齐 ship 惯例：manifest.json / package.json / HANDOFF.md 版本号必须一致
+  - SCNet 采集仅用**登录态 Cookie**，不把 `sk-tp-` API key 当余额查询凭证（会 401）
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
-  - 代码改动已完成：`collect_usage.py`（parse_codebuddy / schema v5）、`main.ts`（3 处合并函数）、`main.js`（已部署 vault）
-  - HANDOFF.md 已由 v4.4.0 同步至 v4.5.0（三端对齐）
-  - 代码改动已由监督方经 REST API 推送（本地 commit `e039bae` / 远程 `1a5954bf`，内容一致 sha 不同）
+  - 代码改动已完成并部署：`collect_subscriptions.py`（fetch_scnet_tokenplan / add 合并修复）、`main.ts`（SCNet 模板 + detail 行 + saveSubscriptionCredential 加密）、`styles.css`（detail 样式）、`main.js`（已部署 vault）
+  - CDP 实测验证通过：订阅卡显示 2 项（OpenCode Go + 超算 基础版 0/60000 credits，无裁切）；添加订阅弹窗含"超算 Token Plan"选项（标题/提示/输入框均正常）
+  - cron `5fb9ce1ed6e4` 已建（每天 09:00，no_agent，deliver qqbot），手动 run 验证 ok（silent）
+  - 版本号已升 4.5.1（manifest.json / package.json 已改，HANDOFF.md 同步中）
+  - 备份文件：`collect_subscriptions.py.bak_20260820` / `main.ts.bak_20260820`（.gitignore 排除，不入库）
 - **遗留待确认问题：**
-  - [待确认] Obsidian 完全重启后 Token 卡是否显示五源（热加载不行，必须完全重启进程）
-  - [待确认] 本地与远程 git sha 不同（e039bae vs 1a5954bf，tree 内容一致）待 `git fetch` 对齐；本次 HANDOFF 提交后本地再叠一 commit，待监督方统一处理 push/fetch 对齐
-  - `TASK.md` 仅本次临时任务文件，不入库（git status 应只剩 TASK.md 未跟踪）
-  - 本次实测 CodeBuddy 当日数据（input 172655 / output 24895 / cache 1311693 / reasoning 15631 / calls 47）为 2026-08-19 当日快照，后续会随采集变化
+  - [待确认] SCNet Token 登录态有效期（预估几天~几周，过期后 cron watchdog 应触发 QQ 提醒）
+  - [待确认] 本次 git 提交后本地与远程 sha 对齐（沿用 v4.5.0 的 REST API push 流程）
+  - [待确认] `usage/amount` 接口的 `startTime`/`endTime` 参数格式（前端代码里 time 格式待进一步确认，当前 tokenplan/list 已够展示）
 
 ---
 
@@ -103,6 +111,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.5.0**：Token 卡接入 CodeBuddy 第 5 源（parse_codebuddy / schema v5 / 三处合并函数并入 codebuddy）
 - **v4.4.0**：Token 卡接入 WorkBuddy 第 4 源（parse_workbuddy / schema v4 / 三处合并函数并入 workbuddy）
 - **v4.3.3**：Token 卡小分类只显示输入+输出；刷新保留面板不清空、状态文字移按钮右侧
 - **v4.3.2**：移除主题切换按钮；Token 卡刷新直连采集（去 cron）
