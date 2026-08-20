@@ -14539,9 +14539,9 @@ var SUBSCRIPTION_TEMPLATES = {
   "volcengine": {
     name: "\u706B\u5C71\u65B9\u821F",
     icon: "\u{1F30B}",
-    authType: "api-key",
-    authHint: "\u4ECE\u706B\u5C71\u65B9\u821F\u63A7\u5236\u53F0\u83B7\u53D6 API Key",
-    authPlaceholder: "\u7C98\u8D34 API Key"
+    authType: "cookie",
+    authHint: "\u767B\u5F55 console.volcengine.com \u540E\uFF0CF12 \u2192 Application \u2192 Cookies\uFF0C\u590D\u5236 console.volcengine.com \u57DF\u5B8C\u6574 Cookie\uFF08\u542B userInfo/csrfToken/AccountID\uFF09",
+    authPlaceholder: "\u7C98\u8D34 Cookie \u503C"
   },
   "scnet-tokenplan": {
     name: "\u8D85\u7B97 Token Plan",
@@ -17183,13 +17183,6 @@ journal:
           fill2.style.width = `${windows.monthly.percent || 0}%`;
           this.applySubscriptionBarColor(fill2, windows.monthly.percent || 0);
           windowDiv.createDiv({ cls: "sd-subscriptions-window-value", text: `${windows.monthly.percent || 0}%` });
-          if (windows.monthly.usedAmount !== void 0 && windows.monthly.totalAmount !== void 0) {
-            const unit = windows.monthly.unit || "";
-            windowDiv.createDiv({
-              cls: "sd-subscriptions-window-detail",
-              text: `${windows.monthly.usedAmount} / ${windows.monthly.totalAmount} ${unit}`
-            });
-          }
         }
         const deleteBtn = item.createEl("button", {
           text: "\u{1F5D1}\uFE0F",
@@ -17218,27 +17211,18 @@ journal:
   }
   async deleteSubscription(providerId) {
     var _a;
-    const vaultPath = "D:/Obsidian Vault/Obsidian Vault/.smart-dashboard";
+    const scriptPath = "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py";
     try {
-      const configPath = `${vaultPath}/subscriptions_config.json`;
-      try {
-        const raw = await this.app.vault.adapter.read(configPath);
-        const config = JSON.parse(raw);
-        if (config.providers && config.providers[providerId]) {
-          delete config.providers[providerId];
-          await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
-        }
-      } catch (e) {
-      }
-      const dataPath = `${vaultPath}/subscriptions.json`;
-      try {
-        const raw = await this.app.vault.adapter.read(dataPath);
-        const data = JSON.parse(raw);
-        data.providers = (data.providers || []).filter((p) => p.provider !== providerId);
-        data.updated_at = (/* @__PURE__ */ new Date()).toISOString();
-        await this.app.vault.adapter.write(dataPath, JSON.stringify(data, null, 2));
-      } catch (e) {
-      }
+      const { exec } = require("child_process");
+      await new Promise((resolve2) => {
+        exec(
+          `python "${scriptPath}" remove ${providerId}`,
+          (error) => {
+            if (error) console.error("Remove subscription error:", error);
+            resolve2();
+          }
+        );
+      });
       new import_obsidian.Notice(`\u5DF2\u5220\u9664 ${((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.name) || providerId}`);
     } catch (e) {
       new import_obsidian.Notice("\u5220\u9664\u5931\u8D25: " + String(e));

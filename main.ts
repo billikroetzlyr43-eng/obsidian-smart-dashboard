@@ -72,9 +72,9 @@ const SUBSCRIPTION_TEMPLATES: Record<string, {
     'volcengine': {
         name: '火山方舟',
         icon: '🌋',
-        authType: 'api-key',
-        authHint: '从火山方舟控制台获取 API Key',
-        authPlaceholder: '粘贴 API Key'
+        authType: 'cookie',
+        authHint: '登录 console.volcengine.com 后，F12 → Application → Cookies，复制 console.volcengine.com 域完整 Cookie（含 userInfo/csrfToken/AccountID）',
+        authPlaceholder: '粘贴 Cookie 值'
     },
     'scnet-tokenplan': {
         name: '超算 Token Plan',
@@ -3040,14 +3040,6 @@ class SmartDashboardView extends ItemView {
               fill.style.width = `${windows.monthly.percent || 0}%`;
               this.applySubscriptionBarColor(fill, windows.monthly.percent || 0);
               windowDiv.createDiv({ cls: 'sd-subscriptions-window-value', text: `${windows.monthly.percent || 0}%` });
-              // 实际用量（如 credits 余额）：显示 已用/总额 + 单位
-              if (windows.monthly.usedAmount !== undefined && windows.monthly.totalAmount !== undefined) {
-                const unit = windows.monthly.unit || '';
-                windowDiv.createDiv({
-                  cls: 'sd-subscriptions-window-detail',
-                  text: `${windows.monthly.usedAmount} / ${windows.monthly.totalAmount} ${unit}`
-                });
-              }
             }
             
             // 删除按钮
@@ -3081,30 +3073,19 @@ class SmartDashboardView extends ItemView {
       }
 
       private async deleteSubscription(providerId: string): Promise<void> {
-        const vaultPath = 'D:/Obsidian Vault/Obsidian Vault/.smart-dashboard';
-        
+        // 调用 Python 脚本删除 provider（同时清理 config 与 data，与「添加」链路对称）
+        const scriptPath = 'D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py';
+
         try {
-          // 删除配置
-          const configPath = `${vaultPath}/subscriptions_config.json`;
-          try {
-            const raw = await this.app.vault.adapter.read(configPath);
-            const config = JSON.parse(raw);
-            if (config.providers && config.providers[providerId]) {
-              delete config.providers[providerId];
-              await this.app.vault.adapter.write(configPath, JSON.stringify(config, null, 2));
-            }
-          } catch {}
-          
-          // 删除配额数据
-          const dataPath = `${vaultPath}/subscriptions.json`;
-          try {
-            const raw = await this.app.vault.adapter.read(dataPath);
-            const data = JSON.parse(raw);
-            data.providers = (data.providers || []).filter((p: any) => p.provider !== providerId);
-            data.updated_at = new Date().toISOString();
-            await this.app.vault.adapter.write(dataPath, JSON.stringify(data, null, 2));
-          } catch {}
-          
+          const { exec } = require('child_process');
+          await new Promise<void>((resolve) => {
+            exec(`python "${scriptPath}" remove ${providerId}`,
+              (error: any) => {
+                if (error) console.error('Remove subscription error:', error);
+                resolve();
+              });
+          });
+
           new Notice(`已删除 ${SUBSCRIPTION_TEMPLATES[providerId]?.name || providerId}`);
         } catch (e) {
           new Notice('删除失败: ' + String(e));
