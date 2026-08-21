@@ -14549,6 +14549,13 @@ var SUBSCRIPTION_TEMPLATES = {
     authType: "cookie",
     authHint: "\u767B\u5F55 scnet.cn \u63A7\u5236\u53F0\u540E\uFF0CF12 \u2192 Console \u2192 document.cookie\uFF0C\u590D\u5236 Token= \u540E\u9762\u7684\u503C",
     authPlaceholder: "\u7C98\u8D34 Token \u503C"
+  },
+  "deepseek": {
+    name: "DeepSeek",
+    icon: "\u{1F42C}",
+    authType: "api-key",
+    authHint: "DeepSeek \u5B98\u65B9 API Key\uFF08platform.deepseek.com \u521B\u5EFA\uFF0Csk- \u5F00\u5934\uFF09",
+    authPlaceholder: "\u7C98\u8D34 API Key"
   }
 };
 var AddSubscriptionModal = class extends import_obsidian.Modal {
@@ -17155,6 +17162,44 @@ journal:
         const info = item.createDiv({ cls: "sd-subscriptions-info" });
         info.createDiv({ cls: "sd-subscriptions-icon", text: provider.icon || "\u{1F4E6}" });
         info.createDiv({ cls: "sd-subscriptions-name", text: provider.name || provider.provider });
+        if (provider.type === "balance") {
+          const balDiv = item.createDiv({ cls: "sd-subscriptions-windows" });
+          const currency = provider.currency || "CNY";
+          const total = typeof provider.balance === "number" ? provider.balance : parseFloat(provider.balance || "0");
+          const balances = provider.balances || {};
+          const granted = typeof balances.granted === "number" ? balances.granted : parseFloat(balances.granted || "0");
+          const toppedUp = typeof balances.topped_up === "number" ? balances.topped_up : parseFloat(balances.topped_up || "0");
+          const balDivInner = balDiv.createDiv({ cls: "sd-subscriptions-window" });
+          balDivInner.createDiv({ cls: "sd-subscriptions-window-label", text: "\u4F59\u989D" });
+          const balVal = balDivInner.createDiv({ cls: "sd-subscriptions-balance-value" });
+          balVal.setText(`${currency} ${total.toFixed(2)}`);
+          if (granted > 0 || toppedUp > 0) {
+            const detail = balDivInner.createDiv({ cls: "sd-subscriptions-balance-detail" });
+            const parts = [];
+            if (toppedUp > 0) parts.push(`\u5145${toppedUp.toFixed(2)}`);
+            if (granted > 0) parts.push(`\u8D60${granted.toFixed(2)}`);
+            if (parts.length) detail.setText(parts.join(" / "));
+          }
+          const deleteBtn2 = item.createEl("button", {
+            text: "\u{1F5D1}\uFE0F",
+            cls: "sd-subscriptions-delete-btn",
+            attr: { title: "\u5220\u9664" }
+          });
+          deleteBtn2.addEventListener("click", (e) => {
+            e.stopPropagation();
+            new DeleteConfirmModal(
+              this.app,
+              provider.name || provider.provider,
+              provider.icon || "\u{1F4E6}",
+              async () => {
+                await this.deleteSubscription(provider.provider);
+                body.empty();
+                await this.renderSubscriptionsBody(body);
+              }
+            ).open();
+          });
+          continue;
+        }
         const windows = provider.windows || {};
         const windowsDiv = item.createDiv({ cls: "sd-subscriptions-windows" });
         if (windows.rolling) {

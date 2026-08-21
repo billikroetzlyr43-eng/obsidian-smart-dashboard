@@ -1050,6 +1050,22 @@ body.theme-dark .sd-usage-lv4,
     margin-top: 1px;
 }
 
+/* DeepSeek 等余额型 provider */
+.sd-subscriptions-balance-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-normal);
+    flex: 1;
+    min-width: 0;
+}
+.sd-subscriptions-balance-detail {
+    font-size: 9px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .sd-subscriptions-footer {
     font-size: 10px;
     color: var(--text-muted);
