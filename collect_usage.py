@@ -344,9 +344,12 @@ def parse_opencode(db_path):
         print("WARN: opencode db not found:", db_path, flush=True)
         return stats
     try:
-        # read-only + immutable: no sidecar/lock files, works even where
-        # the directory is not writable; never modifies the DB
-        conn = sqlite3.connect("file:" + db_path + "?mode=ro&immutable=1", uri=True)
+        # read-only WITHOUT immutable: immutable=1 makes SQLite ignore the
+        # -wal sidecar, so sessions not yet checkpointed into the main db
+        # (i.e. everything recent, written while opencode was running) were
+        # invisible → today's usage never reached the dashboard card.
+        # Plain mode=ro still never modifies the DB but does read the WAL.
+        conn = sqlite3.connect("file:" + db_path + "?mode=ro", uri=True)
     except sqlite3.Error as exc:
         print("WARN: cannot open opencode db:", exc, flush=True)
         return stats
