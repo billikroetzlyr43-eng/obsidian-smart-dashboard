@@ -86,10 +86,10 @@ flowchart TD
   - **节气推算**：寿星公式 `day = ⌊0.2422y + C⌋ − L`（21 世纪 C 值表，小寒/大寒/立春/雨水 L=⌊(y−1)/4⌋ 其余 ⌊y/4⌋），按年缓存 Map
 
 ## 5. 待办事项与下一步行动 (Next Steps)
-- **⚡ 优先级最高（启动后立即执行）：**
-  - [ ] **git 提交并推送 v4.7.0~v4.9.1 全部改动**——本会话自始至终未 commit，工作区包含 main.ts/styles.css/main.js/manifest.json/package.json 及多个 `.bak_20260822*` 备份（bak 不入库，见 §7 .gitignore 约定）
+- **⚡ 优先级最高（已在本轮完成）：**
+  - [x] **git 提交并推送 v4.7.0~v4.9.1 全部改动**——已于 2026-08-22 走 GitHub REST API 推送（本地 commit 6708ddb → 远程 0ba9872，tree sha 一致 4e0fd928，fast-forward 安全校验通过，git fetch 后 ref 对齐）。工作区 clean，bak 备份未入库（见 §7 .gitignore 约定）
 - **📌 后续规划：**
-  - [ ] `04_当前长期项目状态.md` §1 看板 Smart Dashboard 行更新 v4.6.1 → v4.9.1 [待确认]
+  - [x] `04_当前长期项目状态.md` §1 看板 Smart Dashboard 行更新 v4.6.1 → v4.9.1（已于 2026-08-22 完成，含 §2.6 版本史 v4.7.0~v4.9.1 与演进历史补充）
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
   - [ ] 清理源码工程内多轮备份文件（`*.bak_20260822` 等，确认无需回溯后删）
   - [ ] 窄屏（<700px）2 列流式模式下的拖拽仍禁用（`commitDrop` cols<4 直接 return），如需支持另行设计
