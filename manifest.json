@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-smart-dashboard",
 	"name": "Smart Dashboard",
-	"version": "4.9.2",
+	"version": "4.9.3",
 	"minAppVersion": "1.4.0",
 	"description": "An upgraded smart dashboard for managing notes and schedules with Knowledge OS integration.",
 	"author": "kroetz",

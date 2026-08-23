@@ -1,6 +1,6 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.2：新增体育赛事卡片 + 看板布局放大
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.3：Token 卡 opencode 消耗按消息完成时间归日修复
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.2** 共 7 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.3** 共 8 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
@@ -15,8 +15,9 @@
 | **v4.9.0** | 正方形格子 + Hero 行合并 | 列定义弃用 `1fr` 改 `var(--sd-cell)`；宽屏固定 6 列；标题栏并入欢迎行 | 🔧 重构 |
 | **v4.9.1** | 拖拽修复 | `getGridMetrics` 增加 `offsetX` 补偿 `justify-content:center` 居中偏移 | 🐛 修复 |
 | **v4.9.2** | 体育赛事卡片 + 布局放大 | 新增 `sd-sports-section`（F1/英超诺丁汉森林/德甲拜仁最近一场）；gap 12→8、网格吃满 padding、hero 压扁、scale 0.56→0.60（cell 167→180px） | ✨ 新增 |
+| **v4.9.3** | Token 卡 opencode 消耗归日修复 | `parse_opencode()` 改读 message 表按 `time.completed` 归日，修复跨天长会话消耗堆叠到创建日、之后日期显示≈0 的 bug | 🐛 修复 |
 
-**本次变更涉及文件**：`main.ts` / `styles.css` / `main.js` / `manifest.json` / `package.json` / `collect_usage.py` / `HANDOFF.md`（7 文件）＋ 新增数据文件 `00_System/countdowns.json` ＋ 新增 `.smart-dashboard/sports.json`。
+**本次变更涉及文件**：`main.ts` / `styles.css` / `main.js` / `manifest.json` / `package.json` / `collect_usage.py` / `HANDOFF.md` / `deliverables/opencode-token-rootcause.md`。
 
 ---
 
@@ -24,7 +25,7 @@
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/倒计时/导航/Token 用量/订阅额度/交易复盘等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
 - **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示；拖拽/缩放交互正常。
-- **版本：** 交接版本 **v4.9.2**（manifest.json 4.9.2 / package.json 4.9.2 对齐）；日期 **2026-08-23**
+- **版本：** 交接版本 **v4.9.3**（manifest.json 4.9.3 / package.json 4.9.3 对齐）；日期 **2026-08-24**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -40,6 +41,9 @@ flowchart TD
     H --> I[getGridMetrics 增加 offsetX 三处坐标换算修正]
     I --> J([用户验收 OK → 写 HANDOFF]) --> K[v4.9.2 体育赛事卡 + 布局放大: 爬取三赛事赛程→sports.json→opencode渲染→CDP实测4轮视觉微调]
     K --> L([v4.9.2 已提交 cb888ee 并 API 推送 main 720bc1f9])
+    L --> M[用户疑问: Token卡只看得到 Hermes 调 opencode 的消耗]
+    M --> N[opencode 研究: parse_opencode 按 session.time_created 归日 + 累计 token → 跨天长会话消耗全记创建日]
+    N --> O[v4.9.3 修复: 改读 message 表按 time.completed 归日, 总量守恒验证分毫不差]
 ```
 
 ## 3. 治理/交付核心成果与数据对比 (Metrics & Data Comparison)
@@ -61,7 +65,7 @@ flowchart TD
 
 | 主要项目 | 当前阶段/版本 | 本次进展 | 下一步 |
 | :--- | :--- | :--- | :--- |
-| **Smart Dashboard 插件** | **v4.9.2（2026-08-23）** | 体育赛事卡片（F1/森林/拜仁最近一场）+ 布局放大（cell 167→180px / scale 0.60 / 留白全减） | git 提交 cb888ee 已推送 main `720bc1f9`；sports.json 数据随赛季更新；农历节日评估 |
+| **Smart Dashboard 插件** | **v4.9.3（2026-08-24）** | Token 卡 `parse_opencode()` 改读 message 表按消息完成时间归日，修复跨天长会话消耗堆叠创建日、后日期显示≈0 的 bug（用户直接对话消耗此前只显 3~11%） | git 提交 v4.9.3 推送 main；方案C（定时自动采集）暂不做 |
 | Obsidian 知识库 LLM Wiki 重构 | 方案一/二/三 100% 落地 | — | 持续维护事件记录/知识卡片 |
 | Hermes 消息通道 QQ 迁移 | 100% 完成（2026-08-12） | — | 旧微信凭据备份待清理 |
 | 新闻获取能力升级 | 基础设施 100% 部署 | — | 服务持久化 [待确认]；AnySearch 提额评估 |
@@ -75,7 +79,8 @@ flowchart TD
   - [x] **v4.8.0**：① `ScheduleItem/TodoItem` 增 `repeat?: 'none'|'daily'|'weekly'|'monthly'|'yearly'`，周期待办用 `lastCompleted` + `todoEffectiveCompleted()` 按天/ISO周/月/年自动重置 ② 辅助方法族 `scheduleOccursOn / nextScheduleDate / todoOccursOn` ③ 节日常量 `FESTIVALS`(15 个公历) + `SOLAR_TERMS_21C`(寿星公式 `solarTermDate`) + `getHolidayMap/upcomingHolidays` ④ 日历格角标 `🏮节日 / ☀节气`（`.sd-calendar-festival/.sd-calendar-term`）⑤ 倒计时卡统一事件源只显最近 3 个 + `CountdownListModal` 全量管理 ⑥ 日程每条 `⏱ 还剩 N 天` 徽章（`.sd-schedule-days`）⑦ 两 Modal 各加「重复」下拉
   - [x] **v4.9.x**：① `setupGridSizing` 重写——宽屏固定 6 列，`cell=min(宽约束,高约束)`，ResizeObserver 改观察滚动容器防反馈循环 ② CSS `.sd-grid` 列定义 `repeat(var(--sd-cols), var(--sd-cell))` 替代 `1fr` + `justify-content:center` ③ 标题行删除，重置布局/Inbox 徽章并入 Hero 行（`margin-left:auto` 推右） ④ `getGridMetrics` 增加 `offsetX` 居中偏移，`showDropTarget/commitDrop` 坐标扣除 → 拖拽修复
   - [x] **v4.9.2 体育赛事卡 + 布局放大**：新增 `sd-sports-section`（2×1 格，默认 x1,y5），data 链路 `sports.json` → `renderSportsArea()`（~L3486）→ 每联赛过滤 `datetime>now` 取最近一场；渲染图标+联赛名+轮次徽标（"第N场大奖赛"/"第N轮"）+ 对手文本（足球主场 🏠）+ 日期 + 倒计时；三色左边框（F1 红 #E63946/森林绿 #2E9E4F/拜仁蓝 #2A6FDB）；布局放大 gap 12→8、网格宽度吃满真实 padding、hero 行压扁、scale 0.56→0.60、`GRID_GAP` 8（含 `getGridMetrics` 拖拽定位同步）；体育卡行距参照导航卡（flex:1 1 0 等分填满 + gap 6px + 上下零留空）
-  - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库
+  - [x] **v4.9.3 Token 卡 opencode 消耗归日修复**：用户反馈"Token 卡只统计到 Hermes 调 opencode 的消耗、自己 TUI 直接对话的看不见"。经 opencode 深入研究（`deliverables/opencode-token-rootcause.md`）定位根因：`parse_opencode()` 原按 session 表 `time_created`（会话创建时间）归日 + 读 session 级**累计** token，导致跨天长会话（用户 `C:/Users/华为` 下的 plan 长会话 08-22~08-24 累计 852 万 input）全部消耗堆到创建日 08-22，之后日期显示≈0，且每次刷新创建日追溯虚涨；而 Hermes 委派会话全是分钟级短命会话日期天然准确，于是呈现"只有 Hermes 统计得对"。修复=改读 message 表、逐条 assistant 消息按 `COALESCE(time.completed, time.created)` 归日（本地时区），`calls`=当日消息条数。实测 08-23 从 62 万→**560 万**（真实），08-24 从凌晨快照 6.4 万→**220 万**；session 级 vs message 级五项 token 总量守恒分毫不差（7073 万 input）。改动仅限 `parse_opencode()`，其余四源与 schema_version=5 未动
+  - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库（v4.9.1，保留）
   - [x] vault `data.json` 同步维护：6×4 布局落盘、search 1×2（col5 行 2-3，col6 行 2-3 留空）、活动热力图条目清除
 - **关键代码/文件路径：**
   - `D:/workspace/01_Projects/obsidian-smart-dashboard/main.ts` — 全部逻辑（约 3980 行）：常量区（`FESTIVALS/SOLAR_TERMS_21C/SD_SKINS/DAILY_DIR/DEFAULT_NAV_ENTRIES`）、视图类辅助方法群（`getStreakDays/dailyNotePath/ensureDailyNoteFile/openOrCreateDailyNote/appendToDailyNote/getCountdowns/saveCountdowns/scheduleOccursOn/nextScheduleDate/todoOccursOn/todoEffectiveCompleted`）、渲染方法（`renderCountdownArea/renderNavArea/renderStatsArea/renderQuickJotArea/renderTodoArea/renderScheduleArea`）、布局引擎（`DEFAULT_LAYOUT/setupGridSizing/applyScale/getGridMetrics/bindCardDrag/showDropTarget/commitDrop/reflowLayoutForVisibleCards`）、弹窗（`ManageCountdownModal/CountdownListModal`）
@@ -94,6 +99,7 @@ flowchart TD
   - [x] **git 提交 v4.6.1~v4.9.1**（已于 2026-08-22 走 GitHub REST API 推送，6708ddb→远程 0ba9872，tree 一致 4e0fd928）
   - [x] **git 提交 v4.9.2**（`cb888ee`）并经 GitHub REST API 推送——远程 main → `720bc1f9`，tree 校验一致 `7d1a2d6d`（2026-08-23）
   - [x] `04_当前长期项目状态.md` §1 看板 + §2.3 + §2.6 + 演进历史更新至 v4.9.2（2026-08-23 完成）
+  - [ ] **git 提交 v4.9.3**（Token 卡 opencode 归日修复）并经 GitHub REST API 推送 main（2026-08-24 待执行）
 - **📌 后续规划：**
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
   - [ ] 体育卡 `sports.json` 数据随赛季推进更新（F1 剩余 11 站，森林/拜仁赛程确认后补全）；体育卡目前无自动刷新计时器（与日历等静态卡一致），如需可挂共享 300s 定时器
@@ -130,10 +136,10 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
-  - 📍 v4.9.2 已构建部署且 CDP 实测通过（体育卡渲染 clipped=false）；v4.9.1 拖拽修复用户明确验收通过
-  - 📍 v4.9.2 已 commit `cb888ee` 并经 REST API 推送远程 main `720bc1f9`（tree 校验一致 `7d1a2d6d`），工作区 clean
+  - 📍 v4.9.3 已改 `parse_opencode()`（读 message 表归日）并构建部署（vault manifest 4.9.3）；本变更将 git commit + REST API 推送 main
+  - 📍 v4.9.2 体育卡 CDP 实测通过（clipped=false）；v4.9.1 拖拽修复用户验收通过
   - 📍 最终布局态：data.json 为 6 列×4 行（顶行六个 1×1 单卡 → 中部 calendar/stats 2×2 + search 1×2 → 底行 usage/trading/subscriptions 2×1 + 体育卡 x1,y5 2×1），search 位于 col5 行 2-3，col6 行 2-3 留空两格
-  - 📍 最后一次构建命令：`npm run build`（体育卡渲染经 opencode 迭代 4 轮视觉微调）
+  - 📍 最后一次构建命令：`npm run build`（v4.9.3）
 - **遗留待确认问题：**
   - ❓ `sports.json` 赛程是否补全为全年？F1 24 站 / 英超德甲整赛季数据 [待确认]
   - ❓ 农历节日是否立项；体育卡是否挂自动刷新定时器 [待确认]
@@ -144,6 +150,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.9.3**：Token 卡 `parse_opencode()` 改读 opencode.db message 表、按消息完成时间归日（COALESCE time.completed/created），修复跨天长会话消耗堆叠创建日、后日期显示≈0 的 bug；实测 08-23 卡片从 62 万摆正至真实 560 万 input
 - **v4.9.2**：体育赛事卡片（sd-sports-section，F1/诺丁汉森林/拜仁最近一场，sports.json）+ 布局放大（gap 12→8、网格吃满、hero 压扁、scale 0.6、cell 180px）
 - **v4.9.1**：拖拽修复（getGridMetrics offsetX 补偿 justify-content:center 轨道偏移）
 - **v4.9.0**：6×4 正方形网格重构（var(--sd-cell) 列定义 + 高度约束缩放 + 固定 6 列 + Hero 行合并标题栏）
