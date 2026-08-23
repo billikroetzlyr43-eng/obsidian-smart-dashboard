@@ -1,10 +1,10 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.1：看板灵感九项落地与 6×4 正方形网格重构
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.2：新增体育赛事卡片 + 看板布局放大
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.7.0 → v4.9.1** 共 6 个版本的连续变更（单会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.2** 共 7 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
-## 🏷️ 版本变更总览 (v4.6.1 → v4.9.1 CHANGELOG)
+## 🏷️ 版本变更总览 (v4.6.1 → v4.9.2 CHANGELOG)
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
@@ -14,16 +14,17 @@
 | **v4.8.2** | 6 列 × 4 行布局 | DEFAULT_LAYOUT 与 data.json 双重重排（用户口径「4*6」实指 6 列×4 行） | 🔧 重构 |
 | **v4.9.0** | 正方形格子 + Hero 行合并 | 列定义弃用 `1fr` 改 `var(--sd-cell)`；宽屏固定 6 列；标题栏并入欢迎行 | 🔧 重构 |
 | **v4.9.1** | 拖拽修复 | `getGridMetrics` 增加 `offsetX` 补偿 `justify-content:center` 居中偏移 | 🐛 修复 |
+| **v4.9.2** | 体育赛事卡片 + 布局放大 | 新增 `sd-sports-section`（F1/英超诺丁汉森林/德甲拜仁最近一场）；gap 12→8、网格吃满 padding、hero 压扁、scale 0.56→0.60（cell 167→180px） | ✨ 新增 |
 
-**本次变更涉及文件**：`main.ts` / `styles.css` / `main.js` / `manifest.json` / `package.json` / `collect_usage.py` / `HANDOFF.md`（7 文件）＋ 新增数据文件 `00_System/countdowns.json`。
+**本次变更涉及文件**：`main.ts` / `styles.css` / `main.js` / `manifest.json` / `package.json` / `collect_usage.py` / `HANDOFF.md`（7 文件）＋ 新增数据文件 `00_System/countdowns.json` ＋ 新增 `.smart-dashboard/sports.json`。
 
 ---
 
 ## 1. 项目概况与当前状态
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/倒计时/导航/Token 用量/订阅额度/交易复盘等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
-- **当前阶段：** 灵感落地完毕——12 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换；拖拽/缩放交互正常。
-- **版本：** 交接版本 **v4.9.1**（manifest.json 4.9.1 / package.json 4.9.1 对齐）；日期 **2026-08-22**
+- **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示；拖拽/缩放交互正常。
+- **版本：** 交接版本 **v4.9.2**（manifest.json 4.9.2 / package.json 4.9.2 对齐）；日期 **2026-08-23**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -37,7 +38,8 @@ flowchart TD
     F --> G{用户反馈: 卡片拖不动}
     G --> H[v4.9.1 定位: justify-content:center 轨道偏移未入坐标系]
     H --> I[getGridMetrics 增加 offsetX 三处坐标换算修正]
-    I --> J([用户验收 OK → 写 HANDOFF])
+    I --> J([用户验收 OK → 写 HANDOFF]) --> K[v4.9.2 体育赛事卡 + 布局放大: 爬取三赛事赛程→sports.json→opencode渲染→CDP实测4轮视觉微调]
+    K --> L([v4.9.2 已提交 cb888ee 并 API 推送 main 720bc1f9])
 ```
 
 ## 3. 治理/交付核心成果与数据对比 (Metrics & Data Comparison)
@@ -59,7 +61,7 @@ flowchart TD
 
 | 主要项目 | 当前阶段/版本 | 本次进展 | 下一步 |
 | :--- | :--- | :--- | :--- |
-| **Smart Dashboard 插件** | **v4.9.1（2026-08-22）** | 小红书灵感九项落地；周期日程/待办；节日节气进日历与倒计时；6×4 正方形网格重构；拖拽居中偏移修复 | **git 提交推送 v4.7.0~v4.9.1**；项目状态文件 §1 更新至 v4.9.1；农历节日评估 |
+| **Smart Dashboard 插件** | **v4.9.2（2026-08-23）** | 体育赛事卡片（F1/森林/拜仁最近一场）+ 布局放大（cell 167→180px / scale 0.60 / 留白全减） | git 提交 cb888ee 已推送 main `720bc1f9`；sports.json 数据随赛季更新；农历节日评估 |
 | Obsidian 知识库 LLM Wiki 重构 | 方案一/二/三 100% 落地 | — | 持续维护事件记录/知识卡片 |
 | Hermes 消息通道 QQ 迁移 | 100% 完成（2026-08-12） | — | 旧微信凭据备份待清理 |
 | 新闻获取能力升级 | 基础设施 100% 部署 | — | 服务持久化 [待确认]；AnySearch 提额评估 |
@@ -72,13 +74,15 @@ flowchart TD
   - [x] **v4.7.0**：① Hero 欢迎区（`refreshHero` 时段问候 + 秒级时钟 interval + `getStreakDays()` 连续活跃=心情打卡 OR 笔记 ctime/mtime 任一，今天未活跃从昨天起算）② 统计卡扩 6 格（今日新增/未完成待办/连续活跃）③ 待办优先级（`TodoItem.priority?: 'high'|'mid'|'low'`，胶囊色 #e6635a/#f4a261/#7c6ee6，排序=逾期置顶→高中低→稳定拖拽序）④ 随笔「📝 写入今日日记」（`appendToDailyNote` 文末 append，无日记经 `ensureDailyNoteFile` 按模板创建于 `05_事件记录/YYYY/MM/YYYY-MM-DD.md`）⑤ D-Day 倒计时卡 `sd-countdown-section`（`countdowns.json`）⑥ DayDetailModal「📖 打开/创建日记」⑦ 导航入口卡 `sd-nav-section`（纯色五按钮竖排 1×1，revealInFolder 定位文件夹）⑧ 四套皮肤 `SD_SKINS`（容器类 `.sd-skin-violet/gold/terminal` 覆盖 `--sd-warm-accent`）⑨ 全库活动热力图卡（v4.8.1 移除）
   - [x] **v4.8.0**：① `ScheduleItem/TodoItem` 增 `repeat?: 'none'|'daily'|'weekly'|'monthly'|'yearly'`，周期待办用 `lastCompleted` + `todoEffectiveCompleted()` 按天/ISO周/月/年自动重置 ② 辅助方法族 `scheduleOccursOn / nextScheduleDate / todoOccursOn` ③ 节日常量 `FESTIVALS`(15 个公历) + `SOLAR_TERMS_21C`(寿星公式 `solarTermDate`) + `getHolidayMap/upcomingHolidays` ④ 日历格角标 `🏮节日 / ☀节气`（`.sd-calendar-festival/.sd-calendar-term`）⑤ 倒计时卡统一事件源只显最近 3 个 + `CountdownListModal` 全量管理 ⑥ 日程每条 `⏱ 还剩 N 天` 徽章（`.sd-schedule-days`）⑦ 两 Modal 各加「重复」下拉
   - [x] **v4.9.x**：① `setupGridSizing` 重写——宽屏固定 6 列，`cell=min(宽约束,高约束)`，ResizeObserver 改观察滚动容器防反馈循环 ② CSS `.sd-grid` 列定义 `repeat(var(--sd-cols), var(--sd-cell))` 替代 `1fr` + `justify-content:center` ③ 标题行删除，重置布局/Inbox 徽章并入 Hero 行（`margin-left:auto` 推右） ④ `getGridMetrics` 增加 `offsetX` 居中偏移，`showDropTarget/commitDrop` 坐标扣除 → 拖拽修复
+  - [x] **v4.9.2 体育赛事卡 + 布局放大**：新增 `sd-sports-section`（2×1 格，默认 x1,y5），data 链路 `sports.json` → `renderSportsArea()`（~L3486）→ 每联赛过滤 `datetime>now` 取最近一场；渲染图标+联赛名+轮次徽标（"第N场大奖赛"/"第N轮"）+ 对手文本（足球主场 🏠）+ 日期 + 倒计时；三色左边框（F1 红 #E63946/森林绿 #2E9E4F/拜仁蓝 #2A6FDB）；布局放大 gap 12→8、网格宽度吃满真实 padding、hero 行压扁、scale 0.56→0.60、`GRID_GAP` 8（含 `getGridMetrics` 拖拽定位同步）；体育卡行距参照导航卡（flex:1 1 0 等分填满 + gap 6px + 上下零留空）
   - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库
   - [x] vault `data.json` 同步维护：6×4 布局落盘、search 1×2（col5 行 2-3，col6 行 2-3 留空）、活动热力图条目清除
 - **关键代码/文件路径：**
   - `D:/workspace/01_Projects/obsidian-smart-dashboard/main.ts` — 全部逻辑（约 3980 行）：常量区（`FESTIVALS/SOLAR_TERMS_21C/SD_SKINS/DAILY_DIR/DEFAULT_NAV_ENTRIES`）、视图类辅助方法群（`getStreakDays/dailyNotePath/ensureDailyNoteFile/openOrCreateDailyNote/appendToDailyNote/getCountdowns/saveCountdowns/scheduleOccursOn/nextScheduleDate/todoOccursOn/todoEffectiveCompleted`）、渲染方法（`renderCountdownArea/renderNavArea/renderStatsArea/renderQuickJotArea/renderTodoArea/renderScheduleArea`）、布局引擎（`DEFAULT_LAYOUT/setupGridSizing/applyScale/getGridMetrics/bindCardDrag/showDropTarget/commitDrop/reflowLayoutForVisibleCards`）、弹窗（`ManageCountdownModal/CountdownListModal`）
-  - `D:/workspace/01_Projects/obsidian-smart-dashboard/styles.css` — 末段 v4.7/v4.8 增补：皮肤类/Hero 行/优先级胶囊/倒计时卡/日历角标/导航按钮
+  - `D:/workspace/01_Projects/obsidian-smart-dashboard/styles.css` — 末段 v4.7/v4.8 增补：皮肤类/Hero 行/优先级胶囊/倒计时卡/日历角标/导航按钮；v4.9.2 `.sd-sports-*` 样式与 hero/grid 放大
   - 构建产物已部署：`D:/Obsidian Vault/Obsidian Vault/.obsidian/plugins/obsidian-smart-dashboard/`（main.js/styles.css/manifest.json）
   - 持久化配置：同目录 `data.json`（cardLayout 6×4 / cardVisibility / skin / navEntries）
+  - 体育赛事数据：`.smart-dashboard/sports.json`（vault，F1 剩余11站 round14-24 / 森林英超13轮 / 拜仁德甲6轮，北京时间）
 - **技术方案与架构：**
   - **正方形格子**：CSS 列定义必须 `repeat(var(--sd-cols), var(--sd-cell))` 而非 `1fr`；格子边长单一变量驱动，内容仍走 DESIGN_CELL=300 设计基准 + `transform: scale(var(--sd-scale))` 等比缩放
   - **高度约束缩放**：`cell = min(面板宽/6, 滚动容器可视高换算)`，ResizeObserver 观察**滚动容器**而非 grid 本身（避免缩放自触发反馈循环），测距补偿 `scrollTop`
@@ -87,10 +91,12 @@ flowchart TD
 
 ## 5. 待办事项与下一步行动 (Next Steps)
 - **⚡ 优先级最高（已在本轮完成）：**
-  - [x] **git 提交并推送 v4.7.0~v4.9.1 全部改动**——已于 2026-08-22 走 GitHub REST API 推送（本地 commit 6708ddb → 远程 0ba9872，tree sha 一致 4e0fd928，fast-forward 安全校验通过，git fetch 后 ref 对齐）。工作区 clean，bak 备份未入库（见 §7 .gitignore 约定）
+  - [x] **git 提交 v4.6.1~v4.9.1**（已于 2026-08-22 走 GitHub REST API 推送，6708ddb→远程 0ba9872，tree 一致 4e0fd928）
+  - [x] **git 提交 v4.9.2**（`cb888ee`）并经 GitHub REST API 推送——远程 main → `720bc1f9`，tree 校验一致 `7d1a2d6d`（2026-08-23）
+  - [x] `04_当前长期项目状态.md` §1 看板 + §2.3 + §2.6 + 演进历史更新至 v4.9.2（2026-08-23 完成）
 - **📌 后续规划：**
-  - [x] `04_当前长期项目状态.md` §1 看板 Smart Dashboard 行更新 v4.6.1 → v4.9.1（已于 2026-08-22 完成，含 §2.6 版本史 v4.7.0~v4.9.1 与演进历史补充）
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
+  - [ ] 体育卡 `sports.json` 数据随赛季推进更新（F1 剩余 11 站，森林/拜仁赛程确认后补全）；体育卡目前无自动刷新计时器（与日历等静态卡一致），如需可挂共享 300s 定时器
   - [ ] 清理源码工程内多轮备份文件（`*.bak_20260822` 等，确认无需回溯后删）
   - [ ] 窄屏（<700px）2 列流式模式下的拖拽仍禁用（`commitDrop` cols<4 直接 return），如需支持另行设计
 
@@ -124,12 +130,13 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
-  - 📍 v4.9.1 已构建部署且**用户明确验收通过**（原话「ok了」，指拖拽恢复正常）
-  - 📍 最终布局态：data.json 为 6 列×4 行（顶行六个 1×1 单卡 → 中部 calendar/stats 2×2 + search 1×2 → 底行 usage/trading/subscriptions 2×1），search 位于 col5 行 2-3，col6 行 2-3 留空两格
-  - 📍 最后一次构建命令：`npm run build`（workdir `D:\workspace\01_Projects\obsidian-smart-dashboard`），产物时间戳 2026-08-22
+  - 📍 v4.9.2 已构建部署且 CDP 实测通过（体育卡渲染 clipped=false）；v4.9.1 拖拽修复用户明确验收通过
+  - 📍 v4.9.2 已 commit `cb888ee` 并经 REST API 推送远程 main `720bc1f9`（tree 校验一致 `7d1a2d6d`），工作区 clean
+  - 📍 最终布局态：data.json 为 6 列×4 行（顶行六个 1×1 单卡 → 中部 calendar/stats 2×2 + search 1×2 → 底行 usage/trading/subscriptions 2×1 + 体育卡 x1,y5 2×1），search 位于 col5 行 2-3，col6 行 2-3 留空两格
+  - 📍 最后一次构建命令：`npm run build`（体育卡渲染经 opencode 迭代 4 轮视觉微调）
 - **遗留待确认问题：**
-  - ❓ [待确认] git push 后本地与远程 sha 对齐（沿用既有 REST API push 流程）
-  - ❓ [待确认] 农历节日是否立项；`04_当前长期项目状态.md` §1 是否由下一会话顺带更新
+  - ❓ `sports.json` 赛程是否补全为全年？F1 24 站 / 英超德甲整赛季数据 [待确认]
+  - ❓ 农历节日是否立项；体育卡是否挂自动刷新定时器 [待确认]
 
 ---
 > 🔗 关联工作流：[[10_项目交接与上下文维持工作流]]
@@ -137,6 +144,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.9.2**：体育赛事卡片（sd-sports-section，F1/诺丁汉森林/拜仁最近一场，sports.json）+ 布局放大（gap 12→8、网格吃满、hero 压扁、scale 0.6、cell 180px）
 - **v4.9.1**：拖拽修复（getGridMetrics offsetX 补偿 justify-content:center 轨道偏移）
 - **v4.9.0**：6×4 正方形网格重构（var(--sd-cell) 列定义 + 高度约束缩放 + 固定 6 列 + Hero 行合并标题栏）
 - **v4.8.2**：布局改 6 列×4 行（纠正「4*6」口径歧义）；data.json 同步重排
