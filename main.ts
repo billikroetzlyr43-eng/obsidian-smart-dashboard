@@ -1298,13 +1298,13 @@ class SmartDashboardView extends ItemView {
     currentTab: 'overview' | 'calendar' | 'stats' = 'overview';
     calendarViewMode: 'month' | 'week' = 'month';
 
-    // 磁贴内容等比缩放：设计基准每格 300px，网格 gap 12px
+    // 磁贴内容等比缩放：设计基准每格 300px，网格 gap 8px
     private static DESIGN_CELL = 300;
-    private static GRID_GAP = 12;
+    private static GRID_GAP = 8;
 
     // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
     private static DEFAULT_LAYOUT: Record<string, {x: number; y: number; w: number; h: number}> = {
-        // ===== 6 列 × 4 行（24 格恰好填满）=====
+        // ===== 6 列 × 4 行填满 + 第 5 行扩展（setupGridSizing 按布局数据自动扩行）=====
         'sd-countdown-section': {x: 1, y: 1, w: 1, h: 1},   // D-Day 倒计时
         'sd-quickjot-section':  {x: 2, y: 1, w: 1, h: 1},   // 极速随笔
         'sd-nav-section':       {x: 3, y: 1, w: 1, h: 1},   // 导航入口
@@ -1317,6 +1317,7 @@ class SmartDashboardView extends ItemView {
         'sd-usage-section':     {x: 1, y: 4, w: 2, h: 1},   // Token 用量 2×1
         'sd-trading-section':   {x: 3, y: 4, w: 2, h: 1},   // 交易复盘 2×1
         'sd-subscriptions-section': {x: 5, y: 4, w: 2, h: 1}, // 订阅额度 2×1
+        'sd-sports-section':     {x: 1, y: 5, w: 2, h: 1},   // 体育赛事 2×1（第 5 行新行）
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
@@ -1534,7 +1535,7 @@ class SmartDashboardView extends ItemView {
         const resetLayoutBtn = heroRow.createEl('button', {
             text: '↺ 重置布局',
             cls: 'sd-btn secondary',
-            attr: {style: 'padding: 4px 10px; font-size: 0.8em; margin-left: auto; flex-shrink: 0;'}
+            attr: {style: 'padding: 2px 8px; font-size: 0.75em; margin-left: auto; flex-shrink: 0;'}
         });
         resetLayoutBtn.onclick = () => { this.resetLayout(); };
 
@@ -1635,6 +1636,15 @@ class SmartDashboardView extends ItemView {
             const subscriptionsBody = this.createCardBody(subscriptionsCard);
             cards.push(subscriptionsCard);
             await this.renderSubscriptionsArea(subscriptionsBody);
+        }
+
+        if (visibility['sd-sports-section'] !== false) {
+            const sportsCard = grid.createDiv('sd-card');
+            sportsCard.id = 'sd-sports-section';
+            this.applyCardSize(sportsCard);
+            const sportsBody = this.createCardBody(sportsCard);
+            cards.push(sportsCard);
+            await this.renderSportsArea(sportsBody);
         }
 
         if (visibility['sd-schedule-section'] !== false) {
@@ -1773,7 +1783,7 @@ class SmartDashboardView extends ItemView {
         card.addClass(`sd-size-${pos.w}x${pos.h}`);
     }
 
-    // 创建等比缩放的内容容器：按设计尺寸（每格 300px + gap 12px）设定固定宽高，整体由 --sd-scale 缩放
+    // 创建等比缩放的内容容器：按设计尺寸（每格 300px + GRID_GAP）设定固定宽高，整体由 --sd-scale 缩放
     private createCardBody(card: HTMLElement): HTMLElement {
         const pos = this.layoutData[card.id];
         const w = pos?.w ?? 1;
@@ -1788,7 +1798,12 @@ class SmartDashboardView extends ItemView {
 
     private setupGridSizing(grid: HTMLElement): void {
         const compute = () => {
-            const availW = grid.clientWidth - 24;  // 减去 .sd-grid 的左右 padding
+            // 读取 .sd-grid 真实 padding，精确计算可用内容宽度
+            const gcs = getComputedStyle(grid);
+            const padL = parseFloat(gcs.paddingLeft) || 0;
+            const padR = parseFloat(gcs.paddingRight) || 0;
+            const padV = (parseFloat(gcs.paddingTop) || 0) + (parseFloat(gcs.paddingBottom) || 0);
+            const availW = grid.clientWidth - padL - padR;
             if (availW <= 0) return;               // 容器未就绪，等待下次回调
             const gap = SmartDashboardView.GRID_GAP;
 
@@ -1815,9 +1830,11 @@ class SmartDashboardView extends ItemView {
             if (scroller) {
                 const scRect = scroller.getBoundingClientRect();
                 const gRect = grid.getBoundingClientRect();
+                // 滚动容器底部 padding 必须计入，否则内容溢出会出现滚动条
+                const scPadB = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
                 // 网格顶部到滚动容器顶部的布局距离（补偿滚动量，结果与当前滚动位置无关）
                 const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
-                const availH = scroller.clientHeight - topOffset - 24 /*网格上下padding*/ - 6 /*底部余量*/;
+                const availH = scroller.clientHeight - topOffset - padV - scPadB - 2;
                 if (availH > 120 && rows >= 1) {
                     const cellH = (availH - gap * (rows - 1)) / rows;
                     if (cellH > 60) cell = Math.min(cell, cellH);
@@ -1871,9 +1888,12 @@ class SmartDashboardView extends ItemView {
         const cols = parseInt(grid.style.getPropertyValue('--sd-cols'), 10) || 6;
         const cell = parseFloat(grid.style.getPropertyValue('--sd-cell')) || 280;
         // 轨道总宽（不含 padding）；justify-content:center 时计算水平居中偏移
-        const trackW = cols * cell + (cols - 1) * 12;
-        const offsetX = Math.max(0, (rect.width - 24 - trackW) / 2);
-        return { cols, cell, gap: 12, rect, offsetX };
+        const trackW = cols * cell + (cols - 1) * SmartDashboardView.GRID_GAP;
+        const mgcs = getComputedStyle(grid);
+        const mpadL = parseFloat(mgcs.paddingLeft) || 0;
+        const mpadR = parseFloat(mgcs.paddingRight) || 0;
+        const offsetX = Math.max(0, (rect.width - mpadL - mpadR - trackW) / 2);
+        return { cols, cell, gap: SmartDashboardView.GRID_GAP, rect, offsetX };
     }
 
     private bindCardDrag(card: HTMLElement): void {
@@ -2041,9 +2061,10 @@ class SmartDashboardView extends ItemView {
         }
 
         // 按 y、x 排序（保持原有顺序，如果没有则按 id 排序）
+        // 新增卡无持久化坐标时回退到 DEFAULT_LAYOUT 坐标，避免排到最前挤占首行
         visibleEntries.sort((a, b) => {
-            const posA = this.layoutData[a.id] || {y: 0, x: 0};
-            const posB = this.layoutData[b.id] || {y: 0, x: 0};
+            const posA = this.layoutData[a.id] || SmartDashboardView.DEFAULT_LAYOUT[a.id] || {y: 0, x: 0};
+            const posB = this.layoutData[b.id] || SmartDashboardView.DEFAULT_LAYOUT[b.id] || {y: 0, x: 0};
             return posA.y - posB.y || posA.x - posB.x;
         });
 
@@ -3471,6 +3492,89 @@ class SmartDashboardView extends ItemView {
 
       // ===== 订阅额度卡片 =====
 
+    // ===== 体育赛事：读 .smart-dashboard/sports.json，每联赛取接下来最早一场 =====
+    private async renderSportsArea(card: HTMLElement): Promise<void> {
+        try {
+            const header = card.createDiv({cls: 'sd-section-title'});
+            header.setText('🏟️ 体育赛事');
+
+            const body = card.createDiv({cls: 'sd-sports-body'});
+            let raw: string;
+            try {
+                raw = await this.app.vault.adapter.read('.smart-dashboard/sports.json');
+            } catch {
+                body.createDiv({cls: 'sd-sports-empty'}).setText('暂无赛程');
+                return;
+            }
+            const data = JSON.parse(raw);
+            const leagues: any[] = data?.leagues || [];
+
+            // datetime 为北京时间 ISO 风格（"YYYY-MM-DD HH:mm"），兼容 "(+1)" 跨天标记
+            const parseDt = (dt: string): moment.Moment | null => {
+                if (!dt || typeof dt !== 'string') return null;
+                const plusDay = dt.match(/\(\+(\d+)\)/);
+                const d = moment(dt.replace(/\(\+\d+\)/, '').replace(' ', 'T'));
+                if (!d.isValid()) return null;
+                return plusDay ? d.add(parseInt(plusDay[1], 10), 'day') : d;
+            };
+
+            interface SportsEntry { icon: string; name: string; label: string; home?: boolean; sport: string; dt: moment.Moment; id: string; round?: number; }
+            const entries: SportsEntry[] = [];
+            for (const league of leagues) {
+                const now = moment();
+                const upcoming = (league.events || [])
+                    .map((ev: any) => ({ev, dt: parseDt(ev.datetime)}))
+                    .filter((x: any) => x.dt && x.dt.isAfter(now))
+                    .sort((a: any, b: any) => a.dt.valueOf() - b.dt.valueOf());
+                if (!upcoming.length) continue;
+                const next = upcoming[0];
+                entries.push({
+                    icon: league.icon || '🏅',
+                    name: league.name || league.id,
+                    label: next.ev.label || '',
+                    home: next.ev.home,
+                    sport: league.sport || '',
+                    dt: next.dt,
+                    id: league.id || '',
+                    round: typeof next.ev.round === 'number' ? next.ev.round : undefined,
+                });
+            }
+
+            if (entries.length === 0) {
+                body.createDiv({cls: 'sd-sports-empty'}).setText('暂无赛程');
+                return;
+            }
+            entries.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+
+            const list = body.createDiv({cls: 'sd-sports-list'});
+            for (const en of entries) {
+                const item = list.createDiv({cls: 'sd-sports-item'});
+                if (en.id) item.setAttribute('data-league', en.id.toLowerCase());
+                const info = item.createDiv({cls: 'sd-sports-info'});
+                info.createDiv({cls: 'sd-sports-icon', text: en.icon});
+                info.createDiv({cls: 'sd-sports-name', text: en.name});
+                // 对手文本：足球 label 含 vs 时主场比赛加 🏠；F1 直接用 label
+                let opponentText = en.label;
+                if (en.sport === '足球' && opponentText.includes('vs') && en.home === true) {
+                    opponentText += ' 🏠';
+                }
+                // 轮次徽标：赛车显示"第N场大奖赛"，足球显示"第N轮"（行内，不加高）
+                const oppDiv = item.createDiv({cls: 'sd-sports-opponent'});
+                if (en.round != null) {
+                    const roundText = en.sport === '赛车' ? `第${en.round}场大奖赛` : `第${en.round}轮`;
+                    oppDiv.createSpan({cls: 'sd-sports-round', text: roundText});
+                }
+                oppDiv.createSpan({text: opponentText});
+                const meta = item.createDiv({cls: 'sd-sports-meta'});
+                meta.createDiv({cls: 'sd-sports-date', text: en.dt.format('M月D日 HH:mm')});
+                const diffDays = en.dt.clone().startOf('day').diff(moment().startOf('day'), 'days');
+                meta.createDiv({cls: 'sd-sports-days', text: diffDays <= 0 ? '今天' : `还有 ${diffDays} 天`});
+            }
+        } catch (e) {
+            card.createDiv().setText('卡片渲染失败: ' + String(e));
+        }
+    }
+
       private async renderSubscriptionsArea(card: HTMLElement): Promise<void> {
         try {
           // 标题 + 按钮
@@ -3904,6 +4008,7 @@ const CARD_LABELS: Record<string, string> = {
     'sd-stats-section': '统计分析',
     'sd-usage-section': 'Token 用量',
     'sd-subscriptions-section': '订阅额度',
+    'sd-sports-section': '体育赛事',
     'sd-schedule-section': '日程管理',
     'sd-todo-section': '待办事项',
     'sd-trading-section': '交易复盘',

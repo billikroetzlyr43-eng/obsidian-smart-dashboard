@@ -2430,9 +2430,9 @@ function parseMaxStyle(styleValue, node, parentProperty) {
   }
   return valueInPixels;
 }
-var getComputedStyle = (element) => element.ownerDocument.defaultView.getComputedStyle(element, null);
+var getComputedStyle2 = (element) => element.ownerDocument.defaultView.getComputedStyle(element, null);
 function getStyle(el, property) {
-  return getComputedStyle(el).getPropertyValue(property);
+  return getComputedStyle2(el).getPropertyValue(property);
 }
 var positions = [
   "top",
@@ -2478,7 +2478,7 @@ function getRelativePosition(event, chart) {
     return event;
   }
   const { canvas, currentDevicePixelRatio } = chart;
-  const style = getComputedStyle(canvas);
+  const style = getComputedStyle2(canvas);
   const borderBox = style.boxSizing === "border-box";
   const paddings = getPositionedStyle(style, "padding");
   const borders = getPositionedStyle(style, "border", "width");
@@ -2504,7 +2504,7 @@ function getContainerSize(canvas, width, height) {
       height = canvas.clientHeight;
     } else {
       const rect = container.getBoundingClientRect();
-      const containerStyle = getComputedStyle(container);
+      const containerStyle = getComputedStyle2(container);
       const containerBorder = getPositionedStyle(containerStyle, "border", "width");
       const containerPadding = getPositionedStyle(containerStyle, "padding");
       width = rect.width - containerPadding.width - containerBorder.width;
@@ -2522,7 +2522,7 @@ function getContainerSize(canvas, width, height) {
 }
 var round1 = (v) => Math.round(v * 10) / 10;
 function getMaximumSize(canvas, bbWidth, bbHeight, aspectRatio) {
-  const style = getComputedStyle(canvas);
+  const style = getComputedStyle2(canvas);
   const margins = getPositionedStyle(style, "margin");
   const maxWidth = parseMaxStyle(style.maxWidth, canvas, "clientWidth") || INFINITY;
   const maxHeight = parseMaxStyle(style.maxHeight, canvas, "clientHeight") || INFINITY;
@@ -15774,7 +15774,7 @@ ${text}
     const resetLayoutBtn = heroRow.createEl("button", {
       text: "\u21BA \u91CD\u7F6E\u5E03\u5C40",
       cls: "sd-btn secondary",
-      attr: { style: "padding: 4px 10px; font-size: 0.8em; margin-left: auto; flex-shrink: 0;" }
+      attr: { style: "padding: 2px 8px; font-size: 0.75em; margin-left: auto; flex-shrink: 0;" }
     });
     resetLayoutBtn.onclick = () => {
       this.resetLayout();
@@ -15867,6 +15867,14 @@ ${text}
       const subscriptionsBody = this.createCardBody(subscriptionsCard);
       cards.push(subscriptionsCard);
       await this.renderSubscriptionsArea(subscriptionsBody);
+    }
+    if (visibility["sd-sports-section"] !== false) {
+      const sportsCard = grid.createDiv("sd-card");
+      sportsCard.id = "sd-sports-section";
+      this.applyCardSize(sportsCard);
+      const sportsBody = this.createCardBody(sportsCard);
+      cards.push(sportsCard);
+      await this.renderSportsArea(sportsBody);
     }
     if (visibility["sd-schedule-section"] !== false) {
       const scheduleCard = grid.createDiv("sd-card");
@@ -15999,7 +16007,7 @@ ${text}
     if (!pos) return;
     card.addClass(`sd-size-${pos.w}x${pos.h}`);
   }
-  // 创建等比缩放的内容容器：按设计尺寸（每格 300px + gap 12px）设定固定宽高，整体由 --sd-scale 缩放
+  // 创建等比缩放的内容容器：按设计尺寸（每格 300px + GRID_GAP）设定固定宽高，整体由 --sd-scale 缩放
   createCardBody(card) {
     var _a, _b;
     const pos = this.layoutData[card.id];
@@ -16013,7 +16021,11 @@ ${text}
   // ===== 网格尺寸自适应（ResizeObserver）=====
   setupGridSizing(grid) {
     const compute = () => {
-      const availW = grid.clientWidth - 24;
+      const gcs = getComputedStyle(grid);
+      const padL = parseFloat(gcs.paddingLeft) || 0;
+      const padR = parseFloat(gcs.paddingRight) || 0;
+      const padV = (parseFloat(gcs.paddingTop) || 0) + (parseFloat(gcs.paddingBottom) || 0);
+      const availW = grid.clientWidth - padL - padR;
       if (availW <= 0) return;
       const gap = _SmartDashboardView.GRID_GAP;
       if (availW < 700) {
@@ -16036,8 +16048,9 @@ ${text}
       if (scroller) {
         const scRect = scroller.getBoundingClientRect();
         const gRect = grid.getBoundingClientRect();
+        const scPadB = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
         const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
-        const availH = scroller.clientHeight - topOffset - 24 - 6;
+        const availH = scroller.clientHeight - topOffset - padV - scPadB - 2;
         if (availH > 120 && rows >= 1) {
           const cellH = (availH - gap * (rows - 1)) / rows;
           if (cellH > 60) cell = Math.min(cell, cellH);
@@ -16083,9 +16096,12 @@ ${text}
     const rect = grid.getBoundingClientRect();
     const cols = parseInt(grid.style.getPropertyValue("--sd-cols"), 10) || 6;
     const cell = parseFloat(grid.style.getPropertyValue("--sd-cell")) || 280;
-    const trackW = cols * cell + (cols - 1) * 12;
-    const offsetX = Math.max(0, (rect.width - 24 - trackW) / 2);
-    return { cols, cell, gap: 12, rect, offsetX };
+    const trackW = cols * cell + (cols - 1) * _SmartDashboardView.GRID_GAP;
+    const mgcs = getComputedStyle(grid);
+    const mpadL = parseFloat(mgcs.paddingLeft) || 0;
+    const mpadR = parseFloat(mgcs.paddingRight) || 0;
+    const offsetX = Math.max(0, (rect.width - mpadL - mpadR - trackW) / 2);
+    return { cols, cell, gap: _SmartDashboardView.GRID_GAP, rect, offsetX };
   }
   bindCardDrag(card) {
     let timer = null;
@@ -16244,8 +16260,8 @@ ${text}
       }
     }
     visibleEntries.sort((a, b) => {
-      const posA = this.layoutData[a.id] || { y: 0, x: 0 };
-      const posB = this.layoutData[b.id] || { y: 0, x: 0 };
+      const posA = this.layoutData[a.id] || _SmartDashboardView.DEFAULT_LAYOUT[a.id] || { y: 0, x: 0 };
+      const posB = this.layoutData[b.id] || _SmartDashboardView.DEFAULT_LAYOUT[b.id] || { y: 0, x: 0 };
       return posA.y - posB.y || posA.x - posB.x;
     });
     const placed = [];
@@ -17598,6 +17614,76 @@ journal:
     }
   }
   // ===== 订阅额度卡片 =====
+  // ===== 体育赛事：读 .smart-dashboard/sports.json，每联赛取接下来最早一场 =====
+  async renderSportsArea(card) {
+    try {
+      const header = card.createDiv({ cls: "sd-section-title" });
+      header.setText("\u{1F3DF}\uFE0F \u4F53\u80B2\u8D5B\u4E8B");
+      const body = card.createDiv({ cls: "sd-sports-body" });
+      let raw;
+      try {
+        raw = await this.app.vault.adapter.read(".smart-dashboard/sports.json");
+      } catch (e) {
+        body.createDiv({ cls: "sd-sports-empty" }).setText("\u6682\u65E0\u8D5B\u7A0B");
+        return;
+      }
+      const data = JSON.parse(raw);
+      const leagues = (data == null ? void 0 : data.leagues) || [];
+      const parseDt = (dt) => {
+        if (!dt || typeof dt !== "string") return null;
+        const plusDay = dt.match(/\(\+(\d+)\)/);
+        const d = (0, import_obsidian.moment)(dt.replace(/\(\+\d+\)/, "").replace(" ", "T"));
+        if (!d.isValid()) return null;
+        return plusDay ? d.add(parseInt(plusDay[1], 10), "day") : d;
+      };
+      const entries = [];
+      for (const league of leagues) {
+        const now = (0, import_obsidian.moment)();
+        const upcoming = (league.events || []).map((ev) => ({ ev, dt: parseDt(ev.datetime) })).filter((x) => x.dt && x.dt.isAfter(now)).sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+        if (!upcoming.length) continue;
+        const next = upcoming[0];
+        entries.push({
+          icon: league.icon || "\u{1F3C5}",
+          name: league.name || league.id,
+          label: next.ev.label || "",
+          home: next.ev.home,
+          sport: league.sport || "",
+          dt: next.dt,
+          id: league.id || "",
+          round: typeof next.ev.round === "number" ? next.ev.round : void 0
+        });
+      }
+      if (entries.length === 0) {
+        body.createDiv({ cls: "sd-sports-empty" }).setText("\u6682\u65E0\u8D5B\u7A0B");
+        return;
+      }
+      entries.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+      const list = body.createDiv({ cls: "sd-sports-list" });
+      for (const en of entries) {
+        const item = list.createDiv({ cls: "sd-sports-item" });
+        if (en.id) item.setAttribute("data-league", en.id.toLowerCase());
+        const info = item.createDiv({ cls: "sd-sports-info" });
+        info.createDiv({ cls: "sd-sports-icon", text: en.icon });
+        info.createDiv({ cls: "sd-sports-name", text: en.name });
+        let opponentText = en.label;
+        if (en.sport === "\u8DB3\u7403" && opponentText.includes("vs") && en.home === true) {
+          opponentText += " \u{1F3E0}";
+        }
+        const oppDiv = item.createDiv({ cls: "sd-sports-opponent" });
+        if (en.round != null) {
+          const roundText = en.sport === "\u8D5B\u8F66" ? `\u7B2C${en.round}\u573A\u5927\u5956\u8D5B` : `\u7B2C${en.round}\u8F6E`;
+          oppDiv.createSpan({ cls: "sd-sports-round", text: roundText });
+        }
+        oppDiv.createSpan({ text: opponentText });
+        const meta = item.createDiv({ cls: "sd-sports-meta" });
+        meta.createDiv({ cls: "sd-sports-date", text: en.dt.format("M\u6708D\u65E5 HH:mm") });
+        const diffDays = en.dt.clone().startOf("day").diff((0, import_obsidian.moment)().startOf("day"), "days");
+        meta.createDiv({ cls: "sd-sports-days", text: diffDays <= 0 ? "\u4ECA\u5929" : `\u8FD8\u6709 ${diffDays} \u5929` });
+      }
+    } catch (e) {
+      card.createDiv().setText("\u5361\u7247\u6E32\u67D3\u5931\u8D25: " + String(e));
+    }
+  }
   async renderSubscriptionsArea(card) {
     try {
       const header = card.createDiv({ cls: "sd-section-title" });
@@ -17830,12 +17916,12 @@ journal:
     }
   }
 };
-// 磁贴内容等比缩放：设计基准每格 300px，网格 gap 12px
+// 磁贴内容等比缩放：设计基准每格 300px，网格 gap 8px
 _SmartDashboardView.DESIGN_CELL = 300;
-_SmartDashboardView.GRID_GAP = 12;
+_SmartDashboardView.GRID_GAP = 8;
 // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
 _SmartDashboardView.DEFAULT_LAYOUT = {
-  // ===== 6 列 × 4 行（24 格恰好填满）=====
+  // ===== 6 列 × 4 行填满 + 第 5 行扩展（setupGridSizing 按布局数据自动扩行）=====
   "sd-countdown-section": { x: 1, y: 1, w: 1, h: 1 },
   // D-Day 倒计时
   "sd-quickjot-section": { x: 2, y: 1, w: 1, h: 1 },
@@ -17858,8 +17944,10 @@ _SmartDashboardView.DEFAULT_LAYOUT = {
   // Token 用量 2×1
   "sd-trading-section": { x: 3, y: 4, w: 2, h: 1 },
   // 交易复盘 2×1
-  "sd-subscriptions-section": { x: 5, y: 4, w: 2, h: 1 }
+  "sd-subscriptions-section": { x: 5, y: 4, w: 2, h: 1 },
   // 订阅额度 2×1
+  "sd-sports-section": { x: 1, y: 5, w: 2, h: 1 }
+  // 体育赛事 2×1（第 5 行新行）
 };
 var SmartDashboardView = _SmartDashboardView;
 var ViewTradeModal = class extends import_obsidian.Modal {
@@ -18005,6 +18093,7 @@ var CARD_LABELS = {
   "sd-stats-section": "\u7EDF\u8BA1\u5206\u6790",
   "sd-usage-section": "Token \u7528\u91CF",
   "sd-subscriptions-section": "\u8BA2\u9605\u989D\u5EA6",
+  "sd-sports-section": "\u4F53\u80B2\u8D5B\u4E8B",
   "sd-schedule-section": "\u65E5\u7A0B\u7BA1\u7406",
   "sd-todo-section": "\u5F85\u529E\u4E8B\u9879",
   "sd-trading-section": "\u4EA4\u6613\u590D\u76D8",
