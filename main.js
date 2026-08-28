@@ -14928,6 +14928,27 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
     data.skin = skin;
     await this.saveData(data);
   }
+  // ===== 卡片大小/布局（small=6 列紧凑 / big=4 列可滚动）=====
+  async getLayoutSize() {
+    const data = await this.loadData();
+    return (data == null ? void 0 : data.layoutSize) === "big" ? "big" : "small";
+  }
+  async setLayoutSize(size) {
+    const data = await this.loadData() || {};
+    const currentSize = (data == null ? void 0 : data.layoutSize) === "big" ? "big" : "small";
+    if (data.cardLayout && typeof data.cardLayout === "object") {
+      const snapshotCopy = JSON.parse(JSON.stringify(data.cardLayout));
+      if (currentSize === "small") {
+        data.layoutSmall = snapshotCopy;
+      } else {
+        data.layoutBig = snapshotCopy;
+      }
+    }
+    data.layoutSize = size;
+    const targetSnapshot = size === "big" ? data.layoutBig : data.layoutSmall;
+    data.cardLayout = targetSnapshot && typeof targetSnapshot === "object" ? JSON.parse(JSON.stringify(targetSnapshot)) : void 0;
+    await this.saveData(data);
+  }
   // ===== 导航入口配置 =====
   async getNavEntries() {
     const data = await this.loadData();
@@ -15541,6 +15562,8 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     this.currentTab = "overview";
     this.calendarViewMode = "month";
     this.layoutData = {};
+    // 卡片大小/布局档位（small=6 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
+    this.layoutSize = "small";
     // 拖拽结束后吞掉紧随的一次 click，避免误触卡片内元素（如日历格）的点击
     this.suppressClick = false;
     // Trade Filters
@@ -15807,6 +15830,7 @@ ${text}
     this.registerInterval(window.setInterval(refreshHero, 1e3));
     await this.loadLayout();
     const grid = content.createDiv("sd-grid");
+    grid.style.setProperty("--sd-cols", this.layoutSize === "big" ? "4" : "6");
     const cards = [];
     const visibility = await this.plugin.getCardVisibility();
     const allCardIds = Object.keys(_SmartDashboardView.DEFAULT_LAYOUT);
@@ -15968,6 +15992,7 @@ ${text}
       data = await this.plugin.loadData();
     } catch (e) {
     }
+    this.layoutSize = (data == null ? void 0 : data.layoutSize) === "big" ? "big" : "small";
     this.layoutData = data && data.cardLayout ? data.cardLayout : { ..._SmartDashboardView.DEFAULT_LAYOUT };
   }
   applyLayout() {
@@ -15989,18 +16014,26 @@ ${text}
     }
   }
   async resetLayout() {
-    this.layoutData = { ..._SmartDashboardView.DEFAULT_LAYOUT };
+    const data = await this.plugin.loadData() || {};
+    const snapshot = this.layoutSize === "big" ? data.layoutBig : data.layoutSmall;
+    let noticeMsg;
+    if (snapshot && typeof snapshot === "object") {
+      this.layoutData = JSON.parse(JSON.stringify(snapshot));
+      noticeMsg = "\u5DF2\u6062\u590D\u4E3A\u4F60\u4FDD\u5B58\u7684\u9ED8\u8BA4\u5E03\u5C40";
+    } else {
+      this.layoutData = { ..._SmartDashboardView.DEFAULT_LAYOUT };
+      noticeMsg = "\u5DF2\u91CD\u7F6E\u4E3A\u51FA\u5382\u9ED8\u8BA4";
+    }
     const grid = this.contentEl.querySelector(".sd-grid");
     const cols = parseInt((grid == null ? void 0 : grid.style.getPropertyValue("--sd-cols")) || "", 10) || 6;
     if (cols < 4) this.applyLayoutCompact();
     else this.applyLayout();
     try {
-      const data = await this.plugin.loadData() || {};
-      data.cardLayout = void 0;
+      data.cardLayout = JSON.parse(JSON.stringify(this.layoutData));
       await this.plugin.saveData(data);
     } catch (e) {
     }
-    new import_obsidian.Notice("\u5E03\u5C40\u5DF2\u91CD\u7F6E\u4E3A\u9ED8\u8BA4");
+    new import_obsidian.Notice(noticeMsg);
   }
   applyCardSize(card) {
     const pos = this.layoutData[card.id];
@@ -16034,6 +16067,15 @@ ${text}
         grid.style.setProperty("--sd-cols", "2");
         grid.style.setProperty("--sd-cell", `${cell2}px`);
         this.applyLayoutCompact();
+        this.applyScale();
+        return;
+      }
+      if (this.layoutSize === "big") {
+        const cell2 = Math.floor((availW - gap * 3) / 4);
+        if (cell2 < 40) return;
+        grid.style.setProperty("--sd-cols", "4");
+        grid.style.setProperty("--sd-cell", `${cell2}px`);
+        this.applyLayout();
         this.applyScale();
         return;
       }
@@ -16245,6 +16287,29 @@ ${text}
     if (!m) return;
     const { cols } = m;
     if (cols < 4) return;
+    const allHaveCoords = visibleIds.every((id) => this.layoutData[id]);
+    if (allHaveCoords) {
+      let collision = false;
+      let outOfBounds = false;
+      const placed2 = [];
+      for (const id of visibleIds) {
+        const p = this.layoutData[id];
+        if (!(p.w > 0 && p.h > 0 && p.x >= 1 && p.y >= 1 && p.x + p.w - 1 <= cols)) {
+          outOfBounds = true;
+          break;
+        }
+        const cur = { x: p.x, y: p.y, w: p.w, h: p.h };
+        if (placed2.some((o) => cur.x < o.x + o.w && cur.x + cur.w > o.x && cur.y < o.y + o.h && cur.y + cur.h > o.y)) {
+          collision = true;
+          break;
+        }
+        placed2.push(cur);
+      }
+      if (!collision && !outOfBounds) {
+        this.applyLayout();
+        return;
+      }
+    }
     const visibleEntries = [];
     for (const id of visibleIds) {
       const existing = this.layoutData[id];
@@ -17632,7 +17697,7 @@ journal:
       const parseDt = (dt) => {
         if (!dt || typeof dt !== "string") return null;
         const plusDay = dt.match(/\(\+(\d+)\)/);
-        const d = (0, import_obsidian.moment)(dt.replace(/\(\+\d+\)/, "").replace(" ", "T"));
+        const d = (0, import_obsidian.moment)(dt.replace(/\(\+\d+\)/, "").trim().replace(/\s+/, "T"));
         if (!d.isValid()) return null;
         return plusDay ? d.add(parseInt(plusDay[1], 10), "day") : d;
       };
@@ -18119,6 +18184,17 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
       dd.setValue(currentSkin);
       dd.onChange(async (v) => {
         await this.plugin.setSkin(v);
+        await this.plugin.refreshView();
+      });
+    });
+    containerEl.createEl("h3", { text: "\u5361\u7247\u5927\u5C0F/\u5E03\u5C40" });
+    const currentLayoutSize = await this.plugin.getLayoutSize();
+    new import_obsidian.Setting(containerEl).setName("\u5E03\u5C40\u89C4\u683C").setDesc("\u5C0F=6\xD74 \u7D27\u51D1\uFF08\u9ED8\u8BA4\uFF0C\u4E00\u5C4F\u65E0\u6EDA\u52A8\uFF09\uFF1B\u5927=4 \u5217\u53EF\u6EDA\u52A8\uFF08\u6BCF\u683C\u66F4\u5927\uFF0C\u5411\u4E0B\u6EDA\u52A8\u67E5\u770B\u5168\u90E8\u5361\u7247\u3002\u5207\u6362\u4F1A\u4FDD\u5B58\u5F53\u524D\u5C3A\u5BF8\u5E03\u5C40\u5E76\u8F7D\u5165\u76EE\u6807\u5C3A\u5BF8\u5DF2\u5B58\u5E03\u5C40\uFF09").addDropdown((dd) => {
+      dd.addOption("small", "\u5C0F\uFF086\xD74 \u7D27\u51D1\uFF09");
+      dd.addOption("big", "\u5927\uFF084 \u5217\u53EF\u6EDA\u52A8\uFF09");
+      dd.setValue(currentLayoutSize);
+      dd.onChange(async (v) => {
+        await this.plugin.setLayoutSize(v);
         await this.plugin.refreshView();
       });
     });

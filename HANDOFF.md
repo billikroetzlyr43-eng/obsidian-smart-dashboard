@@ -1,13 +1,15 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.3：Token 卡 opencode 消耗按消息完成时间归日修复
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.6：修复体育卡 `(+N)` 时间解析（拜仁不显示）
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.3** 共 8 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.6** 共 11 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
-## 🏷️ 版本变更总览 (v4.6.1 → v4.9.2 CHANGELOG)
+## 🏷️ 版本变更总览 (v4.6.1 → v4.9.6 CHANGELOG)
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
+| **v4.9.6** | 体育卡 `(+N)` 时间解析修复 | `parseDt` 解析带 `(+1)` 后缀的比赛时间时，去掉 `(+N)` 后末尾残留空格未 trim，拼成 `"…T02:30 "`（尾随空格）→ moment 判 Invalid → 拜仁（全部场次带 `(+1)`）整条联赛在体育卡不显示。修复 = `.replace(' ', 'T')` 前加 `.trim()`、空格替换改 `/\s+/`。其余联赛正常 | 🐛 修复 |
+| **v4.9.5** | 布局快照修复 | `setLayoutSize` 切档前深拷贝源档布局到 `layoutSmall`/`layoutBig`、深拷贝载入目标档快照；`resetLayout` 改为恢复当前档快照（无则出厂默认）且 `cardLayout` 不再清空；`reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回；设置页文案更新 | 🐛 修复 |
 | **v4.7.0** | 小红书看板灵感九项落地 | Hero 欢迎区 / 统计六格 / 待办优先级 / 随笔写入日记 / D-Day 倒计时卡 / 日记跳转 / 导航入口卡 / 四套主题皮肤 /（全库热力图后删除） | ✨ 新增 |
 | **v4.8.0** | 周期日程待办 + 节日节气 | 日程/待办 `repeat` 周期字段；公历节日+二十四节气进日历与倒计时；日程逐条天数徽章；倒计时卡只显最近三个 | ✨ 新增 |
 | **v4.8.1** | 移除全库活动热力图卡 | 代码 + data.json 全量清除 | 🗑️ 删除 |
@@ -16,16 +18,64 @@
 | **v4.9.1** | 拖拽修复 | `getGridMetrics` 增加 `offsetX` 补偿 `justify-content:center` 居中偏移 | 🐛 修复 |
 | **v4.9.2** | 体育赛事卡片 + 布局放大 | 新增 `sd-sports-section`（F1/英超诺丁汉森林/德甲拜仁最近一场）；gap 12→8、网格吃满 padding、hero 压扁、scale 0.56→0.60（cell 167→180px） | ✨ 新增 |
 | **v4.9.3** | Token 卡 opencode 消耗归日修复 | `parse_opencode()` 改读 message 表按 `time.completed` 归日，修复跨天长会话消耗堆叠到创建日、之后日期显示≈0 的 bug | 🐛 修复 |
+| **v4.9.4** | 卡片大小/布局设置 | 设置页新增「卡片大小/布局」下拉：小=6×4 紧凑（默认，现状不变）/ 大=4 列可滚动；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发重排）；每卡 w/h 占格数铁律不动，仅按 4 列重排 x/y | ✨ 新增 |
 
-**本次变更涉及文件**：`main.ts` / `styles.css` / `main.js` / `manifest.json` / `package.json` / `collect_usage.py` / `HANDOFF.md` / `deliverables/opencode-token-rootcause.md`。
+**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md` / `HANDOFF_layoutsize_fix_plan.md`。
+
+---
+
+## 🩹 v4.9.6 本次修复说明（体育卡 `(+N)` 时间解析 — 拜仁不显示）
+
+**症状**：用户反馈体育卡只显示诺丁汉森林与 F1，拜仁不显示。数据其实在 `sports.json` 里（拜仁赛事一直在）。
+
+**根因**：`renderSportsArea` 的 `parseDt`：`const d = moment(dt.replace(/\(\+\d+\)/, '').replace(' ', 'T'))`。拜仁所有比赛时间带 `(+1)` 后缀（如 `"2026-08-29 02:30 (+1)"`，表示北京时间次日）。去掉 `(+N)` 后字符串**末尾残留一个空格**，但 `.replace(' ', 'T')` 只替换**第一个**空格（"MM-DD HH:mm" 中间那个），拼出 `"2026-08-29T02:30 "`（**带尾随空格**）→ moment 判 Invalid → `parseDt` 返回 `null` → 拜仁所有场次被 `.filter(x => x.dt && ...)` 滤掉 → `if (!upcoming.length) continue` 整条联赛跳过。F1/森林多数比赛不带 `(+1)`，故正常。
+
+**修复**（main.ts `parseDt`，一行）：
+```ts
+const d = moment(dt.replace(/\(\+\d+\)/, '').trim().replace(/\s+/, 'T'));
+```
+先 `.trim()` 去掉 `(+N)` 残留尾随空格，再用 `/\s+/` 替换首个内部空格。
+
+**验收**：CDP 实测（`obs_verify_sports_bayern.js`）体育卡 3 条联赛齐全——森林（今天）、**拜仁（还有 1 天）**、F1（还有 8 天）；`clipped=false` 无裁切。
+
+---
+
+## 🩹 v4.9.5 本次修复说明（布局快照）
+
+修复 v4.9.4 遗留的两个 bug：(a) 切档（small ↔ big）会把 `cardLayout` 置 `undefined`，源档位用户拖拽位置彻底丢失；(b) 重置按钮无条件清空 `cardLayout` 回出厂默认，抹掉用户自定义位置。新增 `layoutSmall` / `layoutBig` 两个快照字段（切档时建立）。
+
+### 1. `setLayoutSize` 切档存快照 + 载入目标档快照
+- 切走前把当前档位实时 `cardLayout` **深拷贝**（`JSON.parse(JSON.stringify(...))`，禁止直接引用）存进源档快照字段（`currentSize === 'small'` → `data.layoutSmall`，否则 `data.layoutBig`）。
+- 切换 `data.layoutSize = size`。
+- 载入目标档已存快照（**深拷贝**）；无快照则置 `undefined`，让 `onOpen → loadLayout` 回退 `DEFAULT_LAYOUT`。
+- 合并写（先 `loadData` 整体再 `saveData`），保留 `skin/cardVisibility/navEntries`。
+
+### 2. `resetLayout` 恢复当前档快照
+- 读取当前档对应快照（`this.layoutSize === 'big' ? data.layoutBig : data.layoutSmall`）。
+- 快照存在：`this.layoutData = JSON.parse(JSON.stringify(snapshot))` 深拷贝恢复，Notice「已恢复为你保存的默认布局」。
+- 快照不存在：`this.layoutData = {...DEFAULT_LAYOUT}` 回退出厂默认，Notice「已重置为出厂默认」。
+- **不再** `data.cardLayout = undefined`；改为 `data.cardLayout = JSON.parse(JSON.stringify(this.layoutData))` 写入恢复后的布局（合并保存）。
+
+### 3. `reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回
+- 在 `if (cols < 4) return;` 之后插入：当 `visibleIds` 全部有坐标、且每个坐标 `w>0 && h>0 && x>=1 && y>=1 && x+w-1<=cols`（列数取当前 `--sd-cols`）并且两两无矩形重叠时，直接 `applyLayout()` 并 `return`，跳过贪心重排以保留快照位置。
+- 任一条件不满足则继续原有重排逻辑（按 `y/x` 排序 → 贪心摆放 → `saveLayout`）。
+
+### 4. 设置页下拉 `setDesc` 文案
+- 「切换会重置自定义拖拽位置」→「切换会保存当前尺寸布局并载入目标尺寸已存布局」。
+
+### 硬约束遵守
+- 未改任何卡片 `w/h` 占格数、`DEFAULT_LAYOUT` 坐标、格子正方形逻辑。
+- 未改 `getLayoutSize` / `loadLayout` / `applyLayout` / `applyLayoutCompact` / `saveLayout` / `onOpen` / `setupGridSizing`。
+- `saveData` 全程合并写（先 `loadData` 整体再 `saveData`），无单对象覆盖。
+- 快照字段写入深拷贝（`JSON.parse(JSON.stringify(...))`），杜绝引用污染。
 
 ---
 
 ## 1. 项目概况与当前状态
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/倒计时/导航/Token 用量/订阅额度/交易复盘等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
-- **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示；拖拽/缩放交互正常。
-- **版本：** 交接版本 **v4.9.3**（manifest.json 4.9.3 / package.json 4.9.3 对齐）；日期 **2026-08-24**
+- **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示、卡片大小/布局两档切换（小=6×4 紧凑 / 大=4 列可滚动）；拖拽/缩放交互正常。**用户双档默认布局已固化**：小档摆位存 `layoutSmall`、大档摆位存 `layoutBig`，「↺ 重置布局」按钮恢复当前档所存默认（不再清空、不再回出厂）。
+- **版本：** 交接版本 **v4.9.6**（manifest.json 4.9.6 / package.json 4.9.6 对齐）；日期 **2026-08-29**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -65,7 +115,7 @@ flowchart TD
 
 | 主要项目 | 当前阶段/版本 | 本次进展 | 下一步 |
 | :--- | :--- | :--- | :--- |
-| **Smart Dashboard 插件** | **v4.9.3（2026-08-24）** | Token 卡 `parse_opencode()` 改读 message 表按消息完成时间归日，修复跨天长会话消耗堆叠创建日、后日期显示≈0 的 bug（用户直接对话消耗此前只显 3~11%） | git 提交 v4.9.3 推送 main；方案C（定时自动采集）暂不做 |
+| **Smart Dashboard 插件** | **v4.9.4（2026-08-27）** | 设置页新增「卡片大小/布局」两档（小=6×4 紧凑 / 大=4 列可滚动）；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发按 4 列重排，w/h 占格数铁律不动）；styles.css 无需改（正方形格子 + overflow-y:auto 已就绪） | git 提交 v4.9.4 推送 main；用户重启 Obsidian 验收两档切换 |
 | Obsidian 知识库 LLM Wiki 重构 | 方案一/二/三 100% 落地 | — | 持续维护事件记录/知识卡片 |
 | Hermes 消息通道 QQ 迁移 | 100% 完成（2026-08-12） | — | 旧微信凭据备份待清理 |
 | 新闻获取能力升级 | 基础设施 100% 部署 | — | 服务持久化 [待确认]；AnySearch 提额评估 |
@@ -80,6 +130,7 @@ flowchart TD
   - [x] **v4.9.x**：① `setupGridSizing` 重写——宽屏固定 6 列，`cell=min(宽约束,高约束)`，ResizeObserver 改观察滚动容器防反馈循环 ② CSS `.sd-grid` 列定义 `repeat(var(--sd-cols), var(--sd-cell))` 替代 `1fr` + `justify-content:center` ③ 标题行删除，重置布局/Inbox 徽章并入 Hero 行（`margin-left:auto` 推右） ④ `getGridMetrics` 增加 `offsetX` 居中偏移，`showDropTarget/commitDrop` 坐标扣除 → 拖拽修复
   - [x] **v4.9.2 体育赛事卡 + 布局放大**：新增 `sd-sports-section`（2×1 格，默认 x1,y5），data 链路 `sports.json` → `renderSportsArea()`（~L3486）→ 每联赛过滤 `datetime>now` 取最近一场；渲染图标+联赛名+轮次徽标（"第N场大奖赛"/"第N轮"）+ 对手文本（足球主场 🏠）+ 日期 + 倒计时；三色左边框（F1 红 #E63946/森林绿 #2E9E4F/拜仁蓝 #2A6FDB）；布局放大 gap 12→8、网格宽度吃满真实 padding、hero 行压扁、scale 0.56→0.60、`GRID_GAP` 8（含 `getGridMetrics` 拖拽定位同步）；体育卡行距参照导航卡（flex:1 1 0 等分填满 + gap 6px + 上下零留空）
   - [x] **v4.9.3 Token 卡 opencode 消耗归日修复**：用户反馈"Token 卡只统计到 Hermes 调 opencode 的消耗、自己 TUI 直接对话的看不见"。经 opencode 深入研究（`deliverables/opencode-token-rootcause.md`）定位根因：`parse_opencode()` 原按 session 表 `time_created`（会话创建时间）归日 + 读 session 级**累计** token，导致跨天长会话（用户 `C:/Users/华为` 下的 plan 长会话 08-22~08-24 累计 852 万 input）全部消耗堆到创建日 08-22，之后日期显示≈0，且每次刷新创建日追溯虚涨；而 Hermes 委派会话全是分钟级短命会话日期天然准确，于是呈现"只有 Hermes 统计得对"。修复=改读 message 表、逐条 assistant 消息按 `COALESCE(time.completed, time.created)` 归日（本地时区），`calls`=当日消息条数。实测 08-23 从 62 万→**560 万**（真实），08-24 从凌晨快照 6.4 万→**220 万**；session 级 vs message 级五项 token 总量守恒分毫不差（7073 万 input）。改动仅限 `parse_opencode()`，其余四源与 schema_version=5 未动
+  - [x] **v4.9.4 卡片大小/布局设置**：设置页「主题皮肤」与「卡片开关」之间新增 h3「卡片大小/布局」+ Dropdown（small=小 6×4 紧凑 / big=大 4 列可滚动）。新增 `SmartDashboardPlugin.getLayoutSize()/setLayoutSize()`（类比 `getSkin/setSkin`，合并保存：先 loadData 取整体 → 改 data.layoutSize + 清空 data.cardLayout → saveData 整体写回，绝不覆盖 skin/cardVisibility/navEntries）。`SmartDashboardView` 新增 `layoutSize` 字段，`loadLayout()` 读取后存入；`onOpen` 在 grid 创建后预置 `--sd-cols`（big=4/small=6）使随后 `reflowLayoutForVisibleCards`（现成装箱算法，复用按 4 列）读取正确列数重排 x/y，**w/h 占格数铁律不动**；`setupGridSizing` 在窄屏分支后新增 big 分支：`cell=(availW-gap*3)/4`、`--sd-cols=4`、**不走 cellH 高度约束** → 行数自然增多使网格总高超过 `.sd-tab-content-container` 可视高，由其既有 `overflow-y:auto` 触发纵向滚动；小档逻辑完全不变。styles.css 无需改（正方形格子由 `repeat(var(--sd-cols), var(--sd-cell))`+`grid-auto-rows: var(--sd-cell)` 保证）。取消计划中的「舒适」第三档。切换档位会清空 cardLayout 即丢失自定义拖拽位置（用户拍板可接受）
   - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库（v4.9.1，保留）
   - [x] vault `data.json` 同步维护：6×4 布局落盘、search 1×2（col5 行 2-3，col6 行 2-3 留空）、活动热力图条目清除
 - **关键代码/文件路径：**
@@ -99,7 +150,7 @@ flowchart TD
   - [x] **git 提交 v4.6.1~v4.9.1**（已于 2026-08-22 走 GitHub REST API 推送，6708ddb→远程 0ba9872，tree 一致 4e0fd928）
   - [x] **git 提交 v4.9.2**（`cb888ee`）并经 GitHub REST API 推送——远程 main → `720bc1f9`，tree 校验一致 `7d1a2d6d`（2026-08-23）
   - [x] `04_当前长期项目状态.md` §1 看板 + §2.3 + §2.6 + 演进历史更新至 v4.9.2（2026-08-23 完成）
-  - [ ] **git 提交 v4.9.3**（Token 卡 opencode 归日修复）并经 GitHub REST API 推送 main（2026-08-24 待执行）
+  - [x] **git 提交 v4.9.6**（含 v4.9.3~v4.9.6 全部累积变更：Token 归日修复 + 布局快照 + 体育卡 `(+N)` 解析修复）并经 GitHub REST API 推送 main（2026-08-29）
 - **📌 后续规划：**
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
   - [ ] 体育卡 `sports.json` 数据随赛季推进更新（F1 剩余 11 站，森林/拜仁赛程确认后补全）；体育卡目前无自动刷新计时器（与日历等静态卡一致），如需可挂共享 300s 定时器
@@ -108,7 +159,8 @@ flowchart TD
 
 ## 6. 踩坑记录与避坑指南 (Lessons Learned & Pitfalls)
 - **已踩过的坑：**
-  - ⚠️ **[v4.8.x 关键坑] data.json 持久化布局覆盖 DEFAULT_LAYOUT**：`reflowLayoutForVisibleCards` 每次打开按已存 `(y,x)` 排序做首适装配箱，尺寸取已存值——**改代码里的 DEFAULT_LAYOUT 对已有安装完全无效**（导航卡尺寸改了三次不生效即此因）。解法：直接编辑 vault 内 data.json，或让用户点「↺ 重置布局」。留空的竖向槽位只要后续卡片宽度放不进去就会原样保留
+  - ⚠️ **[v4.9.5 严重坑] 验收收尾误清用户布局，造成不可逆丢失**：多轮验收脚本在最后一步执行"清理快照/还原出厂"（delete d.layoutSmall/layoutBig、cardLayout=undefined），把用户手工摆的默认布局源数据从 data.json 清掉且未留备份，导致无法原样还原。**立铁律（已写入 Hermes 记忆）**：凡涉及 data.json（layoutSmall/layoutBig/cardLayout）或 main.ts 的任何改动，执行前必须先把 data.json + main.ts 全量备份到 `D:/Hermes/backup/smart_dashboard/`（带时间戳 bak_YYYYMMDD_HHMMSS，不删不覆盖）；任何"清理快照/还原出厂/重置布局"类操作严禁自动执行，必须先征求确认且只动目标字段；验收脚本一律不得写/删 layout* 字段、不做还原收尾。违反=严重错误。
+  - ⚠️ **[v4.9.5 验收陷阱] 脚本 refreshView 会冲掉 cardLayout**：CDP 实测脚本里 `plugin.saveData({cardLayout:...})` 后若调 `refreshView()`，onOpen→reflow→saveLayout 会把 cardLayout 覆盖回 DEFAULT_LAYOUT 重排结果，导致随后 `setLayoutSize` 读到的 data.cardLayout 是重排后的（仍是 object 所以仍能存快照，但若想验证"用户自定义布局"须通过 Obsidian API 正常写、且不要在切档前 refreshView 冲掉）。验证快照落盘应直接读磁盘 data.json，而非依赖 loadData 缓存。
   - ⚠️ **[v4.9.1 关键坑] `justify-content:center` 导致"卡片拖不动"**：居中使轨道起点偏离 grid 左缘，拖拽占位框坐标未扣偏移 → 被钳死在最后一列。修复=`getGridMetrics` 计算 `offsetX = (rect.width − 24 − trackW)/2` 并在 `showDropTarget/commitDrop` 的列换算中扣除
   - ⚠️ **[v4.9.0] 正方形格子必须 `repeat(n, var(--sd-cell))`**：用 `1fr` 时列宽随面板拉伸、与行高脱钩变长方形
   - ⚠️ **[v4.8.x] ResizeObserver 反馈循环风险**：观察 grid 自身会因缩放改变其尺寸而反复触发；改观察外层 `.sd-tab-content-container`
@@ -136,10 +188,13 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
+  - 📍 v4.9.5 已改 `main.ts`（`setLayoutSize` 切档存源档深拷贝快照 + 载入目标档深拷贝快照；`resetLayout` 改为读 `layoutSmall`/`layoutBig` 恢复、不再清空 `cardLayout`；`reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回；设置页 `setDesc` 文案更新）并构建部署（vault manifest 4.9.5）；styles.css 未改。本变更待 git commit + REST API 推送 main
+  - 📍 v4.9.4 已改 `main.ts`（新增 getLayoutSize/setLayoutSize/layoutSize 字段/loadLayout 读取/onOpen 预置 --sd-cols/setupGridSizing big 分支/设置页下拉）并构建部署（vault manifest 4.9.4）；styles.css 未改。本变更待 git commit + REST API 推送 main
   - 📍 v4.9.3 已改 `parse_opencode()`（读 message 表归日）并构建部署（vault manifest 4.9.3）；本变更将 git commit + REST API 推送 main
   - 📍 v4.9.2 体育卡 CDP 实测通过（clipped=false）；v4.9.1 拖拽修复用户验收通过
-  - 📍 最终布局态：data.json 为 6 列×4 行（顶行六个 1×1 单卡 → 中部 calendar/stats 2×2 + search 1×2 → 底行 usage/trading/subscriptions 2×1 + 体育卡 x1,y5 2×1），search 位于 col5 行 2-3，col6 行 2-3 留空两格
-  - 📍 最后一次构建命令：`npm run build`（v4.9.3）
+  - 📍 最终布局态：data.json 已固化用户双档默认——`layoutSize: 'big'`（当前在大档）；`layoutSmall` = 用户小档摆位（13 张，坐标来自用户手工拖拽、已存快照）；`layoutBig` = 用户大档摆位（13 张，同上）；`cardLayout` = 当前大档实时布局；`cardVisibility` 等其余字段完好。13 张卡占格数（w/h）全程未变（日历 2×2 / 统计 2×2 / 检索 1×2 / 用量·订阅·交易·体育 2×1 / 其余 1×1）。「↺ 重置布局」按钮验证：大档下点重置 → 精确恢复 `layoutBig`；切小档 → 恢复 `layoutSmall`；切回大档 → 恢复 `layoutBig`；两档互不污染（CDP 实测全过）
+  - 📍 备份目录 `D:/Hermes/backup/smart_dashboard/` 含多份 `data.json.bak_*` 与 `main.ts.bak_*`（改动前全量备份，不删不覆盖）
+  - 📍 最后一次构建命令：`npm run build`（v4.9.5）
 - **遗留待确认问题：**
   - ❓ `sports.json` 赛程是否补全为全年？F1 24 站 / 英超德甲整赛季数据 [待确认]
   - ❓ 农历节日是否立项；体育卡是否挂自动刷新定时器 [待确认]
@@ -150,6 +205,8 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.9.6**：修复体育卡 `(+N)` 时间解析——`parseDt` 去掉 `(+N)` 后残留尾随空格未 trim 使 moment 判 Invalid、导致拜仁（全部场次带 `(+1)`）整条不显示；修复=先 `.trim()` 再 `.replace(/\s+/,'T')`；CDP 实测三联赛齐全
+- **v4.9.5**：布局快照修复（切档存 layoutSmall/layoutBig 深拷贝快照 + resetLayout 恢复快照 + reflow 早返回）
 - **v4.9.3**：Token 卡 `parse_opencode()` 改读 opencode.db message 表、按消息完成时间归日（COALESCE time.completed/created），修复跨天长会话消耗堆叠创建日、后日期显示≈0 的 bug；实测 08-23 卡片从 62 万摆正至真实 560 万 input
 - **v4.9.2**：体育赛事卡片（sd-sports-section，F1/诺丁汉森林/拜仁最近一场，sports.json）+ 布局放大（gap 12→8、网格吃满、hero 压扁、scale 0.6、cell 180px）
 - **v4.9.1**：拖拽修复（getGridMetrics offsetX 补偿 justify-content:center 轨道偏移）
