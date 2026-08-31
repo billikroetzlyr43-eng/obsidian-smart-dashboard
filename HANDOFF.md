@@ -1,13 +1,14 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.6：修复体育卡 `(+N)` 时间解析（拜仁不显示）
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.7：Token 用量卡新增「累计缓存命中率」
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.6** 共 11 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.7** 共 12 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
-## 🏷️ 版本变更总览 (v4.6.1 → v4.9.6 CHANGELOG)
+## 🏷️ 版本变更总览 (v4.6.1 → v4.9.7 CHANGELOG)
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
+| **v4.9.7** | Token 用量卡新增「累计缓存命中率」 | 卡片底部命中率从单指标（原为**本月**口径）改为**当天 + 全历史累计**两指标并存：`cacheStats` 复用现函数零新增，取 `today`（当天）与 `''`（全历史，空串前缀天然放行）两次调用；文案改 `命中(今日) X% ｜ 累计 Y%`，同一行不新增行、占格 2×1 不动；数据源于 `usage_daily.json` 已有 `input/cache` 逐日字段，`collect_usage.py` 无需改动 | ✨ 新增 |
 | **v4.9.6** | 体育卡 `(+N)` 时间解析双修复 | ① `(+1)` 周期时间去掉后缀后尾部残留空格未 trim → moment 判 Invalid → 拜仁整条联赛不显示，修复=加 `.trim()`+`/\s+/`；② 更正 `(+N)` 语义：`datetime` 存的是**北京时间最终值**，`(+1)` 仅"跨天"说明标记，原 `parseDt` 误将 `(+N)` 当作"再加 N 天"导致所有带 `(+N)` 的比赛**多显示一天**（拜仁14/森林5/F1 5场），修复=删除 `plusDay`/`d.add`，直接 `return d` | 🐛 修复 |
 | **v4.9.5** | 布局快照修复 | `setLayoutSize` 切档前深拷贝源档布局到 `layoutSmall`/`layoutBig`、深拷贝载入目标档快照；`resetLayout` 改为恢复当前档快照（无则出厂默认）且 `cardLayout` 不再清空；`reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回；设置页文案更新 | 🐛 修复 |
 | **v4.7.0** | 小红书看板灵感九项落地 | Hero 欢迎区 / 统计六格 / 待办优先级 / 随笔写入日记 / D-Day 倒计时卡 / 日记跳转 / 导航入口卡 / 四套主题皮肤 /（全库热力图后删除） | ✨ 新增 |
@@ -20,7 +21,34 @@
 | **v4.9.3** | Token 卡 opencode 消耗归日修复 | `parse_opencode()` 改读 message 表按 `time.completed` 归日，修复跨天长会话消耗堆叠到创建日、之后日期显示≈0 的 bug | 🐛 修复 |
 | **v4.9.4** | 卡片大小/布局设置 | 设置页新增「卡片大小/布局」下拉：小=6×4 紧凑（默认，现状不变）/ 大=4 列可滚动；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发重排）；每卡 w/h 占格数铁律不动，仅按 4 列重排 x/y | ✨ 新增 |
 
-**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md` / `HANDOFF_layoutsize_fix_plan.md`。
+**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md` / `HANDOFF_cache_total_hitrate_plan.md`。
+
+---
+
+## ✨ v4.9.7 变更说明（Token 用量卡新增「累计缓存命中率」）
+
+**奏效概览**：用户要求「缓存命中率显示的是当天的，帮我加一个总的」。委托 cbc（glm-5.3-flash）调研后核实：现有「缓存命中」实际是**本月**口径（`cacheStats` 传 `monthKey`=YYYY-MM），并非当天。经用户确认改口径为**当天 + 全历史累计**。
+
+### 现状与根因
+- `main.ts:3410` 原 `const cs = this.cacheStats(days, monthKey);` —— 命中率实为当月口径。
+- `cacheStats`（main.ts:3479-3511）按 `k.startsWith(prefix)` 过滤日期，六源累加 hit/miss（hermes 用 min/max 折算，其余源采集端已折算）。`prefix` 传空串 `''` 时 falsy 天然放行所有日期 = 全历史累计，**零新增函数**。
+- 数据源 `usage_daily.json`（collect_usage.py 生成，schema_version=6）每天一条、全历史保留 `input/cache` 字段，插件端可独立累加，**collect_usage.py 无需改动**（避免双份累计数据源口径漂移）。
+
+### 改动（仅 main.ts，其余文件未动）
+```ts
+const csToday = this.cacheStats(days, today);   // 当天
+const csAll   = this.cacheStats(days, '');      // 全历史累计
+const rate = (cs: { hit: number; miss: number }) =>
+  (cs.hit + cs.miss) > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + '%' : '—';
+rateLine.setText('命中(今日) ' + rate(csToday) + ' ｜ 累计 ' + rate(csAll));
+```
+- 同一行两指标，不新增独立行；卡片占格 **2×1 不变**；`styles.css` 未动。
+- 边界：无缓存数据（hit+miss=0）两值均显示 `—`，不出现 NaN。
+
+### 验收（CDP 实测，Obsidian 带 `--remote-debugging-port=9223` 重启）
+- DOM 文本：`命中(今日) 95.521% ｜ 累计 95.272%`；`bottomRowChildren=2`（左合计+右命中率同一行）。
+- 无裁剪：`scrollH==clientH`（300/300）、`scrollW==clientW`（608/608），`cardCls=sd-card sd-size-2x1`。
+- 数值口径校验（Python 对 `usage_daily.json` 手工求和）与卡片一致（当前日期键为当天，采集刷新后数值随刷新对齐）。
 
 ---
 
@@ -130,7 +158,7 @@ CDP 实测（`obs_verify_sports_bayern.js`）：拜仁首轮显示 **8月29日 0
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/倒计时/导航/Token 用量/订阅额度/交易复盘等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
 - **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示、卡片大小/布局两档切换（小=6×4 紧凑 / 大=4 列可滚动）；拖拽/缩放交互正常。**用户双档默认布局已固化**：小档摆位存 `layoutSmall`、大档摆位存 `layoutBig`，「↺ 重置布局」按钮恢复当前档所存默认（不再清空、不再回出厂）。
-- **版本：** 交接版本 **v4.9.6**（manifest.json 4.9.6 / package.json 4.9.6 对齐）；日期 **2026-08-29**
+- **版本：** 交接版本 **v4.9.7**（manifest.json 4.9.7 / package.json 4.9.7 对齐）；日期 **2026-09-01**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -243,13 +271,14 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
+  - 📍 v4.9.7 已改 `main.ts`（renderUsageBody 底部行 `cacheStats(days, today)` 当天 + `cacheStats(days, '')` 全历史累计，文案 `命中(今日) X% ｜ 累计 Y%`）并 build 部署（vault manifest 4.9.7）；styles.css / collect_usage.py 未改。CDP 实测 `命中(今日) 95.521% ｜ 累计 95.272%`、占格 2×1 不变、无裁剪。本变更待 git commit + REST API 推送 main
   - 📍 v4.9.5 已改 `main.ts`（`setLayoutSize` 切档存源档深拷贝快照 + 载入目标档深拷贝快照；`resetLayout` 改为读 `layoutSmall`/`layoutBig` 恢复、不再清空 `cardLayout`；`reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回；设置页 `setDesc` 文案更新）并构建部署（vault manifest 4.9.5）；styles.css 未改。本变更待 git commit + REST API 推送 main
   - 📍 v4.9.4 已改 `main.ts`（新增 getLayoutSize/setLayoutSize/layoutSize 字段/loadLayout 读取/onOpen 预置 --sd-cols/setupGridSizing big 分支/设置页下拉）并构建部署（vault manifest 4.9.4）；styles.css 未改。本变更待 git commit + REST API 推送 main
   - 📍 v4.9.3 已改 `parse_opencode()`（读 message 表归日）并构建部署（vault manifest 4.9.3）；本变更将 git commit + REST API 推送 main
   - 📍 v4.9.2 体育卡 CDP 实测通过（clipped=false）；v4.9.1 拖拽修复用户验收通过
   - 📍 最终布局态：data.json 已固化用户双档默认——`layoutSize: 'big'`（当前在大档）；`layoutSmall` = 用户小档摆位（13 张，坐标来自用户手工拖拽、已存快照）；`layoutBig` = 用户大档摆位（13 张，同上）；`cardLayout` = 当前大档实时布局；`cardVisibility` 等其余字段完好。13 张卡占格数（w/h）全程未变（日历 2×2 / 统计 2×2 / 检索 1×2 / 用量·订阅·交易·体育 2×1 / 其余 1×1）。「↺ 重置布局」按钮验证：大档下点重置 → 精确恢复 `layoutBig`；切小档 → 恢复 `layoutSmall`；切回大档 → 恢复 `layoutBig`；两档互不污染（CDP 实测全过）
   - 📍 备份目录 `D:/Hermes/backup/smart_dashboard/` 含多份 `data.json.bak_*` 与 `main.ts.bak_*`（改动前全量备份，不删不覆盖）
-  - 📍 最后一次构建命令：`npm run build`（v4.9.5）
+  - 📍 最后一次构建命令：`npm run build`（v4.9.7）
 - **遗留待确认问题：**
   - ❓ `sports.json` 赛程是否补全为全年？F1 24 站 / 英超德甲整赛季数据 [待确认]
   - ❓ 农历节日是否立项；体育卡是否挂自动刷新定时器 [待确认]
@@ -260,6 +289,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.9.7**：Token 用量卡底部命中率由单指标改为**当天 + 全历史累计**两指标并存（`cacheStats(days, today)` + `cacheStats(days, '')`，零新增函数；文案 `命中(今日) X% ｜ 累计 Y%`；占格 2×1 与行数不变；CDP 实测无裁剪）
 - **v4.9.6**：修复体育卡 `(+N)` 时间解析——`parseDt` 去掉 `(+N)` 后残留尾随空格未 trim 使 moment 判 Invalid、导致拜仁（全部场次带 `(+1)`）整条不显示；修复=先 `.trim()` 再 `.replace(/\s+/,'T')`；CDP 实测三联赛齐全
 - **v4.9.5**：布局快照修复（切档存 layoutSmall/layoutBig 深拷贝快照 + resetLayout 恢复快照 + reflow 早返回）
 - **v4.9.3**：Token 卡 `parse_opencode()` 改读 opencode.db message 表、按消息完成时间归日（COALESCE time.completed/created），修复跨天长会话消耗堆叠创建日、后日期显示≈0 的 bug；实测 08-23 卡片从 62 万摆正至真实 560 万 input

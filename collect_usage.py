@@ -10,6 +10,7 @@ Sources:
   - opencode: C:/Users/华为/.local/share/opencode/opencode.db session table
   - workbuddy: C:/Users/华为/.workbuddy/projects/**/*.jsonl message events
   - codebuddy: C:/Users/华为/.codebuddy/projects/**/*.jsonl message events
+  - codex: C:/Users/华为/.codex/sessions/**/rollout-*.jsonl token_count events
 """
 
 import glob
@@ -20,6 +21,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 
 # ---------------------------------------------------------------- zstandard
 try:
@@ -42,6 +44,7 @@ DSH_SESSIONS_DIR = r"C:/Users/华为/.dsh/sessions"
 OPENCODE_DB = r"C:/Users/华为/.local/share/opencode/opencode.db"
 WORKBUDDY_PROJECTS_DIR = r"C:/Users/华为/.workbuddy/projects"
 CODEBUDDY_PROJECTS_DIR = r"C:/Users/华为/.codebuddy/projects"
+CODEX_SESSIONS_DIR = r"C:/Users/华为/.codex/sessions"
 OUT_JSON = r"D:/Obsidian Vault/Obsidian Vault/.smart-dashboard/usage_daily.json"
 
 # ---------------------------------------------------------------- regexes
@@ -332,6 +335,89 @@ def parse_codebuddy(projects_dir):
     return stats
 
 
+def codex_date_from_ts(ts):
+    """Convert an ISO UTC timestamp (e.g. 2026-08-30T13:07:18.227Z) to local YYYY-MM-DD."""
+    if not isinstance(ts, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone().strftime("%Y-%m-%d")
+
+
+def parse_codex(sessions_dir):
+    """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "calls":..}}.
+
+    Walks OpenAI Codex CLI rollout jsonl files under sessions_dir. Token data
+    lives in events with type == 'event_msg' and payload.type == 'token_count',
+    in payload.info.last_token_usage. input_tokens includes cached_input_tokens
+    → stored input is the cache-miss value max(0, input - cached_input),
+    aligned with workbuddy/codebuddy (input 不含 cache). cache_write_input_tokens
+    is ignored (cache = cache_read only, consistent with dsh/opencode). Each
+    token_count event adds one call. Events are attributed to the local date of
+    their top-level UTC timestamp. Damaged files are skipped. Missing dir
+    yields {} with WARN.
+    """
+    stats = {}
+    if not os.path.isdir(sessions_dir):
+        print("WARN: codex sessions dir not found:", sessions_dir, flush=True)
+        return stats
+    for root, _dirs, files in os.walk(sessions_dir):
+        for name in files:
+            if not (name.startswith("rollout-") and name.endswith(".jsonl")):
+                continue
+            path = os.path.join(root, name)
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    for raw in fh:
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        try:
+                            evt = json.loads(raw)
+                        except Exception:
+                            continue
+                        if evt.get("type") != "event_msg":
+                            continue
+                        payload = evt.get("payload")
+                        if not isinstance(payload, dict):
+                            continue
+                        if payload.get("type") != "token_count":
+                            continue
+                        info = payload.get("info")
+                        if not isinstance(info, dict):
+                            continue
+                        usage = info.get("last_token_usage")
+                        if not isinstance(usage, dict):
+                            continue
+                        try:
+                            input_tokens = int(usage.get("input_tokens") or 0)
+                            cached = int(usage.get("cached_input_tokens") or 0)
+                            output_tokens = int(usage.get("output_tokens") or 0)
+                            reasoning = int(usage.get("reasoning_output_tokens") or 0)
+                        except (ValueError, TypeError):
+                            continue
+                        date = codex_date_from_ts(evt.get("timestamp"))
+                        if not date:
+                            continue
+                        rec = stats.setdefault(
+                            date,
+                            {"input": 0, "output": 0, "cache": 0, "reasoning": 0, "calls": 0},
+                        )
+                        rec["input"] += max(0, input_tokens - cached)
+                        rec["output"] += output_tokens
+                        rec["cache"] += cached
+                        rec["reasoning"] += reasoning
+                        rec["calls"] += 1
+            except OSError:
+                # damaged / unreadable file: skip entirely
+                continue
+    return stats
+
+
 def parse_opencode(db_path):
     """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "cache_write":.., "calls":..}}.
 
@@ -400,7 +486,7 @@ def load_existing(out_path):
         try:
             with open(out_path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
-            if data.get("schema_version") in (3, 4, 5) and isinstance(data.get("days"), dict):
+            if data.get("schema_version") in (3, 4, 5, 6) and isinstance(data.get("days"), dict):
                 return data["days"]
         except Exception:
             pass
@@ -422,6 +508,7 @@ def main():
     opencode = parse_opencode(OPENCODE_DB)
     workbuddy = parse_workbuddy(WORKBUDDY_PROJECTS_DIR)
     codebuddy = parse_codebuddy(CODEBUDDY_PROJECTS_DIR)
+    codex = parse_codex(CODEX_SESSIONS_DIR)
 
     days = load_existing(OUT_JSON)
     days = merge_days(days, hermes, "hermes")
@@ -429,11 +516,12 @@ def main():
     days = merge_days(days, opencode, "opencode")
     days = merge_days(days, workbuddy, "workbuddy")
     days = merge_days(days, codebuddy, "codebuddy")
+    days = merge_days(days, codex, "codex")
 
     out_path = OUT_JSON
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     payload = {
-        "schema_version": 5,
+        "schema_version": 6,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "days": days,
     }
