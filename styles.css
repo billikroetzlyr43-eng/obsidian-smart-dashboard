@@ -1172,3 +1172,18 @@ body.theme-dark .sd-usage-lv4,
 .sd-btn.danger:hover {
     opacity: 0.9;
 }
+
+/* v4.3.3: Token/订阅卡标题栏 flex 化，使刷新状态文字与按钮同排 */
+#sd-usage-section .sd-section-title,
+#sd-subscriptions-section .sd-section-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sd-usage-refresh-status,
+.sd-subscriptions-refresh-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
