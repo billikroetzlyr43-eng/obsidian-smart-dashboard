@@ -18,6 +18,7 @@ try {
 		external: [
 			"obsidian",
 			"electron",
+			"path",
 			"@codemirror/autocomplete",
 			"@codemirror/collab",
 			"@codemirror/commands",
@@ -44,6 +45,8 @@ try {
 		fs.copyFileSync("main.js", path.join(vaultPluginDir, "main.js"));
 		if (fs.existsSync("manifest.json")) fs.copyFileSync("manifest.json", path.join(vaultPluginDir, "manifest.json"));
 		if (fs.existsSync("styles.css")) fs.copyFileSync("styles.css", path.join(vaultPluginDir, "styles.css"));
+		if (fs.existsSync("collect_usage.py")) fs.copyFileSync("collect_usage.py", path.join(vaultPluginDir, "collect_usage.py"));
+		if (fs.existsSync("collect_subscriptions.py")) fs.copyFileSync("collect_subscriptions.py", path.join(vaultPluginDir, "collect_subscriptions.py"));
 		console.log("Successfully copied build outputs directly into Obsidian Vault plugin directory!");
 	}
 } catch (e) {
