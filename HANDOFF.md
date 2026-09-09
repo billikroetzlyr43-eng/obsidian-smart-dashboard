@@ -352,6 +352,19 @@ flowchart TD
 
 **遗留状态**：vault 插件目录 = 回滚态（真实路径脚本调用，Obsidian 在用、Token 卡恢复）；git commit 版 = 同回滚语义但用 `__PLUGIN_DIR__` 占位（隐藏真实路径）；两者功能一致。本机脚本仍依赖本机路径（欠修复：脚本内应改 `expanduser` 获取主目录，属后续正常 commit）。
 
+## 🔧 collect_usage.py 占位路径修复（filter-repo 清洗残留 · 2026-09-09 完成）
+
+**问题**：隐私清洗时把 `collect_usage.py` 里 10 处真实路径替换为占位符（`DSH_SESSIONS_DIR` 等 5 个平台目录 → `C:/Users/<user>`、`HERMES_LOG` → `<hermes_dir>`、`OUT_JSON` → `<vault>`），导致脚本在本机**无法运行**（读 `C:/Users/<user>/...` 找不到目录，全 WARN + exit 1 崩溃），Token 统计卡统计不到数据（此即 v4.9.9「统计不到」真正的根因——非 getPythonScriptPath 方案，是清洗把真实用户名抹成占位）。
+
+**修复**（cbc 委派 + Hermes 独立试跑验收）：
+- **5 个平台目录常量**：`C:/Users/<user>` → `os.path.expanduser("~")` 运行时解析主目录（本机解析为实际用户名目录，git 版无真实用户名）。
+- **`HERMES_LOG` / `OUT_JSON`**：改为运行时动态解析——`OUT_JSON` 从脚本所在目录（vault 插件目录）上溯 3 级推导 vault 根；`HERMES_LOG` 优先读环境变量 `HERMES_LOG_PATH`、否则探测常见位置。git 版**不含任何真实本机路径**。
+- docstring 说明文字中的占位符保留原样（纯文档，不改）。
+
+**验收**：独立试跑 `python collect_usage.py --quiet` → **exit 0、无 WARN**；`usage_daily.json` 更新（约 24.7KB，70 天数据齐全），当日 2026-09-09 含 hermes/workbuddy/codebuddy 三源统计（hermes 409 calls / 48.6M input）。Token 统计卡恢复。
+
+**⚠️ 待定**：`HERMES_LOG`/`OUT_JSON` 2 处真实盘符路径——**处理决策（用户 2026-09-09）**：**本地代码保持不变（真实版），git 仅提交经过隐私保护的泛化副本**。git 版两常量已改为运行时动态解析（上溯推导 vault / 环境变量探测），零真实路径；本地工作区与 vault 保持真实版不动，用 skip-worktree 使 git 不再跟踪本地该文件差异。后续更优解：改用相对脚本目录定位或环境变量，彻底免硬编码。
+
 ---
 > 🔗 关联工作流：[[10_项目交接与上下文维持工作流]]
 

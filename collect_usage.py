@@ -39,13 +39,25 @@ except ImportError:
         sys.exit(1)
 
 # ------------------------------------------------------------------ config
-HERMES_LOG = r"<hermes_dir>/logs/agent.log"
-DSH_SESSIONS_DIR = r"C:/Users/<user>/.dsh/sessions"
-OPENCODE_DB = r"C:/Users/<user>/.local/share/opencode/opencode.db"
-WORKBUDDY_PROJECTS_DIR = r"C:/Users/<user>/.workbuddy/projects"
-CODEBUDDY_PROJECTS_DIR = r"C:/Users/<user>/.codebuddy/projects"
-CODEX_SESSIONS_DIR = r"C:/Users/<user>/.codex/sessions"
-OUT_JSON = r"<vault>/.smart-dashboard/usage_daily.json"
+# 路径动态解析（隐私保护版：git 仅存泛化副本，不含真实本机路径）
+# - OUT_JSON：从脚本所在目录上溯推导 vault 根（脚本部署于 <vault>/.obsidian/plugins/<id>/，上溯 4 级 = vault 根）
+# - HERMES_LOG：优先读环境变量 HERMES_LOG_PATH，未设置则尝试常见位置，均无则跳过 Hermes 源
+import os as _os
+_SCRIPT_DIR = _os.path.dirname(_os.path.abspath(__file__))
+HERMES_LOG = _os.environ.get("HERMES_LOG_PATH") or r""
+OUT_JSON = _os.path.join(_os.path.abspath(_os.path.join(_SCRIPT_DIR, "..", "..", "..")), ".smart-dashboard", "usage_daily.json")
+if not HERMES_LOG:
+    _h = _os.path.expanduser("~")
+    for cand in ("/Hermes/logs/agent.log", ".hermes/logs/agent.log"):
+        p = _os.path.join(_h, cand.lstrip("/"))
+        if _os.path.exists(p):
+            HERMES_LOG = p
+            break
+DSH_SESSIONS_DIR = os.path.expanduser("~") + "/.dsh/sessions"
+OPENCODE_DB = os.path.expanduser("~") + "/.local/share/opencode/opencode.db"
+WORKBUDDY_PROJECTS_DIR = os.path.expanduser("~") + "/.workbuddy/projects"
+CODEBUDDY_PROJECTS_DIR = os.path.expanduser("~") + "/.codebuddy/projects"
+CODEX_SESSIONS_DIR = os.path.expanduser("~") + "/.codex/sessions"
 
 # ---------------------------------------------------------------- regexes
 HERMES_RE = re.compile(
