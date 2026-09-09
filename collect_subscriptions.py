@@ -31,7 +31,8 @@ KEY_FILE = os.path.join(VAULT_DASHBOARD, ".secret_key")
 # API endpoints
 OPENCODE_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
 ZHIPU_QUOTA_URL = "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
-VOLCENGINE_USAGE_URL = "https://ark.cn-beijing.volces.com/api/v3/usage"  # Placeholder
+# Volcengine (火山方舟) Agent Plan 用量 — 控制台登录态 cookie 认证（无 API-key 用量接口）
+VOLCENGINE_AGENTPLAN_USAGE_URL = "https://console.volcengine.com/api/top/ark/cn-beijing/2024-01-01/GetAgentPlanAFPUsage"
 # SCNet (国家超算互联网) Token Plan — 网页控制台登录态 Cookie 认证（无公开 API-key 余额接口）
 SCNET_TOKENPLAN_LIST_URL = "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
 SCNET_APIKEY_QUERY_URL = "https://www.scnet.cn/acx/llm/api-key/token-plan/query"
@@ -240,11 +241,80 @@ def fetch_zhipu_glm(cookie: str) -> dict | None:
         return None
 
 
-def fetch_volcengine(api_key: str) -> dict | None:
-    """Fetch Volcengine quota (placeholder)."""
-    # TODO: Implement when Volcengine API is available
-    print("INFO: Volcengine fetch not yet implemented", flush=True)
-    return None
+def fetch_volcengine(cookie: str) -> dict | None:
+    """Fetch Volcengine (火山方舟) Agent Plan AFP usage via console cookie.
+
+    火山方舟用户面 API 仅暴露推理调用，无公开用量接口；真实用量来自控制台
+    console.volcengine.com 的 GetAgentPlanAFPUsage，需登录态 cookie 认证
+    （userInfo + csrfToken + AccountID）。POST 会触发 InvalidCSRFToken，故用 GET。
+    返回三窗口 AFP 用量：rolling=AFPFiveHour, weekly=AFPWeekly, monthly=AFPMonthly。
+    """
+    if not cookie:
+        print("WARN: Volcengine cookie not provided", flush=True)
+        return None
+
+    headers = {
+        "Cookie": cookie,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Referer": "https://console.volcengine.com/ark/region:cn-beijing/subscription/agent-plan",
+    }
+
+    try:
+        req = urllib.request.Request(VOLCENGINE_AGENTPLAN_USAGE_URL, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"WARN: Volcengine usage HTTP {e.code}: {e.reason}", flush=True)
+        return None
+    except Exception as e:
+        print(f"WARN: Volcengine fetch failed: {e}", flush=True)
+        return None
+
+    result = data.get("Result")
+    if not result:
+        err = data.get("ResponseMetadata", {}).get("Error", "unknown")
+        print(f"WARN: Volcengine usage response missing Result: {err}", flush=True)
+        return None
+
+    # 窗口映射：rolling=5h, weekly=周, monthly=月
+    window_map = {
+        "rolling": "AFPFiveHour",
+        "weekly": "AFPWeekly",
+        "monthly": "AFPMonthly",
+    }
+    windows = {}
+    for win_key, afp_key in window_map.items():
+        afp = result.get(afp_key)
+        if not afp:
+            continue
+        quota = float(afp.get("Quota") or 0)
+        used = float(afp.get("Used") or 0)
+        percent = round(used / quota * 100) if quota > 0 else 0
+        reset_ms = afp.get("ResetTime") or 0
+        resets_at = ""
+        if reset_ms:
+            try:
+                resets_at = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(reset_ms / 1000))
+            except Exception:
+                resets_at = ""
+        windows[win_key] = {
+            "percent": percent,
+            "resetsAt": resets_at,
+            "usedAmount": used,
+            "totalAmount": quota,
+            "unit": "AFP",
+        }
+
+    return {
+        "provider": "volcengine",
+        "name": "火山方舟",
+        "icon": "🌋",
+        "type": "plan",
+        "windows": windows,
+        "status": "ok",
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
 
 
 def fetch_scnet_tokenplan(cookie_token: str, user_name: str = "") -> dict | None:
@@ -425,11 +495,18 @@ def main():
     
     # Fetch Volcengine
     if providers_config.get("volcengine", {}).get("enabled"):
-        api_key = get_provider_credential("volcengine", "apiKey")
-        if api_key:
-            result = fetch_volcengine(api_key)
+        cookie = get_provider_credential("volcengine", "cookie")
+        if cookie:
+            result = fetch_volcengine(cookie)
             if result:
                 data = merge_providers(data, result)
+                if not quiet:
+                    r = result['windows'].get('rolling', {})
+                    print(f"Volcengine Agent Plan: rolling={r.get('percent', '?')}% "
+                          f"({r.get('usedAmount', '?')}/{r.get('totalAmount', '?')} {r.get('unit', '')})",
+                          flush=True)
+        else:
+            print("WARN: Volcengine not configured (cookie missing), skipped", flush=True)
 
     # Fetch SCNet Token Plan
     if providers_config.get("scnet-tokenplan", {}).get("enabled"):
