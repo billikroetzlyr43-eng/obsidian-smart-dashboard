@@ -1,13 +1,45 @@
-# HANDOFF — Smart Dashboard v4.3.2
+# HANDOFF — Smart Dashboard v4.3.3
 
 ## 版本信息
-- **版本**: 4.3.2
+- **版本**: 4.3.3
 - **发布日期**: 2026-08-19
-- **变更**: 移除看板标题栏主题切换按钮（看板纯跟随 Obsidian 全局主题）+ Token 卡刷新按钮直连采集脚本（去掉 cron 依赖）
+- **变更**: Token 卡小分类只显示输入+输出 + 两卡(Token/订阅)刷新时保留面板不清空，状态文字移到按钮右侧
 
 ---
 
 ## 本次更新内容
+
+### 1. Token 卡小分类只显示「输入 + 输出」
+
+#### 修改内容（main.ts）
+- 本月 sub、今日、本周/累计 三处小分类明细：删除「缓存」「推理」分项，只保留「输入」「输出」
+- 月/年热力图 cell 的 hover title 同步精简（只留输入+输出）
+- **总量口径不变**：本月/今日/本周/累计的总值仍为全口径（input+output+cache+reasoning），数据计算逻辑（monthAll/t/dailyTokens/allTotalWithCache/cacheStats/sumRange）全部保留
+- 「缓存命中率」是独立指标行，保留不删
+
+### 2. Token 卡 + 订阅卡：刷新保留面板 + 状态文字移按钮右侧
+
+#### 根因
+- 旧刷新逻辑点击后先 `body.empty()` 清空面板再插入全宽 loading 行——面板先变空白再刷新，失败还留空面板
+
+#### 修改内容（main.ts）
+- 刷新点击：**不清空面板**，保留原数据，后台跑采集脚本
+- 采集完成（含失败）后整体重渲染（读 JSON 兜底），**面板永不变空**
+- `⏳ 正在获取数据...` 状态文字移到刷新按钮右侧（`sd-usage-refresh-status` / `sd-subscriptions-refresh-status` span，采集期间显示、结束隐藏）
+- 按钮保留 ⏳/disabled 防连点
+
+#### 修改内容（styles.css，仅追加）
+- Token/订阅卡 `.sd-section-title` 加 flex 布局（状态文字与按钮同排）
+- 状态文字样式（12px、--text-muted、nowrap）
+
+#### 验证（CDP 点击实测）
+- 点击瞬间：面板内容保留（不清空）、status 显示、按钮 ⏳+disabled ✅
+- 采集完成：status 隐藏、updated_at 更新（14:09:32→14:10:06）、数据渲染最新 ✅
+- 小分类只剩输入+输出；缓存命中率保留 ✅
+
+---
+
+## 上一版更新内容（v4.3.2）
 
 ### 1. 移除主题切换按钮（🌙/🌞）
 
