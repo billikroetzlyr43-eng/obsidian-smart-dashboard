@@ -10,6 +10,8 @@ Currently supported:
   - OpenCode Go: GET https://opencode.ai/zen/go/v1/usage
   - Zhipu GLM: Cookie-based
   - Volcengine: API Key-based
+  - SCNet Token Plan: Cookie-based (dashboard login)
+  - DeepSeek: GET https://api.deepseek.com/user/balance (API-key balance)
 """
 
 import base64
@@ -36,6 +38,8 @@ VOLCENGINE_AGENTPLAN_USAGE_URL = "https://console.volcengine.com/api/top/ark/cn-
 # SCNet (国家超算互联网) Token Plan — 网页控制台登录态 Cookie 认证（无公开 API-key 余额接口）
 SCNET_TOKENPLAN_LIST_URL = "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
 SCNET_APIKEY_QUERY_URL = "https://www.scnet.cn/acx/llm/api-key/token-plan/query"
+# DeepSeek 官方 — API-key 余额查询（官方文档 /user/balance，预付费余额非百分比窗口）
+DEEPSEEK_BALANCE_URL = "https://api.deepseek.com/user/balance"
 
 # ------------------------------------------------------------------ encryption
 def get_or_create_key() -> bytes:
@@ -379,6 +383,63 @@ def fetch_scnet_tokenplan(cookie_token: str, user_name: str = "") -> dict | None
         return None
 
 
+def fetch_deepseek(api_key: str) -> dict | None:
+    """Fetch DeepSeek official API balance.
+
+    DeepSeek 是预付费余额模型（非百分比用量窗口），走官方 /user/balance 端点。
+    返回余额型 provider（type='balance'），渲染层据此显示文本而非进度条。
+    """
+    if not api_key:
+        print("WARN: DeepSeek API key not provided", flush=True)
+        return None
+
+    try:
+        req = urllib.request.Request(
+            DEEPSEEK_BALANCE_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+                "User-Agent": "smart-dashboard/1.0",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        if not data.get("is_available", False):
+            print("WARN: DeepSeek balance not available", flush=True)
+            return None
+
+        # 取第一个余额币种（通常 CNY）
+        balances = data.get("balance_infos", [])
+        if not balances:
+            print("WARN: DeepSeek balance_infos empty", flush=True)
+            return None
+
+        b = balances[0]
+        currency = b.get("currency", "CNY")
+        total = float(b.get("total_balance") or 0)
+        granted = float(b.get("granted_balance") or 0)
+        topped_up = float(b.get("topped_up_balance") or 0)
+
+        return {
+            "provider": "deepseek",
+            "name": "DeepSeek",
+            "icon": "🐬",
+            "type": "balance",
+            "currency": currency,
+            "balance": total,
+            "balances": {
+                "total": total,
+                "granted": granted,
+                "topped_up": topped_up,
+            },
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+    except Exception as e:
+        print(f"WARN: DeepSeek balance fetch failed: {e}", flush=True)
+        return None
+
+
 # ------------------------------------------------------------------ data management
 def load_existing_quotes() -> dict:
     """Load existing quota data."""
@@ -522,6 +583,21 @@ def main():
                           f"({m.get('usedAmount', '?')}/{m.get('totalAmount', '?')} {m.get('unit', '')})", flush=True)
         else:
             print("WARN: SCNet Token Plan not configured (token missing), skipped", flush=True)
+
+    # Fetch DeepSeek (API-key balance)
+    if providers_config.get("deepseek", {}).get("enabled"):
+        api_key = get_provider_credential("deepseek", "apiKey")
+        if api_key:
+            result = fetch_deepseek(api_key)
+            if result:
+                data = merge_providers(data, result)
+                if not quiet:
+                    print(f"DeepSeek: {result.get('currency', 'CNY')} "
+                          f"{result.get('balance', 0):.2f} "
+                          f"(granted {result['balances'].get('granted', 0):.2f}, "
+                          f"topped_up {result['balances'].get('topped_up', 0):.2f})", flush=True)
+        else:
+            print("WARN: DeepSeek not configured (apiKey missing), skipped", flush=True)
     
     # Update timestamp and save
     data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -538,6 +614,11 @@ def main():
     print(f"\nProviders: {len(providers)}", flush=True)
     for p in providers:
         name = p.get("name", p.get("provider", "unknown"))
+        if p.get("type") == "balance":
+            cur = p.get("currency", "CNY")
+            bal = p.get("balance", 0)
+            print(f"  {p.get('icon', '📦')} {name}: {cur} {bal}", flush=True)
+            continue
         windows = p.get("windows", {})
         rolling = windows.get("rolling", {}).get("percent", "?")
         print(f"  {p.get('icon', '📦')} {name}: rolling={rolling}%", flush=True)

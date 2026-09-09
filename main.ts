@@ -77,13 +77,20 @@ const SUBSCRIPTION_TEMPLATES: Record<string, {
         authPlaceholder: '粘贴 Cookie 值'
     },
     'scnet-tokenplan': {
-        name: '超算 Token Plan',
-        icon: '🖥️',
-        authType: 'cookie',
-        authHint: '登录 scnet.cn 控制台后，F12 → Console → document.cookie，复制 Token= 后面的值',
-        authPlaceholder: '粘贴 Token 值'
-    }
-};
+            name: '超算 Token Plan',
+            icon: '🖥️',
+            authType: 'cookie',
+            authHint: '登录 scnet.cn 控制台后，F12 → Console → document.cookie，复制 Token= 后面的值',
+            authPlaceholder: '粘贴 Token 值'
+        },
+        'deepseek': {
+            name: 'DeepSeek',
+            icon: '🐬',
+            authType: 'api-key',
+            authHint: 'DeepSeek 官方 API Key（platform.deepseek.com 创建，sk- 开头）',
+            authPlaceholder: '粘贴 API Key'
+        }
+    };
 
 // ===== 添加订阅模态框 =====
 class AddSubscriptionModal extends Modal {
@@ -3001,13 +3008,57 @@ class SmartDashboardView extends ItemView {
             const item = list.createDiv({ cls: 'sd-subscriptions-item' });
             
             // 图标 + 名称
-            const info = item.createDiv({ cls: 'sd-subscriptions-info' });
-            info.createDiv({ cls: 'sd-subscriptions-icon', text: provider.icon || '📦' });
-            info.createDiv({ cls: 'sd-subscriptions-name', text: provider.name || provider.provider });
-            
-            // 配额窗口
-            const windows = provider.windows || {};
-            const windowsDiv = item.createDiv({ cls: 'sd-subscriptions-windows' });
+                        const info = item.createDiv({ cls: 'sd-subscriptions-info' });
+                        info.createDiv({ cls: 'sd-subscriptions-icon', text: provider.icon || '📦' });
+                        info.createDiv({ cls: 'sd-subscriptions-name', text: provider.name || provider.provider });
+
+                        // 余额型 provider（DeepSeek 等预付费余额）：显示金额文本而非进度条
+                        if (provider.type === 'balance') {
+                          const balDiv = item.createDiv({ cls: 'sd-subscriptions-windows' });
+                          const currency = provider.currency || 'CNY';
+                          const total = typeof provider.balance === 'number'
+                            ? provider.balance : parseFloat(provider.balance || '0');
+                          const balances = provider.balances || {};
+                          const granted = typeof balances.granted === 'number'
+                            ? balances.granted : parseFloat(balances.granted || '0');
+                          const toppedUp = typeof balances.topped_up === 'number'
+                            ? balances.topped_up : parseFloat(balances.topped_up || '0');
+                          const balDivInner = balDiv.createDiv({ cls: 'sd-subscriptions-window' });
+                          balDivInner.createDiv({ cls: 'sd-subscriptions-window-label', text: '余额' });
+                          const balVal = balDivInner.createDiv({ cls: 'sd-subscriptions-balance-value' });
+                          balVal.setText(`${currency} ${total.toFixed(2)}`);
+                          if (granted > 0 || toppedUp > 0) {
+                            const detail = balDivInner.createDiv({ cls: 'sd-subscriptions-balance-detail' });
+                            const parts: string[] = [];
+                            if (toppedUp > 0) parts.push(`充${toppedUp.toFixed(2)}`);
+                            if (granted > 0) parts.push(`赠${granted.toFixed(2)}`);
+                            if (parts.length) detail.setText(parts.join(' / '));
+                          }
+                          // 删除按钮
+                          const deleteBtn = item.createEl('button', {
+                            text: '🗑️',
+                            cls: 'sd-subscriptions-delete-btn',
+                            attr: { title: '删除' }
+                          });
+                          deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            new DeleteConfirmModal(
+                              this.app,
+                              provider.name || provider.provider,
+                              provider.icon || '📦',
+                              async () => {
+                                await this.deleteSubscription(provider.provider);
+                                body.empty();
+                                await this.renderSubscriptionsBody(body);
+                              }
+                            ).open();
+                          });
+                          continue;
+                        }
+
+                        // 配额窗口
+                        const windows = provider.windows || {};
+                        const windowsDiv = item.createDiv({ cls: 'sd-subscriptions-windows' });
             
             // Rolling (5h)
             if (windows.rolling) {
