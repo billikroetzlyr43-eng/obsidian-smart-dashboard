@@ -1,5 +1,5 @@
 node_modules/
-*.bak
+*.bak*
 TASK*.md
 fix_jot.js
 .DS_Store
