@@ -1,13 +1,38 @@
-# HANDOFF — Smart Dashboard v4.3.0
+# HANDOFF — Smart Dashboard v4.3.1
 
 ## 版本信息
-- **版本**: 4.3.0
-- **发布日期**: 2026-08-17
-- **变更**: 新增卡片开关功能，支持隐藏/显示看板卡片并自动补位布局
+- **版本**: 4.3.1
+- **发布日期**: 2026-08-19
+- **变更**: 深色模式可读性修复 —— 颜色源统一到 Obsidian 核心变量（方案A），修复"深色模式下文字不清"问题
 
 ---
 
 ## 本次更新内容
+
+### 修复：深色模式文字显示不清（方案A：颜色源统一）
+
+#### 根因
+- 插件内部存在两套颜色体系：老卡片（日历/待办/日程等）用自身 `--sd-*` 变量 + 内置🌙开关；新卡片（Token用量/订阅/交易表/图表）直接引用 Obsidian 全局变量（`--text-normal`/`--text-muted` 等）
+- 插件深色开关与 Obsidian 全局主题不同步时（如：插件深色 + Obsidian 浅色），新卡片文字（近黑 #1E1E1E）落在深色卡片（#2D2D2D）上 → 对比度仅 **0.8:1**，几乎不可见
+
+#### 修改内容
+1. **styles.css**：`:root` 的 7 个 `--sd-*` 变量改为映射 Obsidian 核心变量（`--background-secondary`/`--background-primary`/`--background-modifier-border`/`--text-normal`/`--text-muted`），强调色保留暖橙品牌色；删除全局 `.theme-dark` 覆盖块，改为容器级 `.smart-dashboard-container.theme-dark`（仅手动固定深色时挂）
+2. **硬编码色修复**：热力图 lv0-lv4 深色档（GitHub 深色风格）、日历 other-month、`.sd-todo-subtasks` 边框、`.sd-schedule-list::before` 时间轴线、`.sd-timeline-content` 背景/边框、`.sd-grid` 底色 → 全部改用主题变量或 `body.theme-dark` 深色档
+3. **main.ts**：`getTheme()` 默认 `'auto'`（跟随 Obsidian 全局）；🌙按钮点击 = 手动固定当前生效色的反向（`refreshView()` 重建；注：手动固定后不再自动跟随，恢复跟随需删除 `00_System/theme.json` 中的 `theme` 字段）；图表 `isDark` 检测双源兜底（`body.theme-dark` + 容器 class）
+
+#### 行为变化
+- 看板默认跟随 Obsidian 全局主题（深浅自动适配），不再默认固定浅色
+- 手动点过🌙按钮后固定为该值；要恢复跟随全局请删除 `00_System/theme.json` 的 theme 字段（值改回 `auto`）
+- 主题切换按钮在"Obsidian 全局深色"下无法强制浅色（单向覆盖，可接受）
+
+#### 验证
+- ✅ 已实测四种组合（CDP/DOM 对比度采样 189 项）：全局浅+auto / 全局浅+手动深 / 全局深+auto 全部无真问题（仅统计卡半透明背景假阳性 6 项，实算合成后 ≥3.85:1 达标）
+- ✅ 脚本：`D:\Hermes\scripts\obs_theme_check.js`（对比度扫描）、`obs_style_verify.js`（样式生效验证）、`obs_shot_cards.js`（卡片截图）
+- ⚠️ 本轮踩坑：手动深色下 Token/订阅卡曾用 Obsidian 浅色变量 → 2.06:1，容器级覆盖需补 Obsidian 核心变量；热力图深色档要先写 `body.theme-dark` + `.smart-dashboard-container.theme-dark` 双选择器（单写 body 在"全局浅+手动深"下不生效）
+
+---
+
+## 上一版更新内容（v4.3.0）
 
 ### 新功能：卡片开关与自动补位布局
 
@@ -132,6 +157,8 @@ feat: 卡片开关功能 v4.3.0
 - 隐藏卡片时功能暂停，启用时恢复
 - 版本号升级至 4.3.0
 ```
+
+**远程 Commit**: [`e106542`](https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard/commit/e1065424249303460175dfc0d51eb96b22adf4e0)
 
 ---
 
