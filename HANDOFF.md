@@ -6,7 +6,7 @@
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
 - **项目目标：** 在 Obsidian 侧边栏提供统一智能看板，聚合日历/待办/日程/Token 用量/订阅额度等卡片，以 Knowledge OS 方式整合笔记与时间管理。
 - **当前阶段：** WorkBuddy 第 4 源接入开发完成，`collect_usage.py` / `main.ts` / `main.js` 均已改好并部署到 vault 实测通过；**本次改动尚未提交 git**；Obsidian 当前以调试模式运行（`--remote-debugging-port=9223`）。
-- **版本：** 交接版本 **v4.4.0**（manifest.json 仍为 4.3.3，是否同步 bump [待确认]）
+- **版本：** 交接版本 **v4.4.0**（manifest.json / package.json 均已 bump 至 4.4.0）
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -52,7 +52,6 @@ flowchart TD
 ## 5. 待办事项与下一步行动 (Next Steps)
 - **优先级最高（启动后立即执行）：**
   - [ ] 完成本次 git 提交（collect_usage.py / main.ts / main.js / HANDOFF.md / .gitignore）并 `git push origin main`
-  - [ ] [待确认] manifest.json（4.3.3）与 package.json 是否同步 bump 至 4.4.0；本次按"禁止改功能代码"未动两者
 - **后续规划：**
   - [ ] 观察 WorkBuddy 数据稳定性（`session_usage.used` vs `providerData.usage` 是否有重叠/漂移）
   - [ ] 评估是否为 WorkBuddy 加 `cache_write` 维度（当前 schema v4 未单独采集，与 opencode 不一致）
@@ -86,7 +85,6 @@ flowchart TD
   - 本次改动**尚未 git commit**；HANDOFF.md 已按 v4.4.0 更新
   - Obsidian 当前以调试模式运行（`--remote-debugging-port=9223`，CDP 可连）
 - **遗留待确认问题：**
-  - [待确认] manifest.json / package.json 版本是否同步 bump 至 4.4.0（本次未动）
   - [待确认] push 是否能成功（远端 origin 凭据 store 已配，但若遇网络失败本地 commit 仍需保留）
   - 本次实测对比数据（2194.9M vs 2206.6M、WorkBuddy 8.1M 明细）为 2026-08-19 当日快照，后续会随采集变化
 
