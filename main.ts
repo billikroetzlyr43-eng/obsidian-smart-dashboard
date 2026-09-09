@@ -1,4 +1,4 @@
-import { Plugin, ItemView, WorkspaceLeaf, TFile, Notice, Modal, Setting, App, moment } from 'obsidian';
+import { Plugin, ItemView, WorkspaceLeaf, TFile, Notice, Modal, Setting, App, moment, PluginSettingTab } from 'obsidian';
 import Chart from 'chart.js/auto';
 
 export const VIEW_TYPE_SMART_DASHBOARD = "smart-dashboard-view";
@@ -421,6 +421,8 @@ export default class SmartDashboardPlugin extends Plugin {
                 (leaf) => new SmartDashboardView(leaf, this)
             );
 
+            this.addSettingTab(new SmartDashboardSettingTab(this.app, this));
+
             const ribbonIconEl = this.addRibbonIcon('layout-dashboard', `Smart Dashboard ${this.manifest.version}`, () => {
                 this.activateView();
             });
@@ -452,6 +454,30 @@ export default class SmartDashboardPlugin extends Plugin {
             workspace.revealLeaf(leaf);
         } catch (e) {
             console.error("SmartDashboard activateView error:", e);
+        }
+    }
+
+    async getCardVisibility(): Promise<Record<string, boolean>> {
+        const data = await this.loadData();
+        return data?.cardVisibility ?? {};
+    }
+
+    async setCardVisibility(cardId: string, visible: boolean): Promise<void> {
+        const data = (await this.loadData()) || {};
+        if (!data.cardVisibility) data.cardVisibility = {};
+        data.cardVisibility[cardId] = visible;
+        await this.saveData(data);
+    }
+
+    async refreshView(): Promise<void> {
+        const { workspace } = this.app;
+        const leaves = workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD);
+        for (const leaf of leaves) {
+            const view = leaf.view as any;
+            if (view) {
+                await view.onClose();
+                await view.onOpen();
+            }
         }
     }
 }
@@ -1210,76 +1236,101 @@ class SmartDashboardView extends ItemView {
         const grid = content.createDiv('sd-grid');
 
         const cards: HTMLElement[] = [];
+        const visibility = await this.plugin.getCardVisibility();
 
-        const calendarCard = grid.createDiv('sd-card');
-        calendarCard.id = 'sd-calendar-section';
-        this.applyCardSize(calendarCard);
-        const calendarBody = this.createCardBody(calendarCard);
-        cards.push(calendarCard);
-        await this.renderCalendarArea(calendarBody);
+        const allCardIds = Object.keys(SmartDashboardView.DEFAULT_LAYOUT);
+        const visibleIds = allCardIds.filter(id => visibility[id] !== false);
+        await this.reflowLayoutForVisibleCards(visibleIds);
 
-        const quickJotCard = grid.createDiv('sd-card');
-        quickJotCard.id = 'sd-quickjot-section';
-        this.applyCardSize(quickJotCard);
-        const quickJotBody = this.createCardBody(quickJotCard);
-        cards.push(quickJotCard);
-        this.renderQuickJotArea(quickJotBody);
+        if (visibility['sd-calendar-section'] !== false) {
+            const calendarCard = grid.createDiv('sd-card');
+            calendarCard.id = 'sd-calendar-section';
+            this.applyCardSize(calendarCard);
+            const calendarBody = this.createCardBody(calendarCard);
+            cards.push(calendarCard);
+            await this.renderCalendarArea(calendarBody);
+        }
 
-        const searchCard = grid.createDiv('sd-card');
-        searchCard.id = 'sd-search-section';
-        this.applyCardSize(searchCard);
-        const searchBody = this.createCardBody(searchCard);
-        cards.push(searchCard);
-        this.renderSearchArea(searchBody);
+        if (visibility['sd-quickjot-section'] !== false) {
+            const quickJotCard = grid.createDiv('sd-card');
+            quickJotCard.id = 'sd-quickjot-section';
+            this.applyCardSize(quickJotCard);
+            const quickJotBody = this.createCardBody(quickJotCard);
+            cards.push(quickJotCard);
+            this.renderQuickJotArea(quickJotBody);
+        }
 
-        const createCard = grid.createDiv('sd-card');
-        createCard.id = 'sd-create-section';
-        this.applyCardSize(createCard);
-        const createBody = this.createCardBody(createCard);
-        cards.push(createCard);
-        this.renderCreateArea(createBody);
+        if (visibility['sd-search-section'] !== false) {
+            const searchCard = grid.createDiv('sd-card');
+            searchCard.id = 'sd-search-section';
+            this.applyCardSize(searchCard);
+            const searchBody = this.createCardBody(searchCard);
+            cards.push(searchCard);
+            this.renderSearchArea(searchBody);
+        }
 
-        const statsCard = grid.createDiv('sd-card');
-        statsCard.id = 'sd-stats-section';
-        this.applyCardSize(statsCard);
-        const statsBody = this.createCardBody(statsCard);
-        cards.push(statsCard);
-        this.renderStatsArea(statsBody);
+        if (visibility['sd-create-section'] !== false) {
+            const createCard = grid.createDiv('sd-card');
+            createCard.id = 'sd-create-section';
+            this.applyCardSize(createCard);
+            const createBody = this.createCardBody(createCard);
+            cards.push(createCard);
+            this.renderCreateArea(createBody);
+        }
 
-        const usageCard = grid.createDiv('sd-card');
-        usageCard.id = 'sd-usage-section';
-        this.applyCardSize(usageCard);
-        const usageBody = this.createCardBody(usageCard);
-        cards.push(usageCard);
-        await this.renderUsageArea(usageBody);
+        if (visibility['sd-stats-section'] !== false) {
+            const statsCard = grid.createDiv('sd-card');
+            statsCard.id = 'sd-stats-section';
+            this.applyCardSize(statsCard);
+            const statsBody = this.createCardBody(statsCard);
+            cards.push(statsCard);
+            this.renderStatsArea(statsBody);
+        }
 
-        const subscriptionsCard = grid.createDiv('sd-card');
-        subscriptionsCard.id = 'sd-subscriptions-section';
-        this.applyCardSize(subscriptionsCard);
-        const subscriptionsBody = this.createCardBody(subscriptionsCard);
-        cards.push(subscriptionsCard);
-        await this.renderSubscriptionsArea(subscriptionsBody);
+        if (visibility['sd-usage-section'] !== false) {
+            const usageCard = grid.createDiv('sd-card');
+            usageCard.id = 'sd-usage-section';
+            this.applyCardSize(usageCard);
+            const usageBody = this.createCardBody(usageCard);
+            cards.push(usageCard);
+            await this.renderUsageArea(usageBody);
+        }
 
-        const scheduleCard = grid.createDiv('sd-card');
-        scheduleCard.id = 'sd-schedule-section';
-        this.applyCardSize(scheduleCard);
-        const scheduleBody = this.createCardBody(scheduleCard);
-        cards.push(scheduleCard);
-        await this.renderScheduleArea(scheduleBody);
+        if (visibility['sd-subscriptions-section'] !== false) {
+            const subscriptionsCard = grid.createDiv('sd-card');
+            subscriptionsCard.id = 'sd-subscriptions-section';
+            this.applyCardSize(subscriptionsCard);
+            const subscriptionsBody = this.createCardBody(subscriptionsCard);
+            cards.push(subscriptionsCard);
+            await this.renderSubscriptionsArea(subscriptionsBody);
+        }
 
-        const todoCard = grid.createDiv('sd-card');
-        todoCard.id = 'sd-todo-section';
-        this.applyCardSize(todoCard);
-        const todoBody = this.createCardBody(todoCard);
-        cards.push(todoCard);
-        await this.renderTodoArea(todoBody);
+        if (visibility['sd-schedule-section'] !== false) {
+            const scheduleCard = grid.createDiv('sd-card');
+            scheduleCard.id = 'sd-schedule-section';
+            this.applyCardSize(scheduleCard);
+            const scheduleBody = this.createCardBody(scheduleCard);
+            cards.push(scheduleCard);
+            await this.renderScheduleArea(scheduleBody);
+        }
 
-        const tradingCard = grid.createDiv('sd-card');
-        tradingCard.id = 'sd-trading-section';
-        this.applyCardSize(tradingCard);
-        const tradingBody = this.createCardBody(tradingCard);
-        cards.push(tradingCard);
-        this.renderTradingArea(tradingBody);
+        if (visibility['sd-todo-section'] !== false) {
+            const todoCard = grid.createDiv('sd-card');
+            todoCard.id = 'sd-todo-section';
+            this.applyCardSize(todoCard);
+            const todoBody = this.createCardBody(todoCard);
+            cards.push(todoCard);
+            await this.renderTodoArea(todoBody);
+        }
+
+        if (visibility['sd-trading-section'] !== false) {
+            const tradingCard = grid.createDiv('sd-card');
+            tradingCard.id = 'sd-trading-section';
+            this.applyCardSize(tradingCard);
+            const tradingBody = this.createCardBody(tradingCard);
+            cards.push(tradingCard);
+            this.renderTradingArea(tradingBody);
+        }
 
         // 先应用布局，再绑定拖拽、启动网格尺寸自适应
         this.applyLayout();
@@ -1344,7 +1395,11 @@ class SmartDashboardView extends ItemView {
     }
 
     private async saveLayout(): Promise<void> {
-        try { await this.plugin.saveData({ cardLayout: this.layoutData }); } catch { /* 持久化失败不阻断拖拽 */ }
+        try {
+            const data = (await this.plugin.loadData()) || {};
+            data.cardLayout = this.layoutData;
+            await this.plugin.saveData(data);
+        } catch { /* 持久化失败不阻断拖拽 */ }
     }
 
     private async resetLayout(): Promise<void> {
@@ -1352,7 +1407,11 @@ class SmartDashboardView extends ItemView {
         const grid = this.contentEl.querySelector('.sd-grid') as HTMLElement;
         const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 4;
         if (cols < 4) this.applyLayoutCompact(); else this.applyLayout();
-        try { await this.plugin.saveData({ cardLayout: undefined }); } catch { /* 清空持久化失败时保留内存中的默认布局 */ }
+        try {
+            const data = (await this.plugin.loadData()) || {};
+            data.cardLayout = undefined;
+            await this.plugin.saveData(data);
+        } catch { /* 清空持久化失败时保留内存中的默认布局 */ }
         new Notice('布局已重置为默认');
     }
 
@@ -1563,6 +1622,66 @@ class SmartDashboardView extends ItemView {
 
         this.layoutData = next;
         this.applyLayout();  // CSS transition 平滑过渡
+        await this.saveLayout();
+    }
+
+    private async reflowLayoutForVisibleCards(visibleIds: string[]): Promise<void> {
+        const grid = this.getGrid();
+        if (!grid) return;
+        const m = this.getGridMetrics();
+        if (!m) return;
+        const { cols } = m;
+        if (cols < 4) return;  // 窄模式不重排
+
+        // 收集可见卡片的当前布局信息（如果存在），否则使用默认尺寸
+        const visibleEntries: Array<{id: string; w: number; h: number}> = [];
+        for (const id of visibleIds) {
+            const existing = this.layoutData[id];
+            if (existing) {
+                visibleEntries.push({id, w: existing.w, h: existing.h});
+            } else {
+                // 使用默认尺寸
+                const defaultPos = SmartDashboardView.DEFAULT_LAYOUT[id];
+                if (defaultPos) {
+                    visibleEntries.push({id, w: defaultPos.w, h: defaultPos.h});
+                } else {
+                    //未知卡片，默认1x1
+                    visibleEntries.push({id, w: 1, h: 1});
+                }
+            }
+        }
+
+        // 按 y、x 排序（保持原有顺序，如果没有则按 id 排序）
+        visibleEntries.sort((a, b) => {
+            const posA = this.layoutData[a.id] || {y: 0, x: 0};
+            const posB = this.layoutData[b.id] || {y: 0, x: 0};
+            return posA.y - posB.y || posA.x - posB.x;
+        });
+
+        // 重新排列
+        const placed: Array<{x: number; y: number; w: number; h: number}> = [];
+        const overlaps = (p: {x: number; y: number; w: number; h: number}): boolean =>
+            placed.some(o => p.x < o.x + o.w && p.x + p.w > o.x && p.y < o.y + o.h && p.y + p.h > o.y);
+
+        const next: Record<string, {x: number; y: number; w: number; h: number}> = {};
+        for (const {id, w, h} of visibleEntries) {
+            let spot: {x: number; y: number; w: number; h: number} | null = null;
+            for (let yy = 1; yy <= 500 && !spot; yy++) {
+                for (let xx = 1; xx <= cols - w + 1; xx++) {
+                    const cand = {x: xx, y: yy, w, h};
+                    if (!overlaps(cand)) {
+                        spot = cand;
+                        break;
+                    }
+                }
+            }
+            if (!spot) spot = {x: 1, y: 501, w, h};
+            placed.push(spot);
+            next[id] = spot;
+        }
+
+        this.layoutData = next;
+        this.applyLayout();
         await this.saveLayout();
     }
 
@@ -3006,5 +3125,50 @@ class ViewTradeModal extends Modal {
     onClose() {
         const {contentEl} = this;
         contentEl.empty();
+    }
+}
+
+const CARD_LABELS: Record<string, string> = {
+    'sd-calendar-section': '日历',
+    'sd-quickjot-section': '极速随笔',
+    'sd-search-section': '智能检索',
+    'sd-create-section': '快捷创建',
+    'sd-stats-section': '统计分析',
+    'sd-usage-section': 'Token 用量',
+    'sd-subscriptions-section': '订阅额度',
+    'sd-schedule-section': '日程管理',
+    'sd-todo-section': '待办事项',
+    'sd-trading-section': '交易复盘',
+};
+
+class SmartDashboardSettingTab extends PluginSettingTab {
+    plugin: SmartDashboardPlugin;
+
+    constructor(app: App, plugin: SmartDashboardPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    async display() {
+        const { containerEl } = this;
+        containerEl.empty();
+        containerEl.createEl('h2', { text: 'Smart Dashboard 卡片管理' });
+        containerEl.createEl('p', { text: '启用或禁用看板上的卡片。禁用后卡片将隐藏且功能暂停。' });
+
+        const visibility = await this.plugin.getCardVisibility();
+
+        for (const [id, label] of Object.entries(CARD_LABELS)) {
+            new Setting(containerEl)
+                .setName(label)
+                .setDesc(`控制 ${label} 卡片的显示与功能`)
+                .addToggle(toggle => toggle
+                    .setValue(visibility[id] !== false)
+                    .onChange(async (value) => {
+                        await this.plugin.setCardVisibility(id, value);
+                        // 刷新当前打开的看板视图
+                        await this.plugin.refreshView();
+                    })
+                );
+        }
     }
 }
