@@ -32,6 +32,9 @@ KEY_FILE = os.path.join(VAULT_DASHBOARD, ".secret_key")
 OPENCODE_USAGE_URL = "https://opencode.ai/zen/go/v1/usage"
 ZHIPU_QUOTA_URL = "https://open.bigmodel.cn/api/monitor/usage/quota/limit"
 VOLCENGINE_USAGE_URL = "https://ark.cn-beijing.volces.com/api/v3/usage"  # Placeholder
+# SCNet (国家超算互联网) Token Plan — 网页控制台登录态 Cookie 认证（无公开 API-key 余额接口）
+SCNET_TOKENPLAN_LIST_URL = "https://www.scnet.cn/acx/charge/account/currentuser/tokenplan/list"
+SCNET_APIKEY_QUERY_URL = "https://www.scnet.cn/acx/llm/api-key/token-plan/query"
 
 # ------------------------------------------------------------------ encryption
 def get_or_create_key() -> bytes:
@@ -101,23 +104,28 @@ def save_config(config: dict):
 
 
 def add_provider_config(provider_id: str, credentials: dict):
-    """Add or update provider configuration with encrypted credentials."""
+    """Add or update provider configuration with encrypted credentials.
+
+    Merge into existing credentials (does NOT overwrite untouched fields),
+    so multiple `add` calls for the same provider accumulate fields.
+    """
     config = load_config()
-    
-    # Encrypt sensitive fields
-    encrypted_creds = {}
+    existing = config.get("providers", {}).get(provider_id, {})
+
+    # 保留已有凭证，合并新增字段
+    encrypted_creds = dict(existing.get("credentials", {}))
     for key, value in credentials.items():
         if isinstance(value, str) and value:
             encrypted_creds[key] = encrypt_value(value)
         else:
             encrypted_creds[key] = value
-    
+
     config["providers"][provider_id] = {
         "enabled": True,
         "credentials": encrypted_creds,
-        "added_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+        "added_at": existing.get("added_at", time.strftime("%Y-%m-%dT%H:%M:%S"))
     }
-    
+
     save_config(config)
     return config
 
@@ -237,6 +245,68 @@ def fetch_volcengine(api_key: str) -> dict | None:
     # TODO: Implement when Volcengine API is available
     print("INFO: Volcengine fetch not yet implemented", flush=True)
     return None
+
+
+def fetch_scnet_tokenplan(cookie_token: str, user_name: str = "") -> dict | None:
+    """Fetch SCNet (国家超算互联网) Token Plan credits balance.
+
+    SCNet 无公开 API-key 余额接口，credits 查询需控制台网页登录态。
+    认证方式：Cookie `Token=<uuid>`（可选 `userName`），访问 /acx/ 前缀的内部 API。
+    主要数据源 /charge/account/currentuser/tokenplan/list 直接返回套餐 + credits 用量。
+    """
+    if not cookie_token:
+        print("WARN: SCNet token not provided", flush=True)
+        return None
+
+    cookie = f"Token={cookie_token}"
+    if user_name:
+        cookie += f"; userName={user_name}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "language": "zh",
+        "version": "2.3.3",
+        "Cookie": cookie,
+    }
+
+    try:
+        req = urllib.request.Request(SCNET_TOKENPLAN_LIST_URL, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if data.get("code") != "0" or not data.get("data"):
+            print(f"WARN: SCNet tokenplan list error: {data.get('msg', 'empty')}", flush=True)
+            return None
+
+        plan = data["data"][0]
+        used = float(plan.get("usedAmount") or 0)
+        total = float(plan.get("totalAmount") or 0)
+        percent = round(used / total * 100) if total > 0 else 0
+        name = plan.get("name") or "Token Plan"
+        unit = (plan.get("unit") or "CREDITS").lower()
+
+        # 计算重置时间（套餐到期时间）
+        resets_at = plan.get("maxExpireTime", "")
+
+        return {
+            "provider": "scnet-tokenplan",
+            "name": f"超算 {name}",
+            "icon": "🖥️",
+            "type": "plan",
+            "windows": {
+                "monthly": {
+                    "percent": percent,
+                    "usedAmount": used,
+                    "totalAmount": total,
+                    "unit": unit,
+                    "status": "ok" if plan.get("status") == "enable" else plan.get("status", "unknown"),
+                    "resetsAt": resets_at,
+                }
+            },
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+    except Exception as e:
+        print(f"WARN: SCNet Token Plan fetch failed: {e}", flush=True)
+        return None
 
 
 # ------------------------------------------------------------------ data management
@@ -360,6 +430,21 @@ def main():
             result = fetch_volcengine(api_key)
             if result:
                 data = merge_providers(data, result)
+
+    # Fetch SCNet Token Plan
+    if providers_config.get("scnet-tokenplan", {}).get("enabled"):
+        token = get_provider_credential("scnet-tokenplan", "token")
+        user_name = get_provider_credential("scnet-tokenplan", "userName")
+        if token:
+            result = fetch_scnet_tokenplan(token, user_name)
+            if result:
+                data = merge_providers(data, result)
+                if not quiet:
+                    m = result['windows'].get('monthly', {})
+                    print(f"SCNet Token Plan: {m.get('percent', '?')}% used "
+                          f"({m.get('usedAmount', '?')}/{m.get('totalAmount', '?')} {m.get('unit', '')})", flush=True)
+        else:
+            print("WARN: SCNet Token Plan not configured (token missing), skipped", flush=True)
     
     # Update timestamp and save
     data["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
