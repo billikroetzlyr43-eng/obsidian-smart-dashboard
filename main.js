@@ -17696,10 +17696,9 @@ journal:
       const leagues = (data == null ? void 0 : data.leagues) || [];
       const parseDt = (dt) => {
         if (!dt || typeof dt !== "string") return null;
-        const plusDay = dt.match(/\(\+(\d+)\)/);
         const d = (0, import_obsidian.moment)(dt.replace(/\(\+\d+\)/, "").trim().replace(/\s+/, "T"));
         if (!d.isValid()) return null;
-        return plusDay ? d.add(parseInt(plusDay[1], 10), "day") : d;
+        return d;
       };
       const entries = [];
       for (const league of leagues) {

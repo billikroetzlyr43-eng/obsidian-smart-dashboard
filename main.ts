@@ -3601,10 +3601,9 @@ class SmartDashboardView extends ItemView {
             // datetime 为北京时间 ISO 风格（"YYYY-MM-DD HH:mm"），兼容 "(+1)" 跨天标记
             const parseDt = (dt: string): moment.Moment | null => {
                 if (!dt || typeof dt !== 'string') return null;
-                const plusDay = dt.match(/\(\+(\d+)\)/);
                 const d = moment(dt.replace(/\(\+\d+\)/, '').trim().replace(/\s+/, 'T'));
                 if (!d.isValid()) return null;
-                return plusDay ? d.add(parseInt(plusDay[1], 10), 'day') : d;
+                return d;
             };
 
             interface SportsEntry { icon: string; name: string; label: string; home?: boolean; sport: string; dt: moment.Moment; id: string; round?: number; }
