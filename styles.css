@@ -390,7 +390,7 @@
 
 .sd-charts-wrapper {
     display: flex;
-    gap: 20px;
+    gap: 24px;
     flex: 1;             /* 问题3：自适应占满 body 剩余高度，不再固定 280px */
     min-height: 0;
     height: auto;
@@ -402,9 +402,17 @@
     min-height: 0;
     position: relative;
 }
-/* 改动2：统计卡图表比例 5:5 → 4.5:5.5（饼图容器更宽，饼本体更大） */
-#sd-stats-section .sd-charts-wrapper .sd-chart-box:nth-child(1) { flex: 4.5; }
-#sd-stats-section .sd-charts-wrapper .sd-chart-box:nth-child(2) { flex: 5.5; }
+/* 统计卡图表：两个等大正方形并排居中（边长=min(图表区高, (宽-gap)/2)，由 aspect-ratio 自动保证） */
+#sd-stats-section .sd-charts-wrapper {
+    justify-content: center;
+    align-items: center;
+}
+#sd-stats-section .sd-charts-wrapper .sd-chart-box {
+    flex: 0 1 calc((100% - 24px) / 2);
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    min-width: 0;
+}
 
 .sd-search-results {
     margin-top: 15px;
@@ -773,12 +781,12 @@
     text-align: center;
 }
 .sd-stat-value {
-    font-size: 22px;       /* 问题3：字号降至约 0.95em */
+    font-size: 26px;       /* 问题3：字号降至约 0.95em */
     font-weight: bold;
     color: var(--sd-warm-accent-hover);
 }
 .sd-stat-label {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--sd-text-light);
 }
 

@@ -899,11 +899,11 @@ class SmartDashboardView extends ItemView {
         'sd-quickjot-section':  {x: 3, y: 1, w: 1, h: 1},
         'sd-search-section':    {x: 4, y: 1, w: 1, h: 2},   // 全库检索 1×2 纵向
         'sd-create-section':    {x: 3, y: 2, w: 1, h: 1},
-        'sd-stats-section':     {x: 1, y: 3, w: 2, h: 1},   // 统计 2×1
+        'sd-stats-section':     {x: 1, y: 3, w: 2, h: 2},   // 统计 2×2
         'sd-usage-section':     {x: 3, y: 3, w: 2, h: 1},   // Token 改 2×1（年视图需宽度）
-        'sd-schedule-section':  {x: 4, y: 4, w: 1, h: 1},   // 日程移至 (4,4)
-        'sd-todo-section':      {x: 1, y: 4, w: 1, h: 1},   // 待办不变
-        'sd-trading-section':   {x: 2, y: 4, w: 2, h: 2},   // 交易改 2×2
+        'sd-schedule-section':  {x: 2, y: 5, w: 1, h: 1},   // 日程移至 (2,5)
+        'sd-todo-section':      {x: 1, y: 5, w: 1, h: 1},   // 待办移至 (1,5)
+        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 2},   // 交易移至 (3,4) 2×2
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
@@ -1997,7 +1997,7 @@ class SmartDashboardView extends ItemView {
                     ]
                 },
                 options: { 
-                    responsive: true, maintainAspectRatio: false, devicePixelRatio: 1,
+                    responsive: true, maintainAspectRatio: false, devicePixelRatio: 2,
                     scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                     plugins: {
                         tooltip: {
@@ -2032,14 +2032,14 @@ class SmartDashboardView extends ItemView {
                     }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false, devicePixelRatio: 1,
+                    responsive: true, maintainAspectRatio: false, devicePixelRatio: 2,
                     // 改动2：空心半径收窄（饼本体更大）+ 图例/标签字号 9px、padding 减半
-                    cutout: '45%',
+                    cutout: '32%',
                     plugins: {
                         legend: {
                             labels: {
-                                font: { size: 9 },
-                                padding: 5
+                                font: { size: 10 },
+                                padding: 6
                             }
                         }
                     }
