@@ -14507,6 +14507,95 @@ var auto_default = Chart;
 
 // main.ts
 var VIEW_TYPE_SMART_DASHBOARD = "smart-dashboard-view";
+var DAILY_DIR = "05_\u4E8B\u4EF6\u8BB0\u5F55";
+var DEFAULT_NAV_ENTRIES = [
+  { id: "nav-inbox", icon: "\u{1F4E6}", name: "\u6536\u96C6\u7BB1", desc: "\u5F85\u5904\u7406\u901F\u8BB0\u4E0E\u968F\u7B14", path: "01_Inbox" },
+  { id: "nav-wiki", icon: "\u{1F4DA}", name: "\u77E5\u8BC6\u5E93", desc: "\u6C89\u6DC0\u540E\u7684\u5E38\u9752\u7B14\u8BB0", path: "02_Wiki" },
+  { id: "nav-personal", icon: "\u{1F464}", name: "\u4E2A\u4EBA\u7A7A\u95F4", desc: "\u4EA4\u6613\u590D\u76D8/\u60F3\u6CD5/\u8E29\u5751", path: "04_\u4E2A\u4EBA\u7A7A\u95F4" },
+  { id: "nav-events", icon: "\u{1F4C5}", name: "\u4E8B\u4EF6\u8BB0\u5F55", desc: "\u65E5\u8BB0\u4E0E\u4E8B\u4EF6\u5F52\u6863", path: DAILY_DIR },
+  { id: "nav-archive", icon: "\u{1F5C4}\uFE0F", name: "\u5F52\u6863", desc: "\u4E0D\u518D\u6D3B\u8DC3\u7684\u8D44\u6599", path: "03_Archive" }
+];
+var SD_SKINS = {
+  warm: { label: "\u{1F305} \u6696\u6A59\uFF08\u9ED8\u8BA4\uFF09", accent: "#F4A261", accentHover: "#E76F51" },
+  violet: { label: "\u{1F7E3} \u9999\u828B\u7D2B", accent: "#8b6cef", accentHover: "#7C4DFF" },
+  gold: { label: "\u{1F947} \u6697\u68D5\u91D1", accent: "#c9a15e", accentHover: "#d9b36c" },
+  terminal: { label: "\u{1F4A0} \u91D1\u878D\u7EC8\u7AEF\u84DD", accent: "#58a6ff", accentHover: "#79b8ff" }
+};
+var FESTIVALS = {
+  "01-01": "\u5143\u65E6",
+  "02-14": "\u60C5\u4EBA\u8282",
+  "03-08": "\u5987\u5973\u8282",
+  "03-12": "\u690D\u6811\u8282",
+  "04-01": "\u611A\u4EBA\u8282",
+  "05-01": "\u52B3\u52A8\u8282",
+  "05-04": "\u9752\u5E74\u8282",
+  "06-01": "\u513F\u7AE5\u8282",
+  "07-01": "\u5EFA\u515A\u8282",
+  "08-01": "\u5EFA\u519B\u8282",
+  "09-10": "\u6559\u5E08\u8282",
+  "10-01": "\u56FD\u5E86\u8282",
+  "10-31": "\u4E07\u5723\u591C",
+  "12-24": "\u5E73\u5B89\u591C",
+  "12-25": "\u5723\u8BDE\u8282"
+};
+var SOLAR_TERMS_21C = [
+  { name: "\u5C0F\u5BD2", month: 1, c: 5.4055, lAdj: true },
+  { name: "\u5927\u5BD2", month: 1, c: 20.12, lAdj: true },
+  { name: "\u7ACB\u6625", month: 2, c: 3.87, lAdj: true },
+  { name: "\u96E8\u6C34", month: 2, c: 18.73, lAdj: true },
+  { name: "\u60CA\u86F0", month: 3, c: 5.63, lAdj: false },
+  { name: "\u6625\u5206", month: 3, c: 20.646, lAdj: false },
+  { name: "\u6E05\u660E", month: 4, c: 4.81, lAdj: false },
+  { name: "\u8C37\u96E8", month: 4, c: 20.1, lAdj: false },
+  { name: "\u7ACB\u590F", month: 5, c: 5.52, lAdj: false },
+  { name: "\u5C0F\u6EE1", month: 5, c: 21.04, lAdj: false },
+  { name: "\u8292\u79CD", month: 6, c: 5.678, lAdj: false },
+  { name: "\u590F\u81F3", month: 6, c: 21.37, lAdj: false },
+  { name: "\u5C0F\u6691", month: 7, c: 7.108, lAdj: false },
+  { name: "\u5927\u6691", month: 7, c: 22.83, lAdj: false },
+  { name: "\u7ACB\u79CB", month: 8, c: 7.5, lAdj: false },
+  { name: "\u5904\u6691", month: 8, c: 23.13, lAdj: false },
+  { name: "\u767D\u9732", month: 9, c: 7.646, lAdj: false },
+  { name: "\u79CB\u5206", month: 9, c: 23.042, lAdj: false },
+  { name: "\u5BD2\u9732", month: 10, c: 8.318, lAdj: false },
+  { name: "\u971C\u964D", month: 10, c: 23.438, lAdj: false },
+  { name: "\u7ACB\u51AC", month: 11, c: 7.438, lAdj: false },
+  { name: "\u5C0F\u96EA", month: 11, c: 22.36, lAdj: false },
+  { name: "\u5927\u96EA", month: 12, c: 7.18, lAdj: false },
+  { name: "\u51AC\u81F3", month: 12, c: 21.94, lAdj: false }
+];
+function solarTermDate(year, term) {
+  const y = year % 100;
+  const L = term.lAdj ? Math.floor((y - 1) / 4) : Math.floor(y / 4);
+  const day = Math.floor(0.2422 * y + term.c) - L;
+  return `${year}-${String(term.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+var holidayCacheByYear = /* @__PURE__ */ new Map();
+function getHolidayMap(year) {
+  let m = holidayCacheByYear.get(year);
+  if (!m) {
+    m = /* @__PURE__ */ new Map();
+    for (const [md, name] of Object.entries(FESTIVALS)) m.set(`${year}-${md}`, { name, kind: "festival" });
+    for (const t of SOLAR_TERMS_21C) m.set(solarTermDate(year, t), { name: t.name, kind: "term" });
+    holidayCacheByYear.set(year, m);
+  }
+  return m;
+}
+function getHolidayName(dateStr) {
+  const year = parseInt(dateStr.substring(0, 4));
+  return getHolidayMap(year).get(dateStr);
+}
+function upcomingHolidays(fromDate) {
+  const results = [];
+  const y0 = parseInt(fromDate.substring(0, 4));
+  for (const y of [y0, y0 + 1]) {
+    getHolidayMap(y).forEach((v, date) => {
+      if (date >= fromDate) results.push({ date, ...v });
+    });
+  }
+  results.sort((a, b) => a.date.localeCompare(b.date));
+  return results;
+}
 var SUBSCRIPTION_TEMPLATES = {
   "opencode-go": {
     name: "OpenCode Go",
@@ -14829,6 +14918,26 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
     data.cardVisibility[cardId] = visible;
     await this.saveData(data);
   }
+  // ===== 主题皮肤 =====
+  async getSkin() {
+    const data = await this.loadData();
+    return (data == null ? void 0 : data.skin) && SD_SKINS[data.skin] ? data.skin : "warm";
+  }
+  async setSkin(skin) {
+    const data = await this.loadData() || {};
+    data.skin = skin;
+    await this.saveData(data);
+  }
+  // ===== 导航入口配置 =====
+  async getNavEntries() {
+    const data = await this.loadData();
+    return Array.isArray(data == null ? void 0 : data.navEntries) && data.navEntries.length > 0 ? data.navEntries : DEFAULT_NAV_ENTRIES.map((e) => ({ ...e }));
+  }
+  async setNavEntries(entries) {
+    const data = await this.loadData() || {};
+    data.navEntries = entries;
+    await this.saveData(data);
+  }
   async refreshView() {
     const { workspace } = this.app;
     const leaves = workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD);
@@ -14950,7 +15059,7 @@ var ManageTodoModal = class extends import_obsidian.Modal {
     this.onSave = onSave;
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const { contentEl } = this;
     contentEl.createEl("h2", { text: this.todo ? "\u7F16\u8F91\u5F85\u529E" : "\u65B0\u5EFA\u5F85\u529E" });
     let text = ((_a = this.todo) == null ? void 0 : _a.text) || "";
@@ -14960,9 +15069,27 @@ var ManageTodoModal = class extends import_obsidian.Modal {
     let syncSchedule = true;
     let deadline = ((_f = this.todo) == null ? void 0 : _f.deadline) || "";
     let subtasks = ((_g = this.todo) == null ? void 0 : _g.subtasks) ? [...this.todo.subtasks] : [];
+    let priority = ((_h = this.todo) == null ? void 0 : _h.priority) || "low";
+    let repeat = ((_i = this.todo) == null ? void 0 : _i.repeat) || "none";
     new import_obsidian.Setting(contentEl).setName("\u5185\u5BB9").addTextArea((ta) => {
       ta.setValue(text).onChange((v) => text = v);
       ta.inputEl.style.width = "100%";
+    });
+    new import_obsidian.Setting(contentEl).setName("\u4F18\u5148\u7EA7").setDesc("\u{1F534} \u7D27\u6025 / \u{1F7E0} \u91CD\u8981 / \u{1F535} \u5E38\u89C4").addDropdown((dd) => {
+      dd.addOption("high", "\u{1F534} \u7D27\u6025");
+      dd.addOption("mid", "\u{1F7E0} \u91CD\u8981");
+      dd.addOption("low", "\u{1F535} \u5E38\u89C4");
+      dd.setValue(priority);
+      dd.onChange((v) => priority = v);
+    });
+    new import_obsidian.Setting(contentEl).setName("\u91CD\u590D").setDesc("\u5468\u671F\u5F85\u529E\uFF1A\u5B8C\u6210\u540E\u6309\u5468\u671F\u81EA\u52A8\u91CD\u7F6E").addDropdown((dd) => {
+      dd.addOption("none", "\u4E0D\u91CD\u590D");
+      dd.addOption("daily", "\u6BCF\u5929");
+      dd.addOption("weekly", "\u6BCF\u5468");
+      dd.addOption("monthly", "\u6BCF\u6708");
+      dd.addOption("yearly", "\u6BCF\u5E74");
+      dd.setValue(repeat);
+      dd.onChange((v) => repeat = v);
     });
     const hasTimeSetting = new import_obsidian.Setting(contentEl).setName("\u662F\u5426\u6709\u5177\u4F53\u65F6\u95F4\uFF1F");
     const timeSetting = new import_obsidian.Setting(contentEl).setName("\u65F6\u95F4");
@@ -15033,11 +15160,20 @@ var ManageTodoModal = class extends import_obsidian.Modal {
       let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
       if (!view) return;
       let todos = await view.getTodos();
+      const prio = priority === "high" || priority === "mid" || priority === "low" ? priority : "low";
+      const rep = ["none", "daily", "weekly", "monthly", "yearly"].includes(repeat) ? repeat : "none";
       if (this.todo) {
         const idx = todos.findIndex((t) => t.id === this.todo.id);
-        if (idx >= 0) todos[idx] = { ...this.todo, text, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks };
+        const wasRepeating = !!this.todo.repeat && this.todo.repeat !== "none";
+        const extra = !wasRepeating && rep === "none" ? {} : {};
+        const base = { ...this.todo, ...extra };
+        if (wasRepeating && rep === "none") {
+          base.completed = view.todoEffectiveCompleted(base);
+          base.lastCompleted = void 0;
+        }
+        if (idx >= 0) todos[idx] = { ...base, text, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks, priority: prio, repeat: rep };
       } else {
-        todos.unshift({ id: Date.now().toString(), text, completed: false, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks });
+        todos.unshift({ id: Date.now().toString(), text, completed: false, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks, priority: prio, repeat: rep });
         if (hasTime && syncSchedule) {
           let schedules = await view.getSchedules();
           schedules.push({ id: Date.now().toString() + "_s", date, time, title: text, content: "" });
@@ -15072,7 +15208,7 @@ var ManageScheduleModal = class extends import_obsidian.Modal {
     this.onSave = onSave;
   }
   onOpen() {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     const { contentEl } = this;
     contentEl.createEl("h2", { text: this.schedule ? "\u7F16\u8F91\u65E5\u7A0B" : "\u65B0\u5EFA\u65E5\u7A0B" });
     let date = this.schedule ? this.schedule.date : (0, import_obsidian.moment)().format("YYYY-MM-DD");
@@ -15083,6 +15219,16 @@ var ManageScheduleModal = class extends import_obsidian.Modal {
     let title = ((_e = this.schedule) == null ? void 0 : _e.title) || "";
     let contentStr = ((_f = this.schedule) == null ? void 0 : _f.content) || "";
     let syncTodo = false;
+    let repeat = ((_g = this.schedule) == null ? void 0 : _g.repeat) || "none";
+    new import_obsidian.Setting(contentEl).setName("\u91CD\u590D").setDesc("\u5468\u671F\u65E5\u7A0B\uFF1A\u5982\u300C\u6BCF\u5E74\u300D\u751F\u65E5\u3001\u7EAA\u5FF5\u65E5").addDropdown((dd) => {
+      dd.addOption("none", "\u4E0D\u91CD\u590D");
+      dd.addOption("daily", "\u6BCF\u5929");
+      dd.addOption("weekly", "\u6BCF\u5468");
+      dd.addOption("monthly", "\u6BCF\u6708");
+      dd.addOption("yearly", "\u6BCF\u5E74");
+      dd.setValue(repeat);
+      dd.onChange((v) => repeat = v);
+    });
     new import_obsidian.Setting(contentEl).setName("\u5F00\u59CB\u65E5\u671F").addText((text) => {
       text.inputEl.type = "date";
       text.setValue(date).onChange((v) => {
@@ -15129,11 +15275,12 @@ var ManageScheduleModal = class extends import_obsidian.Modal {
       let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
       if (!view) return;
       let schedules = await view.getSchedules();
+      const rep = ["none", "daily", "weekly", "monthly", "yearly"].includes(repeat) ? repeat : "none";
       if (this.schedule) {
         const idx = schedules.findIndex((s) => s.id === this.schedule.id);
-        if (idx >= 0) schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr };
+        if (idx >= 0) schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr, repeat: rep };
       } else {
-        schedules.push({ id: Date.now().toString(), date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr });
+        schedules.push({ id: Date.now().toString(), date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr, repeat: rep });
         if (syncTodo) {
           let todos = await view.getTodos();
           todos.unshift({ id: Date.now().toString() + "_t", text: title, completed: false, date, time });
@@ -15290,8 +15437,13 @@ var DayDetailModal = class _DayDetailModal extends import_obsidian.Modal {
     let schedules = await view.getSchedules();
     let todos = await view.getTodos();
     let moods = await view.getMoods();
-    const daySchedules = schedules.filter((s) => s.date === this.date);
-    const dayTodos = todos.filter((t) => t.date === this.date);
+    const dailySetting = new import_obsidian.Setting(contentEl).setName("\u5F53\u65E5\u65E5\u8BB0").setDesc(view.dailyNotePath(this.date));
+    dailySetting.addButton((b) => b.setButtonText("\u{1F4D6} \u6253\u5F00/\u521B\u5EFA\u65E5\u8BB0").setCta().onClick(async () => {
+      this.close();
+      await view.openOrCreateDailyNote(this.date);
+    }));
+    const daySchedules = schedules.filter((s) => view.scheduleOccursOn(s, this.date));
+    const dayTodos = todos.filter((t) => view.todoOccursOn(t, this.date) && !view.todoEffectiveCompleted(t));
     const files = this.app.vault.getMarkdownFiles();
     let dayNotes = files.filter((f) => {
       var _a2;
@@ -15451,18 +15603,179 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
     await this.app.vault.adapter.write(path, JSON.stringify(moods, null, 2));
   }
+  // ===== 连续活跃天数：当天有心情打卡 或 笔记新建/修改，任一即算 =====
+  async getStreakDays() {
+    try {
+      const moods = await this.getMoods();
+      const activeDays = new Set(Object.keys(moods));
+      const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+      for (const f of this.app.vault.getMarkdownFiles()) {
+        activeDays.add((0, import_obsidian.moment)(Math.max(f.stat.ctime, f.stat.mtime)).format("YYYY-MM-DD"));
+      }
+      let streak = 0;
+      const cur = (0, import_obsidian.moment)();
+      if (!activeDays.has(todayStr)) cur.subtract(1, "day");
+      while (activeDays.has(cur.format("YYYY-MM-DD")) && streak < 3650) {
+        streak++;
+        cur.subtract(1, "day");
+      }
+      return streak;
+    } catch (e) {
+      return 0;
+    }
+  }
+  // ===== 当日日记路径与联动（05_事件记录/YYYY/MM/YYYY-MM-DD.md）=====
+  dailyNotePath(dateStr) {
+    const d = (0, import_obsidian.moment)(dateStr);
+    return `${DAILY_DIR}/${d.format("YYYY")}/${d.format("MM")}/${dateStr}.md`;
+  }
+  async ensureDailyNoteFile(dateStr) {
+    const path = this.dailyNotePath(dateStr);
+    const existing = this.app.vault.getAbstractFileByPath(path);
+    if (existing instanceof import_obsidian.TFile) return existing;
+    const folder = path.substring(0, path.lastIndexOf("/"));
+    if (!await this.app.vault.adapter.exists(folder)) await this.app.vault.createFolder(folder);
+    const content = `---
+created: ${dateStr}
+type: \u65E5\u8BB0
+---
+
+`;
+    return await this.app.vault.create(path, content);
+  }
+  /** 打开当日日记；不存在则按模板创建后打开 */
+  async openOrCreateDailyNote(dateStr) {
+    try {
+      const file = await this.ensureDailyNoteFile(dateStr);
+      await this.app.workspace.getLeaf(false).openFile(file);
+    } catch (e) {
+      new import_obsidian.Notice("\u6253\u5F00\u65E5\u8BB0\u5931\u8D25: " + String(e));
+    }
+  }
+  /** 随笔追加到当日日记文末（无日记则自动按模板创建） */
+  async appendToDailyNote(text, tag = "\u968F\u7B14") {
+    const dateStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+    const file = await this.ensureDailyNoteFile(dateStr);
+    const old = await this.app.vault.read(file);
+    const stamp = (0, import_obsidian.moment)().format("HH:mm");
+    const next = old.replace(/\s*$/, "") + `
+
+## ${stamp} ${tag}
+${text}
+`;
+    await this.app.vault.modify(file, next);
+    new import_obsidian.Notice(`\u5DF2\u5199\u5165\u4ECA\u65E5\u65E5\u8BB0\uFF1A${file.basename}`);
+  }
+  // ===== D-Day 倒计时数据 =====
+  async getCountdowns() {
+    const path = "00_System/countdowns.json";
+    if (!await this.app.vault.adapter.exists(path)) return [];
+    try {
+      return JSON.parse(await this.app.vault.adapter.read(path));
+    } catch (e) {
+      return [];
+    }
+  }
+  async saveCountdowns(items) {
+    const path = "00_System/countdowns.json";
+    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
+    await this.app.vault.adapter.write(path, JSON.stringify(items, null, 2));
+  }
+  // ===== 周期日程/待办 =====
+  /** 日程是否在 dateStr 发生（周期日程按模式匹配；普通日程按日期区间） */
+  scheduleOccursOn(s, dateStr) {
+    if (s.repeat && s.repeat !== "none") {
+      const base = (0, import_obsidian.moment)(s.date);
+      const cur = (0, import_obsidian.moment)(dateStr);
+      switch (s.repeat) {
+        case "daily":
+          return true;
+        case "weekly":
+          return cur.isoWeekday() === base.isoWeekday();
+        case "monthly":
+          return cur.date() === base.date();
+        case "yearly":
+          return cur.month() === base.month() && cur.date() === base.date();
+        default:
+          return false;
+      }
+    }
+    const end = s.endDate || s.date;
+    return dateStr >= s.date && dateStr <= end;
+  }
+  /** 日程的下一次发生日期（今天起算，含今天）；非周期返回原 date */
+  nextScheduleDate(s) {
+    const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+    if (!s.repeat || s.repeat === "none") return s.date;
+    const d = (0, import_obsidian.moment)(todayStr);
+    for (let i = 0; i < 400; i++) {
+      const key = d.format("YYYY-MM-DD");
+      if (this.scheduleOccursOn(s, key)) return key;
+      d.add(1, "day");
+    }
+    return s.date;
+  }
+  /** 周期待办是否在 dateStr 出现 */
+  todoOccursOn(t, dateStr) {
+    if (!t.repeat || t.repeat === "none") return t.date === dateStr;
+    const cur = (0, import_obsidian.moment)(dateStr);
+    const base = (0, import_obsidian.moment)(t.date || (0, import_obsidian.moment)().format("YYYY-MM-DD"));
+    if (cur.isBefore(base, "day")) return false;
+    switch (t.repeat) {
+      case "daily":
+        return true;
+      case "weekly":
+        return cur.isoWeekday() === base.isoWeekday();
+      case "monthly":
+        return cur.date() === base.date();
+      case "yearly":
+        return cur.month() === base.month() && cur.date() === base.date();
+      default:
+        return false;
+    }
+  }
+  /** 待办在当前周期内是否已完成：普通待办看 completed；周期待办看 lastCompleted 是否落入本周期 */
+  todoEffectiveCompleted(t) {
+    if (!t.repeat || t.repeat === "none") return !!t.completed;
+    if (!t.lastCompleted) return false;
+    const lc = (0, import_obsidian.moment)(t.lastCompleted);
+    const now = (0, import_obsidian.moment)();
+    switch (t.repeat) {
+      case "daily":
+        return lc.isSame(now, "day");
+      case "weekly":
+        return lc.isSame(now, "isoWeek");
+      case "monthly":
+        return lc.isSame(now, "month");
+      case "yearly":
+        return lc.isSame(now, "year");
+      default:
+        return false;
+    }
+  }
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("smart-dashboard-container");
     const effectiveDark = document.body.classList.contains("theme-dark");
     if (effectiveDark) container.addClass("theme-dark");
+    container.addClass("sd-skin-" + await this.plugin.getSkin());
+    const streakDays = await this.getStreakDays();
     const scrollContainer = container.createDiv("sd-tab-content-container");
     const content = scrollContainer.createDiv("sd-tab-content fade-in");
-    const header = content.createDiv("sd-header");
-    const titleContainer = header.createDiv({ attr: { style: "display:flex; align-items:center; gap: 15px; flex-wrap:wrap" } });
-    titleContainer.createEl("h1", { text: `\u{1F680} Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: { style: "margin:0" } });
-    const resetLayoutBtn = titleContainer.createEl("button", { text: "\u21BA \u91CD\u7F6E\u5E03\u5C40", cls: "sd-btn secondary", attr: { style: "padding: 6px 12px; font-size: 0.85em;" } });
+    const heroRow = content.createDiv("sd-hero-row");
+    const greetEl = heroRow.createDiv({ cls: "sd-hero-greet" });
+    const clockEl = heroRow.createSpan({ cls: "sd-hero-clock" });
+    heroRow.createDiv({
+      text: `\u{1F525} \u8FDE\u7EED ${streakDays} \u5929`,
+      cls: "sd-badge sd-badge-success sd-hero-streak",
+      attr: { title: "\u5F53\u5929\u6709\u5FC3\u60C5\u6253\u5361\u6216\u7B14\u8BB0\u65B0\u5EFA/\u4FEE\u6539\u5373\u7B97\u6D3B\u8DC3" }
+    });
+    const resetLayoutBtn = heroRow.createEl("button", {
+      text: "\u21BA \u91CD\u7F6E\u5E03\u5C40",
+      cls: "sd-btn secondary",
+      attr: { style: "padding: 4px 10px; font-size: 0.8em; margin-left: auto; flex-shrink: 0;" }
+    });
     resetLayoutBtn.onclick = () => {
       this.resetLayout();
     };
@@ -15478,8 +15791,20 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
       }
       const daysOld = (0, import_obsidian.moment)().diff((0, import_obsidian.moment)(oldestTime), "days");
       const badgeCls = daysOld >= 7 ? "sd-badge-danger" : daysOld >= 3 ? "sd-badge-warning" : "sd-badge-success";
-      titleContainer.createDiv({ text: `\u{1F4E6} Inbox: ${inboxFiles.length}\u7BC7 (\u6700\u957F ${daysOld} \u5929)`, cls: `sd-badge ${badgeCls}` });
+      heroRow.createDiv({ text: `\u{1F4E6} Inbox: ${inboxFiles.length}\u7BC7 (\u6700\u957F ${daysOld} \u5929)`, cls: `sd-badge ${badgeCls}`, attr: { style: "flex-shrink: 0;" } });
     }
+    const refreshHero = () => {
+      const h = (0, import_obsidian.moment)().hour();
+      let g = "\u591C\u6DF1\u4E86 \u{1F30C}";
+      if (h >= 5 && h < 11) g = "\u65E9\u4E0A\u597D \u2600\uFE0F";
+      else if (h >= 11 && h < 14) g = "\u4E2D\u5348\u597D \u{1F371}";
+      else if (h >= 14 && h < 18) g = "\u4E0B\u5348\u597D \u{1F375}";
+      else if (h >= 18 && h < 23) g = "\u665A\u4E0A\u597D \u{1F319}";
+      greetEl.setText(g);
+      clockEl.setText((0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm:ss"));
+    };
+    refreshHero();
+    this.registerInterval(window.setInterval(refreshHero, 1e3));
     await this.loadLayout();
     const grid = content.createDiv("sd-grid");
     const cards = [];
@@ -15525,7 +15850,7 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
       this.applyCardSize(statsCard);
       const statsBody = this.createCardBody(statsCard);
       cards.push(statsCard);
-      this.renderStatsArea(statsBody);
+      await this.renderStatsArea(statsBody, streakDays);
     }
     if (visibility["sd-usage-section"] !== false) {
       const usageCard = grid.createDiv("sd-card");
@@ -15567,6 +15892,22 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
       cards.push(tradingCard);
       this.renderTradingArea(tradingBody);
     }
+    if (visibility["sd-countdown-section"] !== false) {
+      const countdownCard = grid.createDiv("sd-card");
+      countdownCard.id = "sd-countdown-section";
+      this.applyCardSize(countdownCard);
+      const countdownBody = this.createCardBody(countdownCard);
+      cards.push(countdownCard);
+      await this.renderCountdownArea(countdownBody);
+    }
+    if (visibility["sd-nav-section"] !== false) {
+      const navCard = grid.createDiv("sd-card");
+      navCard.id = "sd-nav-section";
+      this.applyCardSize(navCard);
+      const navBody = this.createCardBody(navCard);
+      cards.push(navCard);
+      await this.renderNavArea(navBody);
+    }
     this.applyLayout();
     this.applyScale();
     cards.forEach((c) => this.bindCardDrag(c));
@@ -15587,6 +15928,8 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     createNavBtn("\u2705", "sd-schedule-section", "\u65E5\u7A0B\u5F85\u529E");
     createNavBtn("\u2795", "sd-create-section", "\u5FEB\u901F\u521B\u5EFA");
     createNavBtn("\u{1F4B9}", "sd-trading-section", "\u4EA4\u6613\u590D\u76D8");
+    createNavBtn("\u{1F3AF}", "sd-countdown-section", "D-Day \u5012\u8BA1\u65F6");
+    createNavBtn("\u{1F9ED}", "sd-nav-section", "\u5BFC\u822A\u5165\u53E3");
     this.registerInterval(window.setInterval(() => {
       const el = document.getElementById("sd-usage-section");
       if (el) {
@@ -15640,7 +15983,7 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   async resetLayout() {
     this.layoutData = { ..._SmartDashboardView.DEFAULT_LAYOUT };
     const grid = this.contentEl.querySelector(".sd-grid");
-    const cols = parseInt((grid == null ? void 0 : grid.style.getPropertyValue("--sd-cols")) || "", 10) || 4;
+    const cols = parseInt((grid == null ? void 0 : grid.style.getPropertyValue("--sd-cols")) || "", 10) || 6;
     if (cols < 4) this.applyLayoutCompact();
     else this.applyLayout();
     try {
@@ -15670,21 +16013,48 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   // ===== 网格尺寸自适应（ResizeObserver）=====
   setupGridSizing(grid) {
     const compute = () => {
-      const width = grid.clientWidth - 24;
-      if (width <= 0) return;
-      const cols = width < 900 ? 2 : 4;
-      const cell = (width - 12 * (cols - 1)) / cols;
-      if (cell < 100) return;
-      grid.style.setProperty("--sd-cols", String(cols));
-      grid.style.setProperty("--sd-cell", Math.floor(cell) + "px");
-      if (cols < 4) this.applyLayoutCompact();
-      else this.applyLayout();
+      const availW = grid.clientWidth - 24;
+      if (availW <= 0) return;
+      const gap = _SmartDashboardView.GRID_GAP;
+      if (availW < 700) {
+        const cell2 = Math.floor((availW - gap) / 2);
+        if (cell2 < 40) return;
+        grid.style.setProperty("--sd-cols", "2");
+        grid.style.setProperty("--sd-cell", `${cell2}px`);
+        this.applyLayoutCompact();
+        this.applyScale();
+        return;
+      }
+      let rows = 4;
+      for (const p of Object.values(this.layoutData)) {
+        if (!p) continue;
+        rows = Math.max(rows, p.y + p.h - 1);
+      }
+      const cellW = (availW - gap * 5) / 6;
+      let cell = cellW;
+      const scroller = this.containerEl.querySelector(".sd-tab-content-container");
+      if (scroller) {
+        const scRect = scroller.getBoundingClientRect();
+        const gRect = grid.getBoundingClientRect();
+        const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
+        const availH = scroller.clientHeight - topOffset - 24 - 6;
+        if (availH > 120 && rows >= 1) {
+          const cellH = (availH - gap * (rows - 1)) / rows;
+          if (cellH > 60) cell = Math.min(cell, cellH);
+        }
+      }
+      cell = Math.floor(cell);
+      if (cell < 40) return;
+      grid.style.setProperty("--sd-cols", "6");
+      grid.style.setProperty("--sd-cell", `${cell}px`);
+      this.applyLayout();
       this.applyScale();
     };
     compute();
     requestAnimationFrame(() => compute());
+    const roTarget = this.containerEl.querySelector(".sd-tab-content-container") || grid;
     const ro = new ResizeObserver(compute);
-    ro.observe(grid);
+    ro.observe(roTarget);
   }
   // 统一缩放：实际格子尺寸 / 设计基准，写入 --sd-scale 供 .sd-card-body 整体 scale
   applyScale() {
@@ -15711,9 +16081,11 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     const grid = this.getGrid();
     if (!grid) return null;
     const rect = grid.getBoundingClientRect();
-    const cols = parseInt(grid.style.getPropertyValue("--sd-cols"), 10) || 4;
+    const cols = parseInt(grid.style.getPropertyValue("--sd-cols"), 10) || 6;
     const cell = parseFloat(grid.style.getPropertyValue("--sd-cell")) || 280;
-    return { cols, cell, gap: 12, rect };
+    const trackW = cols * cell + (cols - 1) * 12;
+    const offsetX = Math.max(0, (rect.width - 24 - trackW) / 2);
+    return { cols, cell, gap: 12, rect, offsetX };
   }
   bindCardDrag(card) {
     let timer = null;
@@ -15796,17 +16168,17 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     if (!grid) return;
     const m = this.getGridMetrics();
     if (!m) return;
-    const { cols, cell, gap, rect } = m;
+    const { cols, cell, gap, rect, offsetX } = m;
     const pos = this.layoutData[dragged.id];
     if (!pos) return;
     const w = pos.w, h = pos.h;
-    const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12) / (cell + gap)) + 1, 1), cols - w + 1);
+    const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
     const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
     this.clearDropTarget();
     const ph = grid.createDiv("sd-drop-target");
     ph.style.width = `${w * cell + (w - 1) * gap}px`;
     ph.style.height = `${h * cell + (h - 1) * gap}px`;
-    ph.style.left = `${12 + (col - 1) * (cell + gap)}px`;
+    ph.style.left = `${12 + offsetX + (col - 1) * (cell + gap)}px`;
     ph.style.top = `${12 + (row - 1) * (cell + gap)}px`;
   }
   clearDropTarget() {
@@ -15819,12 +16191,12 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     if (!grid) return;
     const m = this.getGridMetrics();
     if (!m) return;
-    const { cols, cell, gap, rect } = m;
+    const { cols, cell, gap, rect, offsetX } = m;
     if (cols < 4) return;
     const dragPos = this.layoutData[dragged.id];
     if (!dragPos) return;
     const w = dragPos.w, h = dragPos.h;
-    const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12) / (cell + gap)) + 1, 1), cols - w + 1);
+    const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
     const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
     const others = Object.entries(this.layoutData).filter(([id]) => id !== dragged.id).sort((a, b) => a[1].y - b[1].y || a[1].x - b[1].x);
     const placed = [{ x: col, y: row, w, h }];
@@ -16036,6 +16408,20 @@ ${val}
       new import_obsidian.Notice("\u968F\u7B14\u5DF2\u4FDD\u5B58");
       textarea.value = "";
     };
+    const dailyBtn = controls.createEl("button", { text: "\u{1F4DD} \u5199\u5165\u4ECA\u65E5\u65E5\u8BB0", cls: "sd-btn secondary" });
+    dailyBtn.onclick = async () => {
+      const val = textarea.value.trim();
+      if (!val) {
+        new import_obsidian.Notice("\u968F\u7B14\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A\uFF01");
+        return;
+      }
+      try {
+        await this.appendToDailyNote(val, typeSelect.value === "\u672A\u5B9A" ? "\u968F\u7B14" : typeSelect.value);
+        textarea.value = "";
+      } catch (e) {
+        new import_obsidian.Notice("\u5199\u5165\u65E5\u8BB0\u5931\u8D25: " + String(e));
+      }
+    };
   }
   async createNote(type, subject) {
     let actualType = type === "\u667A\u80FD\u65B0\u5EFA" ? "\u672A\u5B9A" : type;
@@ -16147,18 +16533,24 @@ journal:
       dayCell.setAttribute("data-date", dateStr);
       dayCell.createDiv({ text: day.format("D") });
       const indicators = dayCell.createDiv("sd-calendar-indicators");
-      const dayTodos = todos.filter((t) => t.date === dateStr && !t.completed);
-      const daySchedules = schedules.filter((s) => {
-        const end = s.endDate || s.date;
-        return dateStr >= s.date && dateStr <= end;
-      });
+      const hol = getHolidayName(dateStr);
+      if (hol && !isOtherMonth) {
+        const holEl = dayCell.createDiv({
+          text: `${hol.kind === "term" ? "\u2600" : "\u{1F3EE}"}${hol.name}`,
+          cls: hol.kind === "term" ? "sd-calendar-term" : "sd-calendar-festival"
+        });
+        holEl.setAttribute("title", `${hol.name}${hol.kind === "term" ? "\uFF08\u8282\u6C14\uFF09" : "\uFF08\u8282\u65E5\uFF09"}`);
+      }
+      const dayTodos = todos.filter((t) => this.todoOccursOn(t, dateStr) && !this.todoEffectiveCompleted(t));
+      const daySchedules = schedules.filter((s) => this.scheduleOccursOn(s, dateStr));
       const dayNotes = this.app.vault.getMarkdownFiles().filter((f) => (0, import_obsidian.moment)(f.stat.ctime).format("YYYY-MM-DD") === dateStr);
       if (daySchedules.length > 0) {
         const barsContainer = dayCell.createDiv("sd-schedule-bar-container");
         daySchedules.forEach((s, idx) => {
           const bar = barsContainer.createDiv("sd-schedule-bar");
-          const isStartDay = dateStr === s.date;
-          const isEndDay = dateStr === (s.endDate || s.date);
+          const isRecurring = !!(s.repeat && s.repeat !== "none");
+          const isStartDay = isRecurring || dateStr === s.date;
+          const isEndDay = isRecurring || dateStr === (s.endDate || s.date);
           bar.innerText = isStartDay ? s.title : " ";
           if (!isStartDay) bar.addClass("continue-left");
           if (!isEndDay) bar.addClass("continue-right");
@@ -16245,7 +16637,19 @@ journal:
     const renderList = async () => {
       listArea.empty();
       let todos = await this.getTodos();
-      let displayTodos = todos.filter((t) => currentTab === "completed" ? t.completed : !t.completed);
+      let displayTodos = todos.filter((t) => currentTab === "completed" ? this.todoEffectiveCompleted(t) : !this.todoEffectiveCompleted(t));
+      const priRank = { high: 0, mid: 1, low: 2 };
+      const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+      displayTodos.sort((a, b) => {
+        var _a, _b;
+        const aOver = !a.completed && !!a.deadline && a.deadline < todayStr ? 0 : 1;
+        const bOver = !b.completed && !!b.deadline && b.deadline < todayStr ? 0 : 1;
+        if (aOver !== bOver) return aOver - bOver;
+        const pa = (_a = priRank[a.priority || "low"]) != null ? _a : 2;
+        const pb = (_b = priRank[b.priority || "low"]) != null ? _b : 2;
+        if (pa !== pb) return pa - pb;
+        return 0;
+      });
       if (displayTodos.length === 0) {
         listArea.createEl("div", { text: "\u65E0\u4E8B\u9879\u3002", attr: { style: "padding: 10px; color: var(--sd-text-light)" } });
         return;
@@ -16278,13 +16682,18 @@ journal:
         });
         item.createSpan({ text: "\u2261", cls: "sd-todo-drag-handle" });
         const cb = item.createEl("input", { type: "checkbox", cls: "sd-todo-checkbox" });
-        cb.checked = t.completed;
+        cb.checked = this.todoEffectiveCompleted(t);
         cb.onclick = async (e) => {
           e.stopPropagation();
           let currentTodos = await this.getTodos();
           const target = currentTodos.find((x) => x.id === t.id);
           if (target) {
-            target.completed = cb.checked;
+            if (target.repeat && target.repeat !== "none") {
+              if (cb.checked) target.lastCompleted = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+              else target.lastCompleted = void 0;
+            } else {
+              target.completed = cb.checked;
+            }
             await this.saveTodos(currentTodos);
             if (target.completed) {
               item.addClass("fade-out-complete");
@@ -16295,8 +16704,16 @@ journal:
           }
         };
         const contentDiv = item.createDiv({ cls: "sd-todo-content" });
-        const textDiv = contentDiv.createDiv({ text: t.text, cls: "sd-todo-text" });
+        const priCls = t.priority === "high" ? "high" : t.priority === "mid" ? "mid" : "low";
+        const priLabel = t.priority === "high" ? "\u7D27\u6025" : t.priority === "mid" ? "\u91CD\u8981" : "\u5E38\u89C4";
+        const textRow = contentDiv.createDiv({ cls: "sd-todo-textrow" });
+        textRow.createSpan({ text: priLabel, cls: `sd-todo-priority sd-todo-priority-${priCls}` });
+        const textDiv = textRow.createDiv({ text: t.text, cls: "sd-todo-text" });
         const metaDiv = contentDiv.createDiv({ cls: "sd-todo-meta" });
+        if (t.repeat && t.repeat !== "none") {
+          const repLabel = { daily: "\u6BCF\u5929", weekly: "\u6BCF\u5468", monthly: "\u6BCF\u6708", yearly: "\u6BCF\u5E74" }[t.repeat] || "";
+          metaDiv.createSpan({ text: `\u{1F501} ${repLabel}`, cls: "sd-todo-repeat" });
+        }
         if (t.date || t.time) {
           metaDiv.createSpan({ text: `\u{1F552} ${t.date || ""} ${t.time || ""}`.trim(), cls: "sd-todo-time" });
         }
@@ -16374,17 +16791,23 @@ journal:
       let schedules = await this.getSchedules();
       const today = (0, import_obsidian.moment)().format("YYYY-MM-DD");
       const future3 = (0, import_obsidian.moment)().add(3, "days").format("YYYY-MM-DD");
-      schedules = schedules.filter((s) => {
-        if (currentTab === "past") return s.date < today;
-        if (currentTab === "present") return s.date >= today && s.date <= future3;
-        return s.date > future3;
+      schedules.forEach((s) => {
+        s._eff = this.nextScheduleDate(s);
       });
-      schedules.sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+      schedules = schedules.filter((s) => {
+        const eff = s._eff;
+        if (currentTab === "past") return eff < today;
+        if (currentTab === "present") return eff >= today && eff <= future3;
+        return eff > future3;
+      });
+      schedules.sort((a, b) => (a._eff || a.date).localeCompare(b._eff || b.date) || (a.time || "").localeCompare(b.time || ""));
       if (schedules.length === 0) {
         listArea.createEl("div", { text: "\u65E0\u65E5\u7A0B\u3002", attr: { style: "padding: 10px; color: var(--sd-text-light)" } });
         return;
       }
       schedules.forEach((s) => {
+        const eff = s._eff;
+        const isRecurring = !!(s.repeat && s.repeat !== "none");
         const item = listArea.createDiv("sd-timeline-item");
         const dot = item.createDiv("sd-timeline-dot");
         const isConflict = s.time && schedules.some(
@@ -16396,9 +16819,21 @@ journal:
         }
         const content = item.createDiv("sd-timeline-content");
         const timeDisplay = s.time ? s.endTime ? `${s.time} - ${s.endTime}` : s.time : "\u5168\u5929";
+        const daysLeft = (0, import_obsidian.moment)(eff).diff((0, import_obsidian.moment)().startOf("day"), "days");
+        let daysLabel = "";
+        let daysCls = "";
+        if (daysLeft < 0) {
+          daysLabel = `\u5DF2\u8FC7 ${-daysLeft} \u5929`;
+          daysCls = "sd-cd-overdue";
+        } else if (daysLeft === 0) {
+          daysLabel = "\u5C31\u5728\u4ECA\u5929";
+          daysCls = "sd-cd-today";
+        } else {
+          daysLabel = `\u8FD8\u5269 ${daysLeft} \u5929`;
+        }
         let countdownStr = "";
         if (currentTab === "present") {
-          const eventMoment = (0, import_obsidian.moment)(`${s.date} ${s.time || "00:00"}`, "YYYY-MM-DD HH:mm");
+          const eventMoment = (0, import_obsidian.moment)(`${eff} ${s.time || "00:00"}`, "YYYY-MM-DD HH:mm");
           const diffMins = eventMoment.diff((0, import_obsidian.moment)(), "minutes");
           if (diffMins > 0 && diffMins < 24 * 60) {
             const h = Math.floor(diffMins / 60);
@@ -16409,7 +16844,12 @@ journal:
           }
         }
         const timeHeader = content.createDiv({ cls: "sd-timeline-time" });
-        timeHeader.createSpan({ text: `${s.date} ${timeDisplay}` });
+        timeHeader.createSpan({ text: `${eff} ${timeDisplay}` });
+        if (isRecurring) {
+          const repLabel = { daily: "\u6BCF\u5929", weekly: "\u6BCF\u5468", monthly: "\u6BCF\u6708", yearly: "\u6BCF\u5E74" }[s.repeat] || "";
+          timeHeader.createSpan({ text: ` \u{1F501}${repLabel}`, cls: "sd-timeline-repeat", attr: { title: `\u539F\u59CB\u65E5\u671F ${s.date}\uFF0C\u6BCF${repLabel}\u91CD\u590D` } });
+        }
+        timeHeader.createSpan({ text: ` \u23F1 ${daysLabel}`, cls: `sd-timeline-countdown sd-schedule-days ${daysCls}` });
         if (countdownStr) timeHeader.createSpan({ text: countdownStr, cls: "sd-timeline-countdown" });
         if (isConflict) timeHeader.createSpan({ text: " \u26A0\uFE0F \u51B2\u7A81", cls: "sd-timeline-conflict-text" });
         content.createDiv({ text: s.title, cls: "sd-timeline-title" });
@@ -16733,22 +17173,31 @@ journal:
       tr.createEl("td", { text: `${r.score || "-"}` });
     });
   }
-  renderStatsArea(container) {
+  async renderStatsArea(container, streakDays) {
     container.createEl("h3", { text: "\u{1F4C8} \u7EDF\u8BA1\u5206\u6790 (\u5168\u5C40)", cls: "sd-section-title" });
     const overviewPanel = container.createDiv("sd-stats-overview");
     const files = this.app.vault.getMarkdownFiles();
     const now = (0, import_obsidian.moment)();
     const startOfMonth = now.clone().startOf("month");
     const startOfWeek = now.clone().subtract(now.isoWeekday() - 1, "days").startOf("day");
+    const todayStr = now.format("YYYY-MM-DD");
     let monthCount = 0;
     let weekCount = 0;
+    let todayCount = 0;
     files.forEach((f) => {
       var _a;
       const cache = this.app.metadataCache.getFileCache(f);
       let created = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.created) ? (0, import_obsidian.moment)(cache.frontmatter.created) : (0, import_obsidian.moment)(f.stat.ctime);
       if (created.isSameOrAfter(startOfMonth)) monthCount++;
       if (created.isSameOrAfter(startOfWeek)) weekCount++;
+      if (created.format("YYYY-MM-DD") === todayStr) todayCount++;
     });
+    let openTodoCount = 0;
+    try {
+      const todos = await this.getTodos();
+      openTodoCount = todos.filter((t) => !t.completed).length;
+    } catch (e) {
+    }
     const totalBox = overviewPanel.createDiv("sd-stat-box");
     totalBox.createDiv({ text: `${files.length}`, cls: "sd-stat-value" });
     totalBox.createDiv({ text: "\u603B\u7B14\u8BB0\u6570", cls: "sd-stat-label" });
@@ -16758,6 +17207,15 @@ journal:
     const weekBox = overviewPanel.createDiv("sd-stat-box");
     weekBox.createDiv({ text: `+${weekCount}`, cls: "sd-stat-value" });
     weekBox.createDiv({ text: "\u672C\u5468\u65B0\u589E", cls: "sd-stat-label" });
+    const todayBox = overviewPanel.createDiv("sd-stat-box");
+    todayBox.createDiv({ text: `+${todayCount}`, cls: "sd-stat-value" });
+    todayBox.createDiv({ text: "\u4ECA\u65E5\u65B0\u589E", cls: "sd-stat-label" });
+    const todoBox = overviewPanel.createDiv("sd-stat-box");
+    todoBox.createDiv({ text: `${openTodoCount}`, cls: "sd-stat-value" });
+    todoBox.createDiv({ text: "\u672A\u5B8C\u6210\u5F85\u529E", cls: "sd-stat-label" });
+    const streakBox = overviewPanel.createDiv("sd-stat-box");
+    streakBox.createDiv({ text: `${streakDays != null ? streakDays : 0} \u5929`, cls: "sd-stat-value" });
+    streakBox.createDiv({ text: "\u8FDE\u7EED\u6D3B\u8DC3", cls: "sd-stat-label" });
     const controls = container.createDiv("sd-chart-controls");
     const chartsWrapper = container.createDiv("sd-charts-wrapper");
     const lineBox = chartsWrapper.createDiv("sd-chart-box");
@@ -16787,6 +17245,93 @@ journal:
       this.updateCharts(true);
     };
     setTimeout(() => this.updateCharts(true), 50);
+  }
+  // ===== D-Day 倒计时卡：统一事件源（自定义 + 节日 + 节气），只显示最近三个 =====
+  async renderCountdownArea(container) {
+    container.createEl("h3", { text: "\u{1F3AF} D-Day \u5012\u8BA1\u65F6", cls: "sd-section-title" });
+    const rerender = () => {
+      container.empty();
+      this.renderCountdownArea(container);
+    };
+    const headerRow = container.createDiv({ attr: { style: "display:flex; justify-content:flex-end; gap:4px; margin-bottom:4px" } });
+    headerRow.createEl("button", { text: "\u{1F4CB} \u5168\u90E8", cls: "sd-btn secondary", attr: { style: "font-size: 0.8em; padding: 2px 8px;", title: "\u7BA1\u7406\u5168\u90E8\u81EA\u5B9A\u4E49\u5012\u8BA1\u65F6" } }).onclick = () => new CountdownListModal(this.app, this.plugin, rerender).open();
+    headerRow.createEl("button", { text: "\uFF0B \u65B0\u4E8B\u4EF6", cls: "sd-btn secondary", attr: { style: "font-size: 0.8em; padding: 2px 8px;" } }).onclick = () => new ManageCountdownModal(this.app, this.plugin, null, rerender).open();
+    const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+    const entries = [];
+    for (const c of await this.getCountdowns()) {
+      if (c.targetDate >= todayStr) entries.push({ title: c.title, date: c.targetDate, kind: "custom", item: c });
+    }
+    for (const h of upcomingHolidays(todayStr)) {
+      entries.push({ title: h.name, date: h.date, kind: h.kind });
+    }
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+    const top = entries.slice(0, 3);
+    if (top.length === 0) {
+      container.createDiv({
+        text: "\u6682\u65E0\u5373\u5C06\u5230\u6765\u7684\u5012\u8BA1\u65F6\u3002",
+        attr: { style: "padding: 10px; color: var(--text-muted); font-size: 13px;" }
+      });
+      return;
+    }
+    const list = container.createDiv("sd-countdown-list");
+    for (const e of top) {
+      const daysLeft = (0, import_obsidian.moment)(e.date).diff((0, import_obsidian.moment)().startOf("day"), "days");
+      const stateCls = daysLeft < 0 ? "sd-dd-past" : daysLeft <= 7 ? "sd-dd-soon" : "";
+      const row = list.createDiv(`sd-countdown-item ${stateCls}`);
+      if (e.kind === "custom") {
+        row.onclick = () => new ManageCountdownModal(this.app, this.plugin, e.item, rerender).open();
+      } else {
+        row.setAttribute("title", `${e.kind === "term" ? "\u8282\u6C14" : "\u8282\u65E5"} \xB7 \u6BCF\u5E74\u81EA\u52A8\u751F\u6210`);
+      }
+      const info = row.createDiv("sd-countdown-info");
+      info.createDiv({ text: e.title, cls: "sd-countdown-title" });
+      info.createDiv({
+        text: (0, import_obsidian.moment)(e.date).format("YYYY-MM-DD") + (e.kind === "festival" ? " \xB7 \u8282\u65E5" : e.kind === "term" ? " \xB7 \u8282\u6C14" : ""),
+        cls: "sd-countdown-date"
+      });
+      const daysEl = row.createDiv("sd-countdown-days");
+      if (daysLeft === 0) {
+        daysEl.createSpan({ text: "\u4ECA\u5929", cls: "sd-countdown-num" });
+        daysEl.createSpan({ text: " \u{1F389}", cls: "sd-countdown-unit" });
+      } else {
+        daysEl.createSpan({ text: `${Math.abs(daysLeft)}`, cls: "sd-countdown-num" });
+        daysEl.createSpan({ text: daysLeft > 0 ? " \u5929" : " \u5929\u524D", cls: "sd-countdown-unit" });
+      }
+    }
+  }
+  // ===== 导航入口卡片（纯色按钮竖排，五色轮换）=====
+  async renderNavArea(container) {
+    container.createEl("h3", { text: "\u{1F9ED} \u5FEB\u901F\u5BFC\u822A", cls: "sd-section-title" });
+    const entries = await this.plugin.getNavEntries();
+    const grid = container.createDiv("sd-nav-grid");
+    const palette = ["#E76F51", "#2A9D8F", "#457B9D", "#E29A38", "#7c5cff"];
+    entries.forEach((e, idx) => {
+      const card = grid.createDiv("sd-nav-entry-card");
+      card.style.backgroundColor = palette[idx % palette.length];
+      card.setAttribute("title", `${e.name} \xB7 ${e.desc}
+\u2192 ${e.path}\uFF08\u5728\u8BBE\u7F6E\u4E2D\u53EF\u4FEE\u6539\u5165\u53E3\u8DEF\u5F84\uFF09`);
+      card.createSpan({ text: e.icon, cls: "sd-nav-entry-icon" });
+      card.createSpan({ text: e.name, cls: "sd-nav-entry-name" });
+      card.onclick = async () => {
+        var _a, _b, _c;
+        try {
+          const target = this.app.vault.getAbstractFileByPath(e.path);
+          if (!target) {
+            new import_obsidian.Notice(`\u5165\u53E3\u8DEF\u5F84\u4E0D\u5B58\u5728\uFF1A${e.path}`);
+            return;
+          }
+          if (target instanceof import_obsidian.TFile) {
+            await this.app.workspace.getLeaf(false).openFile(target);
+          } else {
+            const fe = (_b = (_a = this.app.internalPlugins) == null ? void 0 : _a.getPluginById) == null ? void 0 : _b.call(_a, "file-explorer");
+            if ((_c = fe == null ? void 0 : fe.instance) == null ? void 0 : _c.revealInFolder) fe.instance.revealInFolder(target);
+            else new import_obsidian.Notice(`\u6587\u4EF6\u5939\uFF1A${e.path}`);
+          }
+        } catch (err) {
+          new import_obsidian.Notice("\u6253\u5F00\u5165\u53E3\u5931\u8D25: " + String(err));
+        }
+      };
+    });
   }
   async renderUsageArea(card) {
     try {
@@ -17290,23 +17835,31 @@ _SmartDashboardView.DESIGN_CELL = 300;
 _SmartDashboardView.GRID_GAP = 12;
 // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
 _SmartDashboardView.DEFAULT_LAYOUT = {
-  "sd-calendar-section": { x: 1, y: 1, w: 2, h: 2 },
-  "sd-quickjot-section": { x: 3, y: 1, w: 1, h: 1 },
-  "sd-search-section": { x: 4, y: 1, w: 1, h: 2 },
-  // 全库检索 1×2 纵向
-  "sd-create-section": { x: 3, y: 2, w: 1, h: 1 },
-  "sd-stats-section": { x: 1, y: 3, w: 2, h: 2 },
+  // ===== 6 列 × 4 行（24 格恰好填满）=====
+  "sd-countdown-section": { x: 1, y: 1, w: 1, h: 1 },
+  // D-Day 倒计时
+  "sd-quickjot-section": { x: 2, y: 1, w: 1, h: 1 },
+  // 极速随笔
+  "sd-nav-section": { x: 3, y: 1, w: 1, h: 1 },
+  // 导航入口
+  "sd-create-section": { x: 4, y: 1, w: 1, h: 1 },
+  // 快捷创建
+  "sd-schedule-section": { x: 5, y: 1, w: 1, h: 1 },
+  // 日程
+  "sd-todo-section": { x: 6, y: 1, w: 1, h: 1 },
+  // 待办
+  "sd-calendar-section": { x: 1, y: 2, w: 2, h: 2 },
+  // 日历 2×2
+  "sd-stats-section": { x: 3, y: 2, w: 2, h: 2 },
   // 统计 2×2
-  "sd-usage-section": { x: 3, y: 3, w: 2, h: 1 },
-  // Token 改 2×1（年视图需宽度）
-  "sd-subscriptions-section": { x: 1, y: 5, w: 2, h: 1 },
+  "sd-search-section": { x: 5, y: 2, w: 1, h: 2 },
+  // 全库检索 1×2 纵向（右侧留空）
+  "sd-usage-section": { x: 1, y: 4, w: 2, h: 1 },
+  // Token 用量 2×1
+  "sd-trading-section": { x: 3, y: 4, w: 2, h: 1 },
+  // 交易复盘 2×1
+  "sd-subscriptions-section": { x: 5, y: 4, w: 2, h: 1 }
   // 订阅额度 2×1
-  "sd-schedule-section": { x: 3, y: 5, w: 1, h: 1 },
-  // 日程移至 (3,5)
-  "sd-todo-section": { x: 4, y: 5, w: 1, h: 1 },
-  // 待办移至 (4,5)
-  "sd-trading-section": { x: 3, y: 4, w: 2, h: 1 }
-  // 交易改为 2×1（压缩高度）
 };
 var SmartDashboardView = _SmartDashboardView;
 var ViewTradeModal = class extends import_obsidian.Modal {
@@ -17348,6 +17901,102 @@ var ViewTradeModal = class extends import_obsidian.Modal {
     contentEl.empty();
   }
 };
+var ManageCountdownModal = class extends import_obsidian.Modal {
+  constructor(app, plugin, item, onSave) {
+    super(app);
+    this.plugin = plugin;
+    this.item = item;
+    this.onSave = onSave;
+  }
+  onOpen() {
+    var _a, _b;
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: this.item ? "\u7F16\u8F91\u5012\u8BA1\u65F6" : "\u65B0\u5EFA\u5012\u8BA1\u65F6" });
+    let title = ((_a = this.item) == null ? void 0 : _a.title) || "";
+    let targetDate = ((_b = this.item) == null ? void 0 : _b.targetDate) || (0, import_obsidian.moment)().format("YYYY-MM-DD");
+    new import_obsidian.Setting(contentEl).setName("\u4E8B\u4EF6\u540D\u79F0").addText((t) => {
+      t.setValue(title).onChange((v) => title = v);
+      t.inputEl.style.width = "100%";
+      t.setPlaceholder("\u5982\uFF1A\u9879\u76EE\u4E0A\u7EBF");
+    });
+    new import_obsidian.Setting(contentEl).setName("\u76EE\u6807\u65E5\u671F").addText((t) => {
+      t.inputEl.type = "date";
+      t.setValue(targetDate).onChange((v) => targetDate = v);
+    });
+    const btns = new import_obsidian.Setting(contentEl);
+    btns.addButton((btn) => btn.setButtonText("\u4FDD\u5B58").setCta().onClick(async () => {
+      var _a2;
+      if (!title.trim() || !targetDate) {
+        new import_obsidian.Notice("\u8BF7\u586B\u5199\u4E8B\u4EF6\u540D\u79F0\u4E0E\u76EE\u6807\u65E5\u671F");
+        return;
+      }
+      let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
+      if (!view) return;
+      let items = await view.getCountdowns();
+      if (this.item) {
+        const idx = items.findIndex((x) => x.id === this.item.id);
+        if (idx >= 0) items[idx] = { ...this.item, title: title.trim(), targetDate };
+      } else {
+        items.push({ id: Date.now().toString(), title: title.trim(), targetDate });
+      }
+      await view.saveCountdowns(items);
+      this.close();
+      this.onSave();
+    }));
+    if (this.item) {
+      btns.addButton((btn) => btn.setButtonText("\u5220\u9664").setWarning().onClick(async () => {
+        var _a2;
+        let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
+        if (!view) return;
+        const items = (await view.getCountdowns()).filter((x) => x.id !== this.item.id);
+        await view.saveCountdowns(items);
+        this.close();
+        this.onSave();
+      }));
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+var CountdownListModal = class extends import_obsidian.Modal {
+  constructor(app, plugin, onSave) {
+    super(app);
+    this.plugin = plugin;
+    this.onSave = onSave;
+  }
+  async onOpen() {
+    await this.renderList();
+  }
+  async renderList() {
+    var _a;
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", { text: "\u5168\u90E8\u5012\u8BA1\u65F6\u4E8B\u4EF6\uFF08\u81EA\u5B9A\u4E49\uFF09" });
+    let view = (_a = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a.view;
+    if (!view) return;
+    const items = (await view.getCountdowns()).slice().sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+    if (!items.length) {
+      contentEl.createEl("div", { text: "\u6682\u65E0\u81EA\u5B9A\u4E49\u5012\u8BA1\u65F6\u3002", attr: { style: "color: var(--text-muted); padding: 10px;" } });
+    }
+    for (const c of items) {
+      const daysLeft = (0, import_obsidian.moment)(c.targetDate).diff((0, import_obsidian.moment)().startOf("day"), "days");
+      const status = daysLeft >= 0 ? `\u8FD8\u5269 ${daysLeft} \u5929` : `\u5DF2\u8FC7 ${-daysLeft} \u5929`;
+      new import_obsidian.Setting(contentEl).setName(c.title).setDesc(`${c.targetDate} \xB7 ${status}`).addButton((b) => b.setButtonText("\u7F16\u8F91").onClick(() => {
+        this.close();
+        new ManageCountdownModal(this.app, this.plugin, c, this.onSave).open();
+      })).addButton((b) => b.setButtonText("\u5220\u9664").setWarning().onClick(async () => {
+        await view.saveCountdowns((await view.getCountdowns()).filter((x) => x.id !== c.id));
+        this.onSave();
+        await this.renderList();
+      }));
+    }
+    contentEl.createEl("p", { text: "\u8282\u65E5\u4E0E\u8282\u6C14\u4E3A\u81EA\u52A8\u751F\u6210\uFF0C\u65E0\u9700\u5728\u6B64\u7BA1\u7406\u3002", attr: { style: "color: var(--text-muted); font-size: 12px;" } });
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
 var CARD_LABELS = {
   "sd-calendar-section": "\u65E5\u5386",
   "sd-quickjot-section": "\u6781\u901F\u968F\u7B14",
@@ -17358,7 +18007,9 @@ var CARD_LABELS = {
   "sd-subscriptions-section": "\u8BA2\u9605\u989D\u5EA6",
   "sd-schedule-section": "\u65E5\u7A0B\u7BA1\u7406",
   "sd-todo-section": "\u5F85\u529E\u4E8B\u9879",
-  "sd-trading-section": "\u4EA4\u6613\u590D\u76D8"
+  "sd-trading-section": "\u4EA4\u6613\u590D\u76D8",
+  "sd-countdown-section": "D-Day \u5012\u8BA1\u65F6",
+  "sd-nav-section": "\u5BFC\u822A\u5165\u53E3"
 };
 var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
@@ -17370,6 +18021,19 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.empty();
     containerEl.createEl("h2", { text: "Smart Dashboard \u5361\u7247\u7BA1\u7406" });
     containerEl.createEl("p", { text: "\u542F\u7528\u6216\u7981\u7528\u770B\u677F\u4E0A\u7684\u5361\u7247\u3002\u7981\u7528\u540E\u5361\u7247\u5C06\u9690\u85CF\u4E14\u529F\u80FD\u6682\u505C\u3002" });
+    containerEl.createEl("h3", { text: "\u4E3B\u9898\u76AE\u80A4" });
+    const currentSkin = await this.plugin.getSkin();
+    new import_obsidian.Setting(containerEl).setName("\u5F3A\u8C03\u8272\u65B9\u6848").setDesc("\u56DB\u5957\u9884\u8BBE\u8C03\u8272\u677F\uFF08\u7075\u611F\uFF1A\u9999\u828B\u7D2B/\u6697\u68D5\u91D1/\u91D1\u878D\u7EC8\u7AEF\u84DD\u9ED1\u6D41\u6D3E\uFF09\uFF0C\u8DDF\u968F\u660E\u6697\u4E3B\u9898\u81EA\u52A8\u9002\u914D").addDropdown((dd) => {
+      for (const [key, skin] of Object.entries(SD_SKINS)) {
+        dd.addOption(key, skin.label);
+      }
+      dd.setValue(currentSkin);
+      dd.onChange(async (v) => {
+        await this.plugin.setSkin(v);
+        await this.plugin.refreshView();
+      });
+    });
+    containerEl.createEl("h3", { text: "\u5361\u7247\u5F00\u5173" });
     const visibility = await this.plugin.getCardVisibility();
     for (const [id, label] of Object.entries(CARD_LABELS)) {
       new import_obsidian.Setting(containerEl).setName(label).setDesc(`\u63A7\u5236 ${label} \u5361\u7247\u7684\u663E\u793A\u4E0E\u529F\u80FD`).addToggle(
@@ -17378,6 +18042,25 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
           await this.plugin.refreshView();
         })
       );
+    }
+    containerEl.createEl("h3", { text: "\u5BFC\u822A\u5165\u53E3" });
+    containerEl.createEl("p", { text: "\u4FEE\u6539\u5404\u5165\u53E3\u5361\u7247\u6307\u5411\u7684\u5E93\u5185\u8DEF\u5F84\uFF08\u6587\u4EF6\u5939\u6216 md \u6587\u4EF6\uFF09\u3002\u7559\u7A7A\u6062\u590D\u9ED8\u8BA4\u3002" });
+    const entries = await this.plugin.getNavEntries();
+    for (const entry of entries) {
+      new import_obsidian.Setting(containerEl).setName(`${entry.icon} ${entry.name}`).setDesc(`\u5F53\u524D\uFF1A${entry.path}`).addText((text) => {
+        text.setPlaceholder(entry.path);
+        text.inputEl.style.width = "100%";
+        text.onChange(async (v) => {
+          if (!v.trim() || v.trim() === entry.path) return;
+          const all = await this.plugin.getNavEntries();
+          const target = all.find((x) => x.id === entry.id);
+          if (target) {
+            target.path = v.trim();
+            await this.plugin.setNavEntries(all);
+            new import_obsidian.Notice(`\u5DF2\u66F4\u65B0\u300C${entry.name}\u300D\u5165\u53E3\u8DEF\u5F84`);
+          }
+        });
+      });
     }
   }
 };

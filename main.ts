@@ -3,6 +3,8 @@ import Chart from 'chart.js/auto';
 
 export const VIEW_TYPE_SMART_DASHBOARD = "smart-dashboard-view";
 
+type RepeatType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 interface ScheduleItem {
     id: string;
     date: string;
@@ -11,6 +13,7 @@ interface ScheduleItem {
     endTime?: string;
     title: string;
     content: string;
+    repeat?: RepeatType;
 }
 
 interface SubTask {
@@ -27,11 +30,106 @@ interface TodoItem {
     time?: string;
     deadline?: string;
     subtasks?: SubTask[];
+    priority?: 'high' | 'mid' | 'low';
+    repeat?: RepeatType;      // 周期待办：如每年生日
+    lastCompleted?: string;   // 周期待办最近一次完成日期（YYYY-MM-DD）
 }
 
 interface MoodItem {
     emoji: string;
     text: string;
+}
+
+// ===== D-Day 倒计时 =====
+interface CountdownItem {
+    id: string;
+    title: string;
+    targetDate: string; // YYYY-MM-DD
+}
+
+// ===== 导航入口卡片 =====
+interface NavEntry {
+    id: string;
+    icon: string;
+    name: string;
+    desc: string;
+    path: string; // 库内文件夹或 md 文件路径
+}
+
+const DAILY_DIR = '05_事件记录';
+
+const DEFAULT_NAV_ENTRIES: NavEntry[] = [
+    { id: 'nav-inbox', icon: '📦', name: '收集箱', desc: '待处理速记与随笔', path: '01_Inbox' },
+    { id: 'nav-wiki', icon: '📚', name: '知识库', desc: '沉淀后的常青笔记', path: '02_Wiki' },
+    { id: 'nav-personal', icon: '👤', name: '个人空间', desc: '交易复盘/想法/踩坑', path: '04_个人空间' },
+    { id: 'nav-events', icon: '📅', name: '事件记录', desc: '日记与事件归档', path: DAILY_DIR },
+    { id: 'nav-archive', icon: '🗄️', name: '归档', desc: '不再活跃的资料', path: '03_Archive' },
+];
+
+// ===== 主题皮肤预设（灵感：小红书九大流派调色板） =====
+const SD_SKINS: Record<string, { label: string; accent: string; accentHover: string }> = {
+    warm:     { label: '🌅 暖橙（默认）', accent: '#F4A261', accentHover: '#E76F51' },
+    violet:   { label: '🟣 香芋紫',       accent: '#8b6cef', accentHover: '#7C4DFF' },
+    gold:     { label: '🥇 暗棕金',       accent: '#c9a15e', accentHover: '#d9b36c' },
+    terminal: { label: '💠 金融终端蓝',   accent: '#58a6ff', accentHover: '#79b8ff' },
+};
+
+// ===== 公历固定节日（MM-DD → 名称，按年展开）=====
+const FESTIVALS: Record<string, string> = {
+    '01-01': '元旦',   '02-14': '情人节', '03-08': '妇女节', '03-12': '植树节',
+    '04-01': '愚人节', '05-01': '劳动节', '05-04': '青年节', '06-01': '儿童节',
+    '07-01': '建党节', '08-01': '建军节', '09-10': '教师节', '10-01': '国庆节',
+    '10-31': '万圣夜', '12-24': '平安夜', '12-25': '圣诞节',
+};
+
+// ===== 二十四节气（寿星公式推算日期，21世纪 C 值；个别年份可能有 ±1 天误差）=====
+const SOLAR_TERMS_21C: Array<{ name: string; month: number; c: number; lAdj: boolean }> = [
+    { name: '小寒', month: 1,  c: 5.4055, lAdj: true  }, { name: '大寒', month: 1,  c: 20.12,  lAdj: true  },
+    { name: '立春', month: 2,  c: 3.87,   lAdj: true  }, { name: '雨水', month: 2,  c: 18.73,  lAdj: true  },
+    { name: '惊蛰', month: 3,  c: 5.63,   lAdj: false }, { name: '春分', month: 3,  c: 20.646, lAdj: false },
+    { name: '清明', month: 4,  c: 4.81,   lAdj: false }, { name: '谷雨', month: 4,  c: 20.1,   lAdj: false },
+    { name: '立夏', month: 5,  c: 5.52,   lAdj: false }, { name: '小满', month: 5,  c: 21.04,  lAdj: false },
+    { name: '芒种', month: 6,  c: 5.678,  lAdj: false }, { name: '夏至', month: 6,  c: 21.37,  lAdj: false },
+    { name: '小暑', month: 7,  c: 7.108,  lAdj: false }, { name: '大暑', month: 7,  c: 22.83,  lAdj: false },
+    { name: '立秋', month: 8,  c: 7.5,    lAdj: false }, { name: '处暑', month: 8,  c: 23.13,  lAdj: false },
+    { name: '白露', month: 9,  c: 7.646,  lAdj: false }, { name: '秋分', month: 9,  c: 23.042, lAdj: false },
+    { name: '寒露', month: 10, c: 8.318,  lAdj: false }, { name: '霜降', month: 10, c: 23.438, lAdj: false },
+    { name: '立冬', month: 11, c: 7.438,  lAdj: false }, { name: '小雪', month: 11, c: 22.36,  lAdj: false },
+    { name: '大雪', month: 12, c: 7.18,   lAdj: false }, { name: '冬至', month: 12, c: 21.94,  lAdj: false },
+];
+
+function solarTermDate(year: number, term: {month: number; c: number; lAdj: boolean}): string {
+    const y = year % 100;
+    const L = term.lAdj ? Math.floor((y - 1) / 4) : Math.floor(y / 4);
+    const day = Math.floor(0.2422 * y + term.c) - L;
+    return `${year}-${String(term.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// 节日+节气合并查询表（按年缓存）
+const holidayCacheByYear = new Map<number, Map<string, {name: string; kind: 'festival' | 'term'}>>();
+function getHolidayMap(year: number): Map<string, {name: string; kind: 'festival' | 'term'}> {
+    let m = holidayCacheByYear.get(year);
+    if (!m) {
+        m = new Map<string, {name: string; kind: 'festival' | 'term'}>();
+        for (const [md, name] of Object.entries(FESTIVALS)) m.set(`${year}-${md}`, {name, kind: 'festival'});
+        for (const t of SOLAR_TERMS_21C) m.set(solarTermDate(year, t), {name: t.name, kind: 'term'});
+        holidayCacheByYear.set(year, m);
+    }
+    return m;
+}
+function getHolidayName(dateStr: string): {name: string; kind: 'festival' | 'term'} | undefined {
+    const year = parseInt(dateStr.substring(0, 4));
+    return getHolidayMap(year).get(dateStr);
+}
+/** 今天（含）之后的所有节日/节气，按日期升序 */
+function upcomingHolidays(fromDate: string): Array<{date: string; name: string; kind: 'festival' | 'term'}> {
+    const results: Array<{date: string; name: string; kind: 'festival' | 'term'}> = [];
+    const y0 = parseInt(fromDate.substring(0, 4));
+    for (const y of [y0, y0 + 1]) {
+        getHolidayMap(y).forEach((v, date) => { if (date >= fromDate) results.push({date, ...v}); });
+    }
+    results.sort((a, b) => a.date.localeCompare(b.date));
+    return results;
 }
 
 // ===== 订阅模板配置 =====
@@ -483,6 +581,31 @@ export default class SmartDashboardPlugin extends Plugin {
         await this.saveData(data);
     }
 
+    // ===== 主题皮肤 =====
+    async getSkin(): Promise<string> {
+        const data = await this.loadData();
+        return (data?.skin && SD_SKINS[data.skin]) ? data.skin : 'warm';
+    }
+
+    async setSkin(skin: string): Promise<void> {
+        const data = (await this.loadData()) || {};
+        data.skin = skin;
+        await this.saveData(data);
+    }
+
+    // ===== 导航入口配置 =====
+    async getNavEntries(): Promise<NavEntry[]> {
+        const data = await this.loadData();
+        return Array.isArray(data?.navEntries) && data.navEntries.length > 0
+            ? data.navEntries : DEFAULT_NAV_ENTRIES.map(e => ({ ...e }));
+    }
+
+    async setNavEntries(entries: NavEntry[]): Promise<void> {
+        const data = (await this.loadData()) || {};
+        data.navEntries = entries;
+        await this.saveData(data);
+    }
+
     async refreshView(): Promise<void> {
         const { workspace } = this.app;
         const leaves = workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD);
@@ -664,10 +787,31 @@ class ManageTodoModal extends Modal {
         let syncSchedule = true;
         let deadline = this.todo?.deadline || '';
         let subtasks = this.todo?.subtasks ? [...this.todo.subtasks] : [];
+        let priority: string = this.todo?.priority || 'low';
+        let repeat: string = this.todo?.repeat || 'none';
 
         new Setting(contentEl).setName('内容').addTextArea(ta => {
             ta.setValue(text).onChange(v => text = v);
             ta.inputEl.style.width = '100%';
+        });
+
+        new Setting(contentEl).setName('优先级').setDesc('🔴 紧急 / 🟠 重要 / 🔵 常规').addDropdown(dd => {
+            dd.addOption('high', '🔴 紧急');
+            dd.addOption('mid', '🟠 重要');
+            dd.addOption('low', '🔵 常规');
+            dd.setValue(priority);
+            dd.onChange(v => priority = v);
+        });
+
+        // 周期待办（如每年生日提醒）：完成后自动进入下一周期
+        new Setting(contentEl).setName('重复').setDesc('周期待办：完成后按周期自动重置').addDropdown(dd => {
+            dd.addOption('none', '不重复');
+            dd.addOption('daily', '每天');
+            dd.addOption('weekly', '每周');
+            dd.addOption('monthly', '每月');
+            dd.addOption('yearly', '每年');
+            dd.setValue(repeat);
+            dd.onChange(v => repeat = v);
         });
 
         const hasTimeSetting = new Setting(contentEl).setName('是否有具体时间？');
@@ -738,11 +882,21 @@ class ManageTodoModal extends Modal {
             if (!view) return;
             
             let todos = await view.getTodos();
+            const prio = (priority === 'high' || priority === 'mid' || priority === 'low') ? priority as TodoItem['priority'] : 'low';
+            const rep = (['none','daily','weekly','monthly','yearly'].includes(repeat) ? repeat : 'none') as TodoItem['repeat'];
             if (this.todo) {
                 const idx = todos.findIndex(t => t.id === this.todo!.id);
-                if (idx >= 0) todos[idx] = { ...this.todo, text, date: hasTime?date:undefined, time: hasTime?time:undefined, deadline: deadline||undefined, subtasks };
+                // 从周期改为不重复时，把 lastCompleted 状态物化为 completed
+                const wasRepeating = !!this.todo.repeat && this.todo.repeat !== 'none';
+                const extra = (!wasRepeating && rep === 'none') ? {} : {};
+                const base: TodoItem = { ...this.todo, ...extra };
+                if (wasRepeating && rep === 'none') {
+                    base.completed = view.todoEffectiveCompleted(base);
+                    base.lastCompleted = undefined;
+                }
+                if (idx >= 0) todos[idx] = { ...base, text, date: hasTime?date:undefined, time: hasTime?time:undefined, deadline: deadline||undefined, subtasks, priority: prio, repeat: rep };
             } else {
-                todos.unshift({ id: Date.now().toString(), text, completed: false, date: hasTime?date:undefined, time: hasTime?time:undefined, deadline: deadline||undefined, subtasks });
+                todos.unshift({ id: Date.now().toString(), text, completed: false, date: hasTime?date:undefined, time: hasTime?time:undefined, deadline: deadline||undefined, subtasks, priority: prio, repeat: rep });
                 
                 if (hasTime && syncSchedule) {
                     let schedules = await view.getSchedules();
@@ -793,6 +947,18 @@ class ManageScheduleModal extends Modal {
         let title = this.schedule?.title || '';
         let contentStr = this.schedule?.content || '';
         let syncTodo = false;
+        let repeat: string = this.schedule?.repeat || 'none';
+
+        // 周期日程（如每年生日）
+        new Setting(contentEl).setName('重复').setDesc('周期日程：如「每年」生日、纪念日').addDropdown(dd => {
+            dd.addOption('none', '不重复');
+            dd.addOption('daily', '每天');
+            dd.addOption('weekly', '每周');
+            dd.addOption('monthly', '每月');
+            dd.addOption('yearly', '每年');
+            dd.setValue(repeat);
+            dd.onChange(v => repeat = v);
+        });
 
         new Setting(contentEl).setName('开始日期').addText(text => {
             text.inputEl.type = 'date';
@@ -846,11 +1012,12 @@ class ManageScheduleModal extends Modal {
             if (!view) return;
             
             let schedules = await view.getSchedules();
+            const rep = (['none','daily','weekly','monthly','yearly'].includes(repeat) ? repeat : 'none') as ScheduleItem['repeat'];
             if (this.schedule) {
                 const idx = schedules.findIndex(s => s.id === this.schedule!.id);
-                if (idx >= 0) schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : undefined, title, content: contentStr };
+                if (idx >= 0) schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : undefined, title, content: contentStr, repeat: rep };
             } else {
-                schedules.push({ id: Date.now().toString(), date, endDate, time, endTime: hasEndTime ? endTime : undefined, title, content: contentStr });
+                schedules.push({ id: Date.now().toString(), date, endDate, time, endTime: hasEndTime ? endTime : undefined, title, content: contentStr, repeat: rep });
                 
                 if (syncTodo) {
                     let todos = await view.getTodos();
@@ -1029,8 +1196,15 @@ class DayDetailModal extends Modal {
         let todos = await view.getTodos();
         let moods = await view.getMoods();
 
-        const daySchedules = schedules.filter(s => s.date === this.date);
-        const dayTodos = todos.filter(t => t.date === this.date);
+        // 主页日记联动：直达/创建当日日记
+        const dailySetting = new Setting(contentEl).setName('当日日记').setDesc(view.dailyNotePath(this.date));
+        dailySetting.addButton(b => b.setButtonText('📖 打开/创建日记').setCta().onClick(async () => {
+            this.close();
+            await view.openOrCreateDailyNote(this.date);
+        }));
+
+        const daySchedules = schedules.filter(s => view.scheduleOccursOn(s, this.date));
+        const dayTodos = todos.filter(t => view.todoOccursOn(t, this.date) && !view.todoEffectiveCompleted(t));
 
         const files = this.app.vault.getMarkdownFiles();
         let dayNotes = files.filter(f => {
@@ -1130,16 +1304,19 @@ class SmartDashboardView extends ItemView {
 
     // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
     private static DEFAULT_LAYOUT: Record<string, {x: number; y: number; w: number; h: number}> = {
-        'sd-calendar-section':  {x: 1, y: 1, w: 2, h: 2},
-        'sd-quickjot-section':  {x: 3, y: 1, w: 1, h: 1},
-        'sd-search-section':    {x: 4, y: 1, w: 1, h: 2},   // 全库检索 1×2 纵向
-        'sd-create-section':    {x: 3, y: 2, w: 1, h: 1},
-        'sd-stats-section':     {x: 1, y: 3, w: 2, h: 2},   // 统计 2×2
-        'sd-usage-section':     {x: 3, y: 3, w: 2, h: 1},   // Token 改 2×1（年视图需宽度）
-        'sd-subscriptions-section': {x: 1, y: 5, w: 2, h: 1}, // 订阅额度 2×1
-        'sd-schedule-section':  {x: 3, y: 5, w: 1, h: 1},   // 日程移至 (3,5)
-        'sd-todo-section':      {x: 4, y: 5, w: 1, h: 1},   // 待办移至 (4,5)
-        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 1},   // 交易改为 2×1（压缩高度）
+        // ===== 6 列 × 4 行（24 格恰好填满）=====
+        'sd-countdown-section': {x: 1, y: 1, w: 1, h: 1},   // D-Day 倒计时
+        'sd-quickjot-section':  {x: 2, y: 1, w: 1, h: 1},   // 极速随笔
+        'sd-nav-section':       {x: 3, y: 1, w: 1, h: 1},   // 导航入口
+        'sd-create-section':    {x: 4, y: 1, w: 1, h: 1},   // 快捷创建
+        'sd-schedule-section':  {x: 5, y: 1, w: 1, h: 1},   // 日程
+        'sd-todo-section':      {x: 6, y: 1, w: 1, h: 1},   // 待办
+        'sd-calendar-section':  {x: 1, y: 2, w: 2, h: 2},   // 日历 2×2
+        'sd-stats-section':     {x: 3, y: 2, w: 2, h: 2},   // 统计 2×2
+        'sd-search-section':    {x: 5, y: 2, w: 1, h: 2},   // 全库检索 1×2 纵向（右侧留空）
+        'sd-usage-section':     {x: 1, y: 4, w: 2, h: 1},   // Token 用量 2×1
+        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 1},   // 交易复盘 2×1
+        'sd-subscriptions-section': {x: 5, y: 4, w: 2, h: 1}, // 订阅额度 2×1
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
@@ -1193,6 +1370,138 @@ class SmartDashboardView extends ItemView {
         if (!(await this.app.vault.adapter.exists('00_System'))) await this.app.vault.createFolder('00_System');
         await this.app.vault.adapter.write(path, JSON.stringify(moods, null, 2));
     }
+
+    // ===== 连续活跃天数：当天有心情打卡 或 笔记新建/修改，任一即算 =====
+    async getStreakDays(): Promise<number> {
+        try {
+            const moods = await this.getMoods();
+            const activeDays = new Set<string>(Object.keys(moods));
+            const todayStr = moment().format('YYYY-MM-DD');
+            for (const f of this.app.vault.getMarkdownFiles()) {
+                activeDays.add(moment(Math.max(f.stat.ctime, f.stat.mtime)).format('YYYY-MM-DD'));
+            }
+            let streak = 0;
+            const cur = moment();
+            if (!activeDays.has(todayStr)) cur.subtract(1, 'day'); // 今天尚未活跃则从昨天起算
+            while (activeDays.has(cur.format('YYYY-MM-DD')) && streak < 3650) {
+                streak++;
+                cur.subtract(1, 'day');
+            }
+            return streak;
+        } catch { return 0; }
+    }
+
+    // ===== 当日日记路径与联动（05_事件记录/YYYY/MM/YYYY-MM-DD.md）=====
+    dailyNotePath(dateStr: string): string {
+        const d = moment(dateStr);
+        return `${DAILY_DIR}/${d.format('YYYY')}/${d.format('MM')}/${dateStr}.md`;
+    }
+
+    private async ensureDailyNoteFile(dateStr: string): Promise<TFile> {
+        const path = this.dailyNotePath(dateStr);
+        const existing = this.app.vault.getAbstractFileByPath(path);
+        if (existing instanceof TFile) return existing;
+        const folder = path.substring(0, path.lastIndexOf('/'));
+        if (!(await this.app.vault.adapter.exists(folder))) await this.app.vault.createFolder(folder);
+        const content = `---\ncreated: ${dateStr}\ntype: 日记\n---\n\n`;
+        return await this.app.vault.create(path, content);
+    }
+
+    /** 打开当日日记；不存在则按模板创建后打开 */
+    async openOrCreateDailyNote(dateStr: string): Promise<void> {
+        try {
+            const file = await this.ensureDailyNoteFile(dateStr);
+            await this.app.workspace.getLeaf(false).openFile(file);
+        } catch (e) {
+            new Notice('打开日记失败: ' + String(e));
+        }
+    }
+
+    /** 随笔追加到当日日记文末（无日记则自动按模板创建） */
+    async appendToDailyNote(text: string, tag = '随笔'): Promise<void> {
+        const dateStr = moment().format('YYYY-MM-DD');
+        const file = await this.ensureDailyNoteFile(dateStr);
+        const old = await this.app.vault.read(file);
+        const stamp = moment().format('HH:mm');
+        const next = old.replace(/\s*$/, '') + `\n\n## ${stamp} ${tag}\n${text}\n`;
+        await this.app.vault.modify(file, next);
+        new Notice(`已写入今日日记：${file.basename}`);
+    }
+
+    // ===== D-Day 倒计时数据 =====
+    async getCountdowns(): Promise<CountdownItem[]> {
+        const path = '00_System/countdowns.json';
+        if (!(await this.app.vault.adapter.exists(path))) return [];
+        try { return JSON.parse(await this.app.vault.adapter.read(path)); } catch { return []; }
+    }
+    async saveCountdowns(items: CountdownItem[]) {
+        const path = '00_System/countdowns.json';
+        if (!(await this.app.vault.adapter.exists('00_System'))) await this.app.vault.createFolder('00_System');
+        await this.app.vault.adapter.write(path, JSON.stringify(items, null, 2));
+    }
+
+    // ===== 周期日程/待办 =====
+
+    /** 日程是否在 dateStr 发生（周期日程按模式匹配；普通日程按日期区间） */
+    scheduleOccursOn(s: ScheduleItem, dateStr: string): boolean {
+        if (s.repeat && s.repeat !== 'none') {
+            const base = moment(s.date);
+            const cur = moment(dateStr);
+            switch (s.repeat) {
+                case 'daily':   return true;
+                case 'weekly':  return cur.isoWeekday() === base.isoWeekday();
+                case 'monthly': return cur.date() === base.date();
+                case 'yearly':  return cur.month() === base.month() && cur.date() === base.date();
+                default: return false;
+            }
+        }
+        const end = s.endDate || s.date;
+        return dateStr >= s.date && dateStr <= end;
+    }
+
+    /** 日程的下一次发生日期（今天起算，含今天）；非周期返回原 date */
+    nextScheduleDate(s: ScheduleItem): string {
+        const todayStr = moment().format('YYYY-MM-DD');
+        if (!s.repeat || s.repeat === 'none') return s.date;
+        const d = moment(todayStr);
+        for (let i = 0; i < 400; i++) {
+            const key = d.format('YYYY-MM-DD');
+            if (this.scheduleOccursOn(s, key)) return key;
+            d.add(1, 'day');
+        }
+        return s.date;
+    }
+
+    /** 周期待办是否在 dateStr 出现 */
+    todoOccursOn(t: TodoItem, dateStr: string): boolean {
+        if (!t.repeat || t.repeat === 'none') return t.date === dateStr;
+        const cur = moment(dateStr);
+        const base = moment(t.date || moment().format('YYYY-MM-DD'));
+        if (cur.isBefore(base, 'day')) return false; // 不早于起始日
+        switch (t.repeat) {
+            case 'daily':   return true;
+            case 'weekly':  return cur.isoWeekday() === base.isoWeekday();
+            case 'monthly': return cur.date() === base.date();
+            case 'yearly':  return cur.month() === base.month() && cur.date() === base.date();
+            default: return false;
+        }
+    }
+
+    /** 待办在当前周期内是否已完成：普通待办看 completed；周期待办看 lastCompleted 是否落入本周期 */
+    todoEffectiveCompleted(t: TodoItem): boolean {
+        if (!t.repeat || t.repeat === 'none') return !!t.completed;
+        if (!t.lastCompleted) return false;
+        const lc = moment(t.lastCompleted);
+        const now = moment();
+        switch (t.repeat) {
+            case 'daily':   return lc.isSame(now, 'day');
+            case 'weekly':  return lc.isSame(now, 'isoWeek');
+            case 'monthly': return lc.isSame(now, 'month');
+            case 'yearly':  return lc.isSame(now, 'year');
+            default: return false;
+        }
+    }
+
     
     async onOpen() {
         const container = this.containerEl.children[1];
@@ -1202,16 +1511,34 @@ class SmartDashboardView extends ItemView {
         const effectiveDark = document.body.classList.contains('theme-dark');
         if (effectiveDark) container.addClass('theme-dark');
 
+        // 应用主题皮肤（香芋紫/暗棕金/金融终端蓝，默认暖橙）
+        container.addClass('sd-skin-' + (await this.plugin.getSkin()));
+
+        // 连续活跃天数（心情打卡 或 笔记创建/修改，任一即算）
+        const streakDays = await this.getStreakDays();
+
         const scrollContainer = container.createDiv('sd-tab-content-container');
         const content = scrollContainer.createDiv('sd-tab-content fade-in');
         
-        const header = content.createDiv('sd-header');
-        const titleContainer = header.createDiv({attr: {style: 'display:flex; align-items:center; gap: 15px; flex-wrap:wrap'}});
-        titleContainer.createEl('h1', { text: `🚀 Obsidian Smart Dashboard ${this.plugin.manifest.version}`, attr: {style: 'margin:0'} });
-        
-        const resetLayoutBtn = titleContainer.createEl('button', {text: '↺ 重置布局', cls: 'sd-btn secondary', attr: {style: 'padding: 6px 12px; font-size: 0.85em;'}});
+        // ===== Hero 欢迎行：问候语 + 实时时钟 + 连续活跃徽章 +（右端）重置布局 / Inbox 徽章 =====
+        const heroRow = content.createDiv('sd-hero-row');
+        const greetEl = heroRow.createDiv({cls: 'sd-hero-greet'});
+        const clockEl = heroRow.createSpan({cls: 'sd-hero-clock'});
+        heroRow.createDiv({
+            text: `🔥 连续 ${streakDays} 天`,
+            cls: 'sd-badge sd-badge-success sd-hero-streak',
+            attr: {title: '当天有心情打卡或笔记新建/修改即算活跃'}
+        });
+
+        // ↺ 重置布局按钮（原顶部标题栏移入欢迎行，推至行尾）
+        const resetLayoutBtn = heroRow.createEl('button', {
+            text: '↺ 重置布局',
+            cls: 'sd-btn secondary',
+            attr: {style: 'padding: 4px 10px; font-size: 0.8em; margin-left: auto; flex-shrink: 0;'}
+        });
         resetLayoutBtn.onclick = () => { this.resetLayout(); };
 
+        // 📦 Inbox 徽章
         const inboxFiles = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith('01_Inbox'));
         if (inboxFiles.length > 0) {
             let oldestFile = inboxFiles[0];
@@ -1221,8 +1548,20 @@ class SmartDashboardView extends ItemView {
             }
             const daysOld = moment().diff(moment(oldestTime), 'days');
             const badgeCls = daysOld >= 7 ? 'sd-badge-danger' : daysOld >= 3 ? 'sd-badge-warning' : 'sd-badge-success';
-            titleContainer.createDiv({text: `📦 Inbox: ${inboxFiles.length}篇 (最长 ${daysOld} 天)`, cls: `sd-badge ${badgeCls}`});
+            heroRow.createDiv({text: `📦 Inbox: ${inboxFiles.length}篇 (最长 ${daysOld} 天)`, cls: `sd-badge ${badgeCls}`, attr: {style: 'flex-shrink: 0;'}});
         }
+        const refreshHero = () => {
+            const h = moment().hour();
+            let g = '夜深了 🌌';
+            if (h >= 5 && h < 11) g = '早上好 ☀️';
+            else if (h >= 11 && h < 14) g = '中午好 🍱';
+            else if (h >= 14 && h < 18) g = '下午好 🍵';
+            else if (h >= 18 && h < 23) g = '晚上好 🌙';
+            greetEl.setText(g);
+            clockEl.setText(moment().format('YYYY-MM-DD HH:mm:ss'));
+        };
+        refreshHero();
+        this.registerInterval(window.setInterval(refreshHero, 1000));
 
         await this.loadLayout();
 
@@ -1277,7 +1616,7 @@ class SmartDashboardView extends ItemView {
             this.applyCardSize(statsCard);
             const statsBody = this.createCardBody(statsCard);
             cards.push(statsCard);
-            this.renderStatsArea(statsBody);
+            await this.renderStatsArea(statsBody, streakDays);
         }
 
         if (visibility['sd-usage-section'] !== false) {
@@ -1325,6 +1664,24 @@ class SmartDashboardView extends ItemView {
             this.renderTradingArea(tradingBody);
         }
 
+        if (visibility['sd-countdown-section'] !== false) {
+            const countdownCard = grid.createDiv('sd-card');
+            countdownCard.id = 'sd-countdown-section';
+            this.applyCardSize(countdownCard);
+            const countdownBody = this.createCardBody(countdownCard);
+            cards.push(countdownCard);
+            await this.renderCountdownArea(countdownBody);
+        }
+
+        if (visibility['sd-nav-section'] !== false) {
+            const navCard = grid.createDiv('sd-card');
+            navCard.id = 'sd-nav-section';
+            this.applyCardSize(navCard);
+            const navBody = this.createCardBody(navCard);
+            cards.push(navCard);
+            await this.renderNavArea(navBody);
+        }
+
         // 先应用布局，再绑定拖拽、启动网格尺寸自适应
         this.applyLayout();
         this.applyScale();
@@ -1348,6 +1705,8 @@ class SmartDashboardView extends ItemView {
         createNavBtn('✅', 'sd-schedule-section', '日程待办');
         createNavBtn('➕', 'sd-create-section', '快速创建');
         createNavBtn('💹', 'sd-trading-section', '交易复盘');
+        createNavBtn('🎯', 'sd-countdown-section', 'D-Day 倒计时');
+        createNavBtn('🧭', 'sd-nav-section', '导航入口');
 
         this.registerInterval(window.setInterval(() => {
             const el = document.getElementById('sd-usage-section');
@@ -1398,7 +1757,7 @@ class SmartDashboardView extends ItemView {
     private async resetLayout(): Promise<void> {
         this.layoutData = {...SmartDashboardView.DEFAULT_LAYOUT};
         const grid = this.contentEl.querySelector('.sd-grid') as HTMLElement;
-        const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 4;
+        const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 6;
         if (cols < 4) this.applyLayoutCompact(); else this.applyLayout();
         try {
             const data = (await this.plugin.loadData()) || {};
@@ -1429,21 +1788,55 @@ class SmartDashboardView extends ItemView {
 
     private setupGridSizing(grid: HTMLElement): void {
         const compute = () => {
-            const width = grid.clientWidth - 24;   // 减去 .sd-grid 的左右 padding
-            if (width <= 0) return;                // 容器未就绪，等待下次回调
-            const cols = width < 900 ? 2 : 4;
-            const cell = (width - 12 * (cols - 1)) / cols;
-            if (cell < 100) return;                // 异常小值保护
-            grid.style.setProperty('--sd-cols', String(cols));
-            grid.style.setProperty('--sd-cell', Math.floor(cell) + 'px');
-            if (cols < 4) this.applyLayoutCompact();  // 窄模式：清空显式坐标，按流式排（仅尺寸类生效）
-            else this.applyLayout();
+            const availW = grid.clientWidth - 24;  // 减去 .sd-grid 的左右 padding
+            if (availW <= 0) return;               // 容器未就绪，等待下次回调
+            const gap = SmartDashboardView.GRID_GAP;
+
+            if (availW < 700) {
+                // 窄屏：2 列流式（格子近似正方形，仅受宽度约束）
+                const cell = Math.floor((availW - gap) / 2);
+                if (cell < 40) return;
+                grid.style.setProperty('--sd-cols', '2');
+                grid.style.setProperty('--sd-cell', `${cell}px`);
+                this.applyLayoutCompact();
+                this.applyScale();
+                return;
+            }
+
+            // 宽屏：固定 6 列 × 当前布局占用行数，格子恒为正方形（宽高约束取较小值）
+            let rows = 4; // 默认布局即 4 行
+            for (const p of Object.values(this.layoutData)) {
+                if (!p) continue;
+                rows = Math.max(rows, p.y + p.h - 1);
+            }
+            const cellW = (availW - gap * 5) / 6;
+            let cell = cellW;
+            const scroller = this.containerEl.querySelector('.sd-tab-content-container') as HTMLElement | null;
+            if (scroller) {
+                const scRect = scroller.getBoundingClientRect();
+                const gRect = grid.getBoundingClientRect();
+                // 网格顶部到滚动容器顶部的布局距离（补偿滚动量，结果与当前滚动位置无关）
+                const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
+                const availH = scroller.clientHeight - topOffset - 24 /*网格上下padding*/ - 6 /*底部余量*/;
+                if (availH > 120 && rows >= 1) {
+                    const cellH = (availH - gap * (rows - 1)) / rows;
+                    if (cellH > 60) cell = Math.min(cell, cellH);
+                }
+            }
+
+            cell = Math.floor(cell);
+            if (cell < 40) return;                 // 异常小值保护
+            grid.style.setProperty('--sd-cols', '6');
+            grid.style.setProperty('--sd-cell', `${cell}px`);
+            this.applyLayout();
             this.applyScale();
         };
         compute();                                  // 立即尝试一次（此时可能 width=0，会被 return）
         requestAnimationFrame(() => compute());     // 布局完成后强制重算
+        // 观察滚动容器而非网格本身：网格尺寸随缩放变化不再触发回调，避免反馈循环
+        const roTarget = (this.containerEl.querySelector('.sd-tab-content-container') as HTMLElement) || grid;
         const ro = new ResizeObserver(compute);
-        ro.observe(grid);
+        ro.observe(roTarget);
     }
 
     // 统一缩放：实际格子尺寸 / 设计基准，写入 --sd-scale 供 .sd-card-body 整体 scale
@@ -1471,13 +1864,16 @@ class SmartDashboardView extends ItemView {
         return this.contentEl.querySelector('.sd-grid') as HTMLElement | null;
     }
 
-    private getGridMetrics(): { cols: number; cell: number; gap: number; rect: DOMRect } | null {
+    private getGridMetrics(): { cols: number; cell: number; gap: number; rect: DOMRect; offsetX: number } | null {
         const grid = this.getGrid();
         if (!grid) return null;
         const rect = grid.getBoundingClientRect();
-        const cols = parseInt(grid.style.getPropertyValue('--sd-cols'), 10) || 4;
+        const cols = parseInt(grid.style.getPropertyValue('--sd-cols'), 10) || 6;
         const cell = parseFloat(grid.style.getPropertyValue('--sd-cell')) || 280;
-        return { cols, cell, gap: 12, rect };
+        // 轨道总宽（不含 padding）；justify-content:center 时计算水平居中偏移
+        const trackW = cols * cell + (cols - 1) * 12;
+        const offsetX = Math.max(0, (rect.width - 24 - trackW) / 2);
+        return { cols, cell, gap: 12, rect, offsetX };
     }
 
     private bindCardDrag(card: HTMLElement): void {
@@ -1554,18 +1950,18 @@ class SmartDashboardView extends ItemView {
         if (!grid) return;
         const m = this.getGridMetrics();
         if (!m) return;
-        const { cols, cell, gap, rect } = m;
+        const { cols, cell, gap, rect, offsetX } = m;
         const pos = this.layoutData[dragged.id];
         if (!pos) return;
         const w = pos.w, h = pos.h;
-        // 坐标换算：content 起点在 padding(12px) 内侧；clamp 列范围使 w×h 不越出网格
-        const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12) / (cell + gap)) + 1, 1), cols - w + 1);
+        // 坐标换算：content 起点在 padding(12px)+居中偏移 内侧；clamp 列范围使 w×h 不越出网格
+        const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
         const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
         this.clearDropTarget();
         const ph = grid.createDiv('sd-drop-target');
         ph.style.width = `${w * cell + (w - 1) * gap}px`;
         ph.style.height = `${h * cell + (h - 1) * gap}px`;
-        ph.style.left = `${12 + (col - 1) * (cell + gap)}px`;
+        ph.style.left = `${12 + offsetX + (col - 1) * (cell + gap)}px`;
         ph.style.top = `${12 + (row - 1) * (cell + gap)}px`;
     }
 
@@ -1580,12 +1976,12 @@ class SmartDashboardView extends ItemView {
         if (!grid) return;
         const m = this.getGridMetrics();
         if (!m) return;
-        const { cols, cell, gap, rect } = m;
+        const { cols, cell, gap, rect, offsetX } = m;
         if (cols < 4) return;  // 窄模式坐标属于宽模式布局空间，禁止重排
         const dragPos = this.layoutData[dragged.id];
         if (!dragPos) return;
         const w = dragPos.w, h = dragPos.h;
-        const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12) / (cell + gap)) + 1, 1), cols - w + 1);
+        const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
         const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
 
         // 向后推挤重排：其余卡片按 (y, x) 排序，从 (1,1) 起逐格扫描第一个不重叠空位
@@ -1823,6 +2219,19 @@ class SmartDashboardView extends ItemView {
             new Notice('随笔已保存');
             textarea.value = '';
         };
+
+        // 主页日记联动：追加到当日日记（无日记按模板创建，有则文末 append）
+        const dailyBtn = controls.createEl('button', {text: '📝 写入今日日记', cls: 'sd-btn secondary'});
+        dailyBtn.onclick = async () => {
+            const val = textarea.value.trim();
+            if (!val) { new Notice('随笔内容不能为空！'); return; }
+            try {
+                await this.appendToDailyNote(val, typeSelect.value === '未定' ? '随笔' : typeSelect.value);
+                textarea.value = '';
+            } catch (e) {
+                new Notice('写入日记失败: ' + String(e));
+            }
+        };
     }
 
     async createNote(type: string, subject?: string) {
@@ -1926,20 +2335,29 @@ class SmartDashboardView extends ItemView {
             dayCell.createDiv({text: day.format('D')});
             
             const indicators = dayCell.createDiv('sd-calendar-indicators');
-            
-            const dayTodos = todos.filter(t => t.date === dateStr && !t.completed);
-            const daySchedules = schedules.filter(s => {
-                const end = s.endDate || s.date;
-                return dateStr >= s.date && dateStr <= end;
-            });
+
+            // ③ 节日 / 节气角标（每年自动生成）
+            const hol = getHolidayName(dateStr);
+            if (hol && !isOtherMonth) {
+                const holEl = dayCell.createDiv({
+                    text: `${hol.kind === 'term' ? '☀' : '🏮'}${hol.name}`,
+                    cls: hol.kind === 'term' ? 'sd-calendar-term' : 'sd-calendar-festival'
+                });
+                holEl.setAttribute('title', `${hol.name}${hol.kind === 'term' ? '（节气）' : '（节日）'}`);
+            }
+
+            const dayTodos = todos.filter(t => this.todoOccursOn(t, dateStr) && !this.todoEffectiveCompleted(t));
+            const daySchedules = schedules.filter(s => this.scheduleOccursOn(s, dateStr));
             const dayNotes = this.app.vault.getMarkdownFiles().filter(f => moment(f.stat.ctime).format('YYYY-MM-DD') === dateStr);
             
             if (daySchedules.length > 0) {
                 const barsContainer = dayCell.createDiv('sd-schedule-bar-container');
                 daySchedules.forEach((s, idx) => {
                     const bar = barsContainer.createDiv('sd-schedule-bar');
-                    const isStartDay = dateStr === s.date;
-                    const isEndDay = dateStr === (s.endDate || s.date);
+                    // 周期日程的每次发生都视为独立单日事件
+                    const isRecurring = !!(s.repeat && s.repeat !== 'none');
+                    const isStartDay = isRecurring || dateStr === s.date;
+                    const isEndDay = isRecurring || dateStr === (s.endDate || s.date);
                     
                     // Display title only on the first day if it spans, or always if it doesn't span
                     bar.innerText = isStartDay ? s.title : ' ';
@@ -2044,7 +2462,19 @@ class SmartDashboardView extends ItemView {
             listArea.empty();
             let todos = await this.getTodos();
 
-            let displayTodos = todos.filter(t => currentTab === 'completed' ? t.completed : !t.completed);
+            let displayTodos = todos.filter(t => currentTab === 'completed' ? this.todoEffectiveCompleted(t) : !this.todoEffectiveCompleted(t));
+            // 排序：逾期置顶 → 优先级 高/中/低 → 同级保持原有（拖拽）顺序
+            const priRank: Record<string, number> = { high: 0, mid: 1, low: 2 };
+            const todayStr = moment().format('YYYY-MM-DD');
+            displayTodos.sort((a, b) => {
+                const aOver = (!a.completed && !!a.deadline && a.deadline < todayStr) ? 0 : 1;
+                const bOver = (!b.completed && !!b.deadline && b.deadline < todayStr) ? 0 : 1;
+                if (aOver !== bOver) return aOver - bOver;
+                const pa = priRank[a.priority || 'low'] ?? 2;
+                const pb = priRank[b.priority || 'low'] ?? 2;
+                if (pa !== pb) return pa - pb;
+                return 0; // 稳定排序，保持拖拽顺序
+            });
 
             if (displayTodos.length === 0) {
                 listArea.createEl('div', {text: '无事项。', attr: {style: 'padding: 10px; color: var(--sd-text-light)'}});
@@ -2075,13 +2505,19 @@ class SmartDashboardView extends ItemView {
 
                 item.createSpan({text: '≡', cls: 'sd-todo-drag-handle'});
                 const cb = item.createEl('input', {type: 'checkbox', cls: 'sd-todo-checkbox'});
-                cb.checked = t.completed;
+                cb.checked = this.todoEffectiveCompleted(t);
                 cb.onclick = async (e) => {
                     e.stopPropagation();
                     let currentTodos = await this.getTodos();
                     const target = currentTodos.find(x => x.id === t.id);
                     if (target) {
-                        target.completed = cb.checked;
+                        // 周期待办：完成写 lastCompleted（进入下一周期自动重置）；普通待办直接置 completed
+                        if (target.repeat && target.repeat !== 'none') {
+                            if (cb.checked) target.lastCompleted = moment().format('YYYY-MM-DD');
+                            else target.lastCompleted = undefined;
+                        } else {
+                            target.completed = cb.checked;
+                        }
                         await this.saveTodos(currentTodos);
                         
                         if (target.completed) {
@@ -2094,9 +2530,18 @@ class SmartDashboardView extends ItemView {
                 };
 
                 const contentDiv = item.createDiv({cls: 'sd-todo-content'});
-                const textDiv = contentDiv.createDiv({text: t.text, cls: 'sd-todo-text'});
+                // 优先级语义色胶囊（灵感：红=紧急 橙=重要 蓝=常规）
+                const priCls = t.priority === 'high' ? 'high' : (t.priority === 'mid' ? 'mid' : 'low');
+                const priLabel = t.priority === 'high' ? '紧急' : (t.priority === 'mid' ? '重要' : '常规');
+                const textRow = contentDiv.createDiv({cls: 'sd-todo-textrow'});
+                textRow.createSpan({text: priLabel, cls: `sd-todo-priority sd-todo-priority-${priCls}`});
+                const textDiv = textRow.createDiv({text: t.text, cls: 'sd-todo-text'});
                 
                 const metaDiv = contentDiv.createDiv({cls: 'sd-todo-meta'});
+                if (t.repeat && t.repeat !== 'none') {
+                    const repLabel = ({daily: '每天', weekly: '每周', monthly: '每月', yearly: '每年'} as Record<string, string>)[t.repeat] || '';
+                    metaDiv.createSpan({text: `🔁 ${repLabel}`, cls: 'sd-todo-repeat'});
+                }
                 if (t.date || t.time) {
                     metaDiv.createSpan({text: `🕒 ${t.date||''} ${t.time||''}`.trim(), cls: 'sd-todo-time'});
                 }
@@ -2179,12 +2624,17 @@ class SmartDashboardView extends ItemView {
             const today = moment().format('YYYY-MM-DD');
             const future3 = moment().add(3, 'days').format('YYYY-MM-DD');
 
+            // 周期日程按「下一次发生日期」参与筛选与排序
+            schedules.forEach(s => { (s as any)._eff = this.nextScheduleDate(s); });
             schedules = schedules.filter(s => {
-                if (currentTab === 'past') return s.date < today;
-                if (currentTab === 'present') return s.date >= today && s.date <= future3;
-                return s.date > future3;
+                const eff = (s as any)._eff as string;
+                if (currentTab === 'past') return eff < today;
+                if (currentTab === 'present') return eff >= today && eff <= future3;
+                return eff > future3;
             });
-            schedules.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
+            schedules.sort((a, b) =>
+                (((a as any)._eff || a.date).localeCompare((b as any)._eff || b.date)) ||
+                (a.time || '').localeCompare(b.time || ''));
 
             if (schedules.length === 0) {
                 listArea.createEl('div', {text: '无日程。', attr: {style: 'padding: 10px; color: var(--sd-text-light)'}});
@@ -2192,26 +2642,37 @@ class SmartDashboardView extends ItemView {
             }
 
             schedules.forEach(s => {
+                const eff = (s as any)._eff as string;
+                const isRecurring = !!(s.repeat && s.repeat !== 'none');
                 const item = listArea.createDiv('sd-timeline-item');
                 const dot = item.createDiv('sd-timeline-dot');
-                
-                const isConflict = s.time && schedules.some(other => 
-                    other.id !== s.id && other.date === s.date && 
+
+                const isConflict = s.time && schedules.some(other =>
+                    other.id !== s.id && other.date === s.date &&
                     ((other.time === s.time) || (other.time && s.time && other.endTime && s.time < other.endTime && s.time > other.time))
                 );
-                
+
                 if (isConflict) {
                     dot.addClass('sd-timeline-conflict');
                     dot.title = '冲突提示：该时段存在重叠日程';
                 }
 
                 const content = item.createDiv('sd-timeline-content');
-                
+
                 const timeDisplay = s.time ? (s.endTime ? `${s.time} - ${s.endTime}` : s.time) : '全天';
-                
+
+                // ① 每条日程的天数倒计时
+                const daysLeft = moment(eff).diff(moment().startOf('day'), 'days');
+                let daysLabel = '';
+                let daysCls = '';
+                if (daysLeft < 0) { daysLabel = `已过 ${-daysLeft} 天`; daysCls = 'sd-cd-overdue'; }
+                else if (daysLeft === 0) { daysLabel = '就在今天'; daysCls = 'sd-cd-today'; }
+                else { daysLabel = `还剩 ${daysLeft} 天`; }
+
+                // 当天日程保留分钟级倒计时
                 let countdownStr = '';
                 if (currentTab === 'present') {
-                    const eventMoment = moment(`${s.date} ${s.time || '00:00'}`, 'YYYY-MM-DD HH:mm');
+                    const eventMoment = moment(`${eff} ${s.time || '00:00'}`, 'YYYY-MM-DD HH:mm');
                     const diffMins = eventMoment.diff(moment(), 'minutes');
                     if (diffMins > 0 && diffMins < 24 * 60) {
                         const h = Math.floor(diffMins / 60);
@@ -2223,12 +2684,17 @@ class SmartDashboardView extends ItemView {
                 }
 
                 const timeHeader = content.createDiv({cls: 'sd-timeline-time'});
-                timeHeader.createSpan({text: `${s.date} ${timeDisplay}`});
+                timeHeader.createSpan({text: `${eff} ${timeDisplay}`});
+                if (isRecurring) {
+                    const repLabel = ({daily: '每天', weekly: '每周', monthly: '每月', yearly: '每年'} as Record<string, string>)[s.repeat!] || '';
+                    timeHeader.createSpan({text: ` 🔁${repLabel}`, cls: 'sd-timeline-repeat', attr: {title: `原始日期 ${s.date}，每${repLabel}重复`}});
+                }
+                timeHeader.createSpan({text: ` ⏱ ${daysLabel}`, cls: `sd-timeline-countdown sd-schedule-days ${daysCls}`});
                 if (countdownStr) timeHeader.createSpan({text: countdownStr, cls: 'sd-timeline-countdown'});
                 if (isConflict) timeHeader.createSpan({text: ' ⚠️ 冲突', cls: 'sd-timeline-conflict-text'});
 
                 content.createDiv({text: s.title, cls: 'sd-timeline-title'});
-                
+
                 content.onclick = () => new ManageScheduleModal(this.app, this.plugin, s, renderList).open();
             });
         };
@@ -2570,7 +3036,7 @@ class SmartDashboardView extends ItemView {
         });
     }
 
-    renderStatsArea(container: Element) {
+    async renderStatsArea(container: Element, streakDays?: number) {
         container.createEl('h3', {text: '📈 统计分析 (全局)', cls: 'sd-section-title'});
 
         const overviewPanel = container.createDiv('sd-stats-overview');
@@ -2579,16 +3045,26 @@ class SmartDashboardView extends ItemView {
         const now = moment();
         const startOfMonth = now.clone().startOf('month');
         const startOfWeek = now.clone().subtract(now.isoWeekday() - 1, 'days').startOf('day');
+        const todayStr = now.format('YYYY-MM-DD');
         
         let monthCount = 0;
         let weekCount = 0;
+        let todayCount = 0;
         
         files.forEach(f => {
             const cache = this.app.metadataCache.getFileCache(f);
             let created = cache?.frontmatter?.created ? moment(cache.frontmatter.created) : moment(f.stat.ctime);
             if (created.isSameOrAfter(startOfMonth)) monthCount++;
             if (created.isSameOrAfter(startOfWeek)) weekCount++;
+            if (created.format('YYYY-MM-DD') === todayStr) todayCount++;
         });
+
+        // Vault Pulse 指标补全（灵感：笔记总数/未完成任务/今日新增/连续天数）
+        let openTodoCount = 0;
+        try {
+            const todos = await this.getTodos();
+            openTodoCount = todos.filter(t => !t.completed).length;
+        } catch { /* 忽略 */ }
 
         const totalBox = overviewPanel.createDiv('sd-stat-box');
         totalBox.createDiv({text: `${files.length}`, cls: 'sd-stat-value'});
@@ -2601,6 +3077,18 @@ class SmartDashboardView extends ItemView {
         const weekBox = overviewPanel.createDiv('sd-stat-box');
         weekBox.createDiv({text: `+${weekCount}`, cls: 'sd-stat-value'});
         weekBox.createDiv({text: '本周新增', cls: 'sd-stat-label'});
+
+        const todayBox = overviewPanel.createDiv('sd-stat-box');
+        todayBox.createDiv({text: `+${todayCount}`, cls: 'sd-stat-value'});
+        todayBox.createDiv({text: '今日新增', cls: 'sd-stat-label'});
+
+        const todoBox = overviewPanel.createDiv('sd-stat-box');
+        todoBox.createDiv({text: `${openTodoCount}`, cls: 'sd-stat-value'});
+        todoBox.createDiv({text: '未完成待办', cls: 'sd-stat-label'});
+
+        const streakBox = overviewPanel.createDiv('sd-stat-box');
+        streakBox.createDiv({text: `${streakDays ?? 0} 天`, cls: 'sd-stat-value'});
+        streakBox.createDiv({text: '连续活跃', cls: 'sd-stat-label'});
 
         const controls = container.createDiv('sd-chart-controls');
         
@@ -2626,6 +3114,98 @@ class SmartDashboardView extends ItemView {
         // delay chart init slightly so DOM is ready
         setTimeout(() => this.updateCharts(true), 50);
     }
+
+    // ===== D-Day 倒计时卡：统一事件源（自定义 + 节日 + 节气），只显示最近三个 =====
+    async renderCountdownArea(container: Element) {
+        container.createEl('h3', {text: '🎯 D-Day 倒计时', cls: 'sd-section-title'});
+        const rerender = () => { container.empty(); this.renderCountdownArea(container); };
+
+        const headerRow = container.createDiv({attr: {style: 'display:flex; justify-content:flex-end; gap:4px; margin-bottom:4px'}});
+        headerRow.createEl('button', {text: '📋 全部', cls: 'sd-btn secondary', attr: {style: 'font-size: 0.8em; padding: 2px 8px;', title: '管理全部自定义倒计时'}})
+            .onclick = () => new CountdownListModal(this.app, this.plugin, rerender).open();
+        headerRow.createEl('button', {text: '＋ 新事件', cls: 'sd-btn secondary', attr: {style: 'font-size: 0.8em; padding: 2px 8px;'}})
+            .onclick = () => new ManageCountdownModal(this.app, this.plugin, null, rerender).open();
+
+        const todayStr = moment().format('YYYY-MM-DD');
+        type Entry = {title: string; date: string; kind: 'custom' | 'festival' | 'term'; item?: CountdownItem};
+        const entries: Entry[] = [];
+
+        // 自定义事件（仅未来）
+        for (const c of await this.getCountdowns()) {
+            if (c.targetDate >= todayStr) entries.push({title: c.title, date: c.targetDate, kind: 'custom', item: c});
+        }
+        // 节日 / 节气（每年自动生成，含今天）
+        for (const h of upcomingHolidays(todayStr)) {
+            entries.push({title: h.name, date: h.date, kind: h.kind});
+        }
+
+        entries.sort((a, b) => a.date.localeCompare(b.date));
+        const top = entries.slice(0, 3); // ④ 卡片只显示最近的三个
+
+        if (top.length === 0) {
+            container.createDiv({text: '暂无即将到来的倒计时。',
+                attr: {style: 'padding: 10px; color: var(--text-muted); font-size: 13px;'}});
+            return;
+        }
+        const list = container.createDiv('sd-countdown-list');
+        for (const e of top) {
+            const daysLeft = moment(e.date).diff(moment().startOf('day'), 'days');
+            const stateCls = daysLeft < 0 ? 'sd-dd-past' : (daysLeft <= 7 ? 'sd-dd-soon' : '');
+            const row = list.createDiv(`sd-countdown-item ${stateCls}`);
+            if (e.kind === 'custom') {
+                row.onclick = () => new ManageCountdownModal(this.app, this.plugin, e.item!, rerender).open();
+            } else {
+                row.setAttribute('title', `${e.kind === 'term' ? '节气' : '节日'} · 每年自动生成`);
+            }
+            const info = row.createDiv('sd-countdown-info');
+            info.createDiv({text: e.title, cls: 'sd-countdown-title'});
+            info.createDiv({
+                text: moment(e.date).format('YYYY-MM-DD') +
+                    (e.kind === 'festival' ? ' · 节日' : e.kind === 'term' ? ' · 节气' : ''),
+                cls: 'sd-countdown-date'
+            });
+            const daysEl = row.createDiv('sd-countdown-days');
+            if (daysLeft === 0) {
+                daysEl.createSpan({text: '今天', cls: 'sd-countdown-num'});
+                daysEl.createSpan({text: ' 🎉', cls: 'sd-countdown-unit'});
+            } else {
+                daysEl.createSpan({text: `${Math.abs(daysLeft)}`, cls: 'sd-countdown-num'});
+                daysEl.createSpan({text: daysLeft > 0 ? ' 天' : ' 天前', cls: 'sd-countdown-unit'});
+            }
+        }
+    }
+
+    // ===== 导航入口卡片（纯色按钮竖排，五色轮换）=====
+    async renderNavArea(container: Element) {
+        container.createEl('h3', {text: '🧭 快速导航', cls: 'sd-section-title'});
+        const entries = await this.plugin.getNavEntries();
+        const grid = container.createDiv('sd-nav-grid');
+        const palette = ['#E76F51', '#2A9D8F', '#457B9D', '#E29A38', '#7c5cff'];
+        entries.forEach((e, idx) => {
+            const card = grid.createDiv('sd-nav-entry-card');
+            card.style.backgroundColor = palette[idx % palette.length];
+            card.setAttribute('title', `${e.name} · ${e.desc}\n→ ${e.path}（在设置中可修改入口路径）`);
+            card.createSpan({text: e.icon, cls: 'sd-nav-entry-icon'});
+            card.createSpan({text: e.name, cls: 'sd-nav-entry-name'});
+            card.onclick = async () => {
+                try {
+                    const target = this.app.vault.getAbstractFileByPath(e.path);
+                    if (!target) { new Notice(`入口路径不存在：${e.path}`); return; }
+                    if (target instanceof TFile) {
+                        await this.app.workspace.getLeaf(false).openFile(target);
+                    } else {
+                        // 文件夹：在左侧文件列表中定位展开
+                        const fe = (this.app as any).internalPlugins?.getPluginById?.('file-explorer');
+                        if (fe?.instance?.revealInFolder) fe.instance.revealInFolder(target);
+                        else new Notice(`文件夹：${e.path}`);
+                    }
+                } catch (err) {
+                    new Notice('打开入口失败: ' + String(err));
+                }
+            };
+        });
+    }
+
 
     private async renderUsageArea(card: HTMLElement): Promise<void> {
         try {
@@ -3209,6 +3789,113 @@ class ViewTradeModal extends Modal {
     }
 }
 
+// ===== D-Day 倒计时编辑弹窗 =====
+class ManageCountdownModal extends Modal {
+    item: CountdownItem | null;
+    plugin: SmartDashboardPlugin;
+    onSave: () => void;
+
+    constructor(app: App, plugin: SmartDashboardPlugin, item: CountdownItem | null, onSave: () => void) {
+        super(app);
+        this.plugin = plugin;
+        this.item = item;
+        this.onSave = onSave;
+    }
+
+    onOpen() {
+        const {contentEl} = this;
+        contentEl.createEl('h2', {text: this.item ? '编辑倒计时' : '新建倒计时'});
+
+        let title = this.item?.title || '';
+        let targetDate = this.item?.targetDate || moment().format('YYYY-MM-DD');
+
+        new Setting(contentEl).setName('事件名称').addText(t => {
+            t.setValue(title).onChange(v => title = v);
+            t.inputEl.style.width = '100%';
+            t.setPlaceholder('如：项目上线');
+        });
+        new Setting(contentEl).setName('目标日期').addText(t => {
+            t.inputEl.type = 'date';
+            t.setValue(targetDate).onChange(v => targetDate = v);
+        });
+
+        const btns = new Setting(contentEl);
+        btns.addButton(btn => btn.setButtonText('保存').setCta().onClick(async () => {
+            if (!title.trim() || !targetDate) { new Notice('请填写事件名称与目标日期'); return; }
+            let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
+            if (!view) return;
+            let items = await view.getCountdowns();
+            if (this.item) {
+                const idx = items.findIndex(x => x.id === this.item!.id);
+                if (idx >= 0) items[idx] = { ...this.item, title: title.trim(), targetDate };
+            } else {
+                items.push({ id: Date.now().toString(), title: title.trim(), targetDate });
+            }
+            await view.saveCountdowns(items);
+            this.close();
+            this.onSave();
+        }));
+        if (this.item) {
+            btns.addButton(btn => btn.setButtonText('删除').setWarning().onClick(async () => {
+                let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
+                if (!view) return;
+                const items = (await view.getCountdowns()).filter(x => x.id !== this.item!.id);
+                await view.saveCountdowns(items);
+                this.close();
+                this.onSave();
+            }));
+        }
+    }
+    onClose() { this.contentEl.empty(); }
+}
+
+// ===== 全部倒计时事件管理弹窗 =====
+class CountdownListModal extends Modal {
+    plugin: SmartDashboardPlugin;
+    onSave: () => void;
+
+    constructor(app: App, plugin: SmartDashboardPlugin, onSave: () => void) {
+        super(app);
+        this.plugin = plugin;
+        this.onSave = onSave;
+    }
+
+    async onOpen() {
+        await this.renderList();
+    }
+
+    private async renderList() {
+        const {contentEl} = this;
+        contentEl.empty();
+        contentEl.createEl('h2', {text: '全部倒计时事件（自定义）'});
+        let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
+        if (!view) return;
+        const items = (await view.getCountdowns()).slice().sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+        if (!items.length) {
+            contentEl.createEl('div', {text: '暂无自定义倒计时。', attr: {style: 'color: var(--text-muted); padding: 10px;'}});
+        }
+        for (const c of items) {
+            const daysLeft = moment(c.targetDate).diff(moment().startOf('day'), 'days');
+            const status = daysLeft >= 0 ? `还剩 ${daysLeft} 天` : `已过 ${-daysLeft} 天`;
+            new Setting(contentEl)
+                .setName(c.title)
+                .setDesc(`${c.targetDate} · ${status}`)
+                .addButton(b => b.setButtonText('编辑').onClick(() => {
+                    this.close();
+                    new ManageCountdownModal(this.app, this.plugin, c, this.onSave).open();
+                }))
+                .addButton(b => b.setButtonText('删除').setWarning().onClick(async () => {
+                    await view.saveCountdowns((await view.getCountdowns()).filter(x => x.id !== c.id));
+                    this.onSave();
+                    await this.renderList();
+                }));
+        }
+        contentEl.createEl('p', {text: '节日与节气为自动生成，无需在此管理。', attr: {style: 'color: var(--text-muted); font-size: 12px;'}});
+    }
+
+    onClose() { this.contentEl.empty(); }
+}
+
 const CARD_LABELS: Record<string, string> = {
     'sd-calendar-section': '日历',
     'sd-quickjot-section': '极速随笔',
@@ -3220,6 +3907,8 @@ const CARD_LABELS: Record<string, string> = {
     'sd-schedule-section': '日程管理',
     'sd-todo-section': '待办事项',
     'sd-trading-section': '交易复盘',
+    'sd-countdown-section': 'D-Day 倒计时',
+    'sd-nav-section': '导航入口',
 };
 
 class SmartDashboardSettingTab extends PluginSettingTab {
@@ -3236,6 +3925,25 @@ class SmartDashboardSettingTab extends PluginSettingTab {
         containerEl.createEl('h2', { text: 'Smart Dashboard 卡片管理' });
         containerEl.createEl('p', { text: '启用或禁用看板上的卡片。禁用后卡片将隐藏且功能暂停。' });
 
+        // ===== 主题皮肤 =====
+        containerEl.createEl('h3', { text: '主题皮肤' });
+        const currentSkin = await this.plugin.getSkin();
+        new Setting(containerEl)
+            .setName('强调色方案')
+            .setDesc('四套预设调色板（灵感：香芋紫/暗棕金/金融终端蓝黑流派），跟随明暗主题自动适配')
+            .addDropdown(dd => {
+                for (const [key, skin] of Object.entries(SD_SKINS)) {
+                    dd.addOption(key, skin.label);
+                }
+                dd.setValue(currentSkin);
+                dd.onChange(async (v) => {
+                    await this.plugin.setSkin(v);
+                    await this.plugin.refreshView();
+                });
+            });
+
+        // ===== 卡片可见性 =====
+        containerEl.createEl('h3', { text: '卡片开关' });
         const visibility = await this.plugin.getCardVisibility();
 
         for (const [id, label] of Object.entries(CARD_LABELS)) {
@@ -3250,6 +3958,30 @@ class SmartDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.refreshView();
                     })
                 );
+        }
+
+        // ===== 导航入口配置 =====
+        containerEl.createEl('h3', { text: '导航入口' });
+        containerEl.createEl('p', { text: '修改各入口卡片指向的库内路径（文件夹或 md 文件）。留空恢复默认。' });
+        const entries = await this.plugin.getNavEntries();
+        for (const entry of entries) {
+            new Setting(containerEl)
+                .setName(`${entry.icon} ${entry.name}`)
+                .setDesc(`当前：${entry.path}`)
+                .addText(text => {
+                    text.setPlaceholder(entry.path);
+                    text.inputEl.style.width = '100%';
+                    text.onChange(async (v) => {
+                        if (!v.trim() || v.trim() === entry.path) return;
+                        const all = await this.plugin.getNavEntries();
+                        const target = all.find(x => x.id === entry.id);
+                        if (target) {
+                            target.path = v.trim();
+                            await this.plugin.setNavEntries(all);
+                            new Notice(`已更新「${entry.name}」入口路径`);
+                        }
+                    });
+                });
         }
     }
 }

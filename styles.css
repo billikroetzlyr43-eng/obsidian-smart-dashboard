@@ -165,20 +165,16 @@
 
 .sd-grid {
     display: grid;
-    grid-template-columns: repeat(var(--sd-cols, 4), 1fr);
-    grid-auto-rows: var(--sd-cell, 280px);
+    /* 正方形格子：列宽与行高统一由 --sd-cell 驱动（JS 按面板宽高取较小值计算） */
+    grid-template-columns: repeat(var(--sd-cols, 6), var(--sd-cell, 200px));
+    grid-auto-rows: var(--sd-cell, 200px);
     gap: 12px;
+    justify-content: center;   /* 高度受限时整板水平居中，两侧留白对称 */
     /* 移除 grid-auto-flow: dense（显式坐标定位不需要 dense，会干扰） */
     background: color-mix(in srgb, var(--sd-warm-border) 35%, transparent);  /* gap 露出的底色形成方格线视觉，深浅主题自适应 */
     border-radius: 12px;
     padding: 12px;
     position: relative;  /* 拖拽占位 div 的定位基准 */
-}
-
-@media (max-width: 900px) {
-    .sd-grid {
-        --sd-cols: 2;
-    }
 }
 
 .sd-size-2x2 { grid-column: span 2; grid-row: span 2; }
@@ -1214,3 +1210,206 @@ body.theme-dark .sd-usage-lv4,
     color: var(--text-muted);
     white-space: nowrap;
 }
+
+/* ======================================================================
+   v4.7.0 增补：小红书看板灵感九项落地
+   ====================================================================== */
+
+/* ===== 9. 主题皮肤预设（四套调色板，覆盖 --sd-warm-accent 变量即可全局换肤）===== */
+.smart-dashboard-container.sd-skin-violet   { --sd-warm-accent: #8b6cef; --sd-warm-accent-hover: #7C4DFF; }
+.smart-dashboard-container.sd-skin-gold     { --sd-warm-accent: #c9a15e; --sd-warm-accent-hover: #d9b36c; }
+.smart-dashboard-container.sd-skin-terminal { --sd-warm-accent: #58a6ff; --sd-warm-accent-hover: #79b8ff; }
+
+/* ===== 1. Hero 欢迎区：问候语 + 实时时钟 + 连续活跃徽章 ===== */
+.sd-hero-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 4px 2px;
+}
+.sd-hero-greet {
+    font-size: 1.45em;
+    font-weight: 700;
+    color: var(--sd-text);
+}
+.sd-hero-clock {
+    font-family: var(--font-monospace, monospace);
+    font-size: 0.95em;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+.sd-hero-streak { font-size: 0.88em; font-weight: 600; }
+
+/* ===== 3. 待办优先级语义色胶囊（红=紧急 橙=重要 蓝=常规）===== */
+.sd-todo-textrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+.sd-todo-priority {
+    flex-shrink: 0;
+    font-size: 11px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 600;
+    opacity: 0.95;
+    cursor: default;
+}
+.sd-todo-priority-high { background: #e6635a; }
+.sd-todo-priority-mid  { background: #f4a261; color: #3a2415; }
+.sd-todo-priority-low  { background: #7c6ee6; }
+
+/* ===== 6. D-Day 倒计时卡 ===== */
+.sd-countdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+.sd-countdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--sd-warm-border);
+    border-radius: 8px;
+    background: var(--sd-warm-card-bg);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.sd-countdown-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+    border-color: var(--sd-warm-accent);
+}
+.sd-countdown-info { min-width: 0; }
+.sd-countdown-title {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sd-countdown-date { font-size: 11px; color: var(--text-muted); }
+.sd-countdown-days { display: flex; align-items: baseline; gap: 2px; flex-shrink: 0; }
+.sd-countdown-num { font-size: 22px; font-weight: 700; color: var(--sd-warm-accent-hover); }
+.sd-countdown-unit { font-size: 11px; color: var(--text-muted); }
+/* ≤7 天橙色预警；已过期红色降透明 */
+.sd-countdown-item.sd-dd-soon { border-color: rgba(249, 115, 22, 0.55); }
+.sd-countdown-item.sd-dd-soon .sd-countdown-num { color: #f97316; }
+.sd-countdown-item.sd-dd-past { opacity: 0.75; }
+.sd-countdown-item.sd-dd-past .sd-countdown-num { color: #ef4444; }
+
+/* ===== 8. 导航入口卡片（1×1 纯色按钮单行竖排，等分填满卡片）===== */
+.sd-nav-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+.sd-nav-entry-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 2px 10px;
+    border: none;
+    border-radius: 8px;
+    background: var(--sd-warm-accent); /* JS 按条目覆盖为纯色 */
+    color: #fff;
+    cursor: pointer;
+    flex: 1 1 0;      /* 五个按钮等分卡片高度，恰好填满不滚动 */
+    min-height: 0;
+    min-width: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.sd-nav-entry-card:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.07);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+}
+/* 负外边距把整组左移半个图标位，使文字（不含emoji）恰好居中 */
+.sd-nav-entry-icon { font-size: 15px; line-height: 1; flex-shrink: 0; margin-left: -26px; }
+.sd-nav-entry-name {
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ======================================================================
+   v4.8.0 增补：日程倒计时 / 周期日程待办 / 节日节气
+   ====================================================================== */
+
+/* ③ 日历格右上角节日/节气角标 */
+.sd-calendar-festival,
+.sd-calendar-term {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    font-size: 9px;
+    line-height: 1.3;
+    padding: 0 4px;
+    border-radius: 5px;
+    pointer-events: none;
+    max-width: 68%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sd-calendar-festival {
+    color: #c0392b;
+    background: rgba(192, 57, 43, 0.10);
+}
+.sd-calendar-term {
+    color: #457B9D;
+    background: rgba(69, 123, 157, 0.12);
+}
+body.theme-dark .sd-calendar-festival,
+.smart-dashboard-container.theme-dark .sd-calendar-festival {
+    color: #ff8a80;
+    background: rgba(255, 138, 128, 0.14);
+}
+body.theme-dark .sd-calendar-term,
+.smart-dashboard-container.theme-dark .sd-calendar-term {
+    color: #7fc4f0;
+    background: rgba(127, 196, 240, 0.14);
+}
+
+/* ① 日程列表：每条的天数倒计时徽章（⏱ 还剩 N 天）*/
+.sd-schedule-days { font-weight: 600; }
+.sd-schedule-days.sd-cd-today { color: #f97316; }
+.sd-schedule-days.sd-cd-overdue { color: #ef4444; opacity: 0.85; }
+
+/* ② 周期标记：日程列表 🔁 与 待办列表 🔁 */
+.sd-timeline-repeat {
+    font-size: 11px;
+    color: #8b6cef;
+    margin-left: 4px;
+}
+.sd-todo-repeat {
+    font-size: 11px;
+    color: #8b6cef;
+    background: rgba(139, 108, 239, 0.12);
+    padding: 1px 6px;
+    border-radius: 8px;
+}
+body.theme-dark .sd-todo-repeat,
+.smart-dashboard-container.theme-dark .sd-todo-repeat {
+    color: #b39dff;
+    background: rgba(179, 157, 255, 0.15);
+}
+
+/* 倒计时卡来源小字（· 节日 / · 节气）*/
+.sd-countdown-date { display: flex; align-items: center; gap: 2px; }
