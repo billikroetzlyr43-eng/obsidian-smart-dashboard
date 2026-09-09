@@ -116,7 +116,7 @@
 
 .sd-tab-content-container {
     flex-grow: 1;
-    padding: 20px;
+    padding: 10px;
     z-index: 1;
     position: relative;
     overflow-y: auto;
@@ -151,8 +151,8 @@
 
 .sd-header {
     border-bottom: 2px solid var(--sd-warm-border);
-    padding-bottom: 10px;
-    margin-bottom: 20px;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -168,12 +168,12 @@
     /* 正方形格子：列宽与行高统一由 --sd-cell 驱动（JS 按面板宽高取较小值计算） */
     grid-template-columns: repeat(var(--sd-cols, 6), var(--sd-cell, 200px));
     grid-auto-rows: var(--sd-cell, 200px);
-    gap: 12px;
+    gap: 8px;
     justify-content: center;   /* 高度受限时整板水平居中，两侧留白对称 */
     /* 移除 grid-auto-flow: dense（显式坐标定位不需要 dense，会干扰） */
     background: color-mix(in srgb, var(--sd-warm-border) 35%, transparent);  /* gap 露出的底色形成方格线视觉，深浅主题自适应 */
     border-radius: 12px;
-    padding: 12px;
+    padding: 8px;
     position: relative;  /* 拖拽占位 div 的定位基准 */
 }
 
@@ -1220,26 +1220,32 @@ body.theme-dark .sd-usage-lv4,
 .smart-dashboard-container.sd-skin-gold     { --sd-warm-accent: #c9a15e; --sd-warm-accent-hover: #d9b36c; }
 .smart-dashboard-container.sd-skin-terminal { --sd-warm-accent: #58a6ff; --sd-warm-accent-hover: #79b8ff; }
 
-/* ===== 1. Hero 欢迎区：问候语 + 实时时钟 + 连续活跃徽章 ===== */
+/* ===== 1. Hero 欢迎区：问候语 + 实时时钟 + 连续活跃徽章（极致紧凑：为网格让出垂直空间）===== */
 .sd-hero-row {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     flex-wrap: wrap;
-    padding: 8px 4px 2px;
+    padding: 0;
+    margin-bottom: -20px;  /* 完全抵消 .sd-tab-content 的 20px flex gap；网格自带 8px 内边距即视觉缓冲 */
+    line-height: 1;
 }
 .sd-hero-greet {
-    font-size: 1.45em;
+    font-size: 1.05em;
+    line-height: 1;
     font-weight: 700;
     color: var(--sd-text);
 }
 .sd-hero-clock {
     font-family: var(--font-monospace, monospace);
-    font-size: 0.95em;
+    font-size: 0.75em;
     color: var(--text-muted);
     letter-spacing: 0.5px;
 }
-.sd-hero-streak { font-size: 0.88em; font-weight: 600; }
+.sd-hero-streak { font-size: 0.7em; font-weight: 600; }
+.sd-hero-row .sd-badge { padding: 1px 6px; font-size: 0.72em; line-height: 1.3; white-space: nowrap; }
+/* 重置布局按钮压扁：仅收行高/最小高度（字号与内边距由 main.ts 行内样式控制，保持可点可读） */
+.sd-hero-row .sd-btn { line-height: 1; min-height: 0; }
 
 /* ===== 3. 待办优先级语义色胶囊（红=紧急 橙=重要 蓝=常规）===== */
 .sd-todo-textrow {
@@ -1413,3 +1419,160 @@ body.theme-dark .sd-todo-repeat,
 
 /* 倒计时卡来源小字（· 节日 / · 节气）*/
 .sd-countdown-date { display: flex; align-items: center; gap: 2px; }
+
+/* ======================================================================
+   体育赛事卡片（2×1）：F1/英超/德甲 接下来最近一场，紧凑列表不裁剪
+   颜色沿用 --sd-* 变量映射，深色由 .theme-dark 容器遮蔽自动适配
+   ====================================================================== */
+.sd-sports-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.sd-sports-empty {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 8px;
+}
+
+.sd-sports-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* 三行等分填满卡片高度，间隙仅 6px，上下无多余留白（对齐 .sd-nav-grid）
+   padding 收紧（3/8→3/6）、item 内部 gap 收紧（8→6），为再放大一档的左侧字体腾出横向空间，
+   保证对手行不出现省略号截断；右侧 .sd-sports-meta flex-shrink:0 宽度不受挤压影响 */
+.sd-sports-item {
+    display: flex;
+    align-items: center;
+    flex: 1 1 0;
+    min-height: 0;
+    gap: 6px;
+    padding: 3px 6px;
+    border: 1px solid var(--sd-warm-border, var(--background-modifier-border));
+    border-style: solid;
+    border-radius: 8px;
+    background: var(--sd-warm-card-bg, var(--background-secondary));
+    min-width: 0;
+}
+
+.sd-sports-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    /* 允许整体收缩（图标自身 flex-shrink:0 不受影响）：
+       挤压时优先压缩较短的联赛名，保证对手/日期等关键信息完整可见 */
+    flex-shrink: 1;
+    max-width: 38%;
+}
+
+.sd-sports-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.sd-sports-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-normal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sd-sports-opponent {
+    flex: 1;
+    min-width: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--sd-text-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sd-sports-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+}
+
+.sd-sports-date {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-normal);
+    white-space: nowrap;
+}
+
+.sd-sports-days {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sd-warm-accent-hover);
+    white-space: nowrap;
+}
+
+/* 联赛彩色边框（data-league：f1 红 / forest 绿 / bayern 蓝），左侧加粗强调 */
+.sd-sports-item[data-league="f1"]     { border-style: solid; border-color: #E63946; border-left-width: 3px; }
+.sd-sports-item[data-league="forest"] { border-style: solid; border-color: #2E9E4F; border-left-width: 3px; }
+.sd-sports-item[data-league="bayern"] { border-style: solid; border-color: #2A6FDB; border-left-width: 3px; }
+
+/* 轮次徽标（第N场大奖赛 / 第N轮）：紧凑行内标签，颜色随联赛边框 */
+.sd-sports-round {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 2px 5px;
+    margin-right: 6px;
+    border-radius: 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+    color: var(--text-muted);
+    background: rgba(127, 127, 127, 0.12);
+}
+.sd-sports-item[data-league="f1"] .sd-sports-round {
+    color: #C42B37;
+    background: rgba(230, 57, 70, 0.12);
+}
+.sd-sports-item[data-league="forest"] .sd-sports-round {
+    color: #237A3D;
+    background: rgba(46, 158, 79, 0.14);
+}
+.sd-sports-item[data-league="bayern"] .sd-sports-round {
+    color: #1D5BB8;
+    background: rgba(42, 111, 219, 0.12);
+}
+
+/* 手动固定深色（🌙）时的对比度微调 */
+body.theme-dark .sd-sports-item,
+.smart-dashboard-container.theme-dark .sd-sports-item {
+    background: rgba(255, 255, 255, 0.04);
+}
+body.theme-dark .sd-sports-days,
+.smart-dashboard-container.theme-dark .sd-sports-days {
+    color: #f0a878;
+}
+body.theme-dark .sd-sports-item[data-league="f1"] .sd-sports-round,
+.smart-dashboard-container.theme-dark .sd-sports-item[data-league="f1"] .sd-sports-round {
+    color: #FF7A85;
+}
+body.theme-dark .sd-sports-item[data-league="forest"] .sd-sports-round,
+.smart-dashboard-container.theme-dark .sd-sports-item[data-league="forest"] .sd-sports-round {
+    color: #5BC77E;
+}
+body.theme-dark .sd-sports-item[data-league="bayern"] .sd-sports-round,
+.smart-dashboard-container.theme-dark .sd-sports-item[data-league="bayern"] .sd-sports-round {
+    color: #6EA3EE;
+}
