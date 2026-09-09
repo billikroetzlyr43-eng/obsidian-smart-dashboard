@@ -16902,6 +16902,12 @@ journal:
         cache += d.opencode.cache || 0;
         reasoning += d.opencode.reasoning || 0;
       }
+      if (d.workbuddy) {
+        input += d.workbuddy.input || 0;
+        output += d.workbuddy.output || 0;
+        cache += d.workbuddy.cache || 0;
+        reasoning += d.workbuddy.reasoning || 0;
+      }
     }
     return { input, output, cache, reasoning };
   }
@@ -16910,6 +16916,7 @@ journal:
    * - hermes: cache=命中、input 含命中 → 未命中 = input - cache
    * - dsh:    cache=cacheReadTokens（不含于 inputTokens）→ 未命中 = input
    * - opencode: cache=tokens_cache_read（不含于 inputTokens）→ 未命中 = input
+   * - workbuddy: inputTokens 已含 cached_tokens，采集时已折算为未命中 → 未命中 = input
    */
   cacheStats(days, prefix) {
     let hit = 0, miss = 0;
@@ -16929,22 +16936,27 @@ journal:
         hit += d.opencode.cache || 0;
         miss += d.opencode.input || 0;
       }
+      if (d.workbuddy) {
+        hit += d.workbuddy.cache || 0;
+        miss += d.workbuddy.input || 0;
+      }
     }
     return { hit, miss };
   }
   /**
-   * 单日三源合并 token（口径统一：含 cache 与 reasoning）
-   * hermes/dsh/opencode 三源相加；reasoning 仅 opencode 有记录
+   * 单日四源合并 token（口径统一：含 cache 与 reasoning）
+   * hermes/dsh/opencode/workbuddy 四源相加；reasoning 来自 opencode/workbuddy
    */
   dailyTokens(d) {
     const h = d && d.hermes || {};
     const s = d && d.dsh || {};
     const o = d && d.opencode || {};
+    const w = d && d.workbuddy || {};
     return {
-      input: (h.input || 0) + (s.input || 0) + (o.input || 0),
-      output: (h.output || 0) + (s.output || 0) + (o.output || 0),
-      cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0),
-      reasoning: (o.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0)
+      input: (h.input || 0) + (s.input || 0) + (o.input || 0) + (w.input || 0),
+      output: (h.output || 0) + (s.output || 0) + (o.output || 0) + (w.output || 0),
+      cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0) + (w.cache || 0),
+      reasoning: (o.reasoning || 0) + (w.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0)
     };
   }
   fmtTokens(n) {
