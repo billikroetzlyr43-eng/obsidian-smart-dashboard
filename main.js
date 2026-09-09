@@ -17511,10 +17511,11 @@ journal:
       const totals = this.allTotalWithCache(days);
       const totalAll = totals.input + totals.output + totals.cache + totals.reasoning;
       sum.setText("\u672C\u5468 " + this.fmtTokens(this.sumRange(days, 7)) + " \uFF5C \u7D2F\u8BA1 " + this.fmtTokens(totalAll) + "\uFF08\u8F93\u5165" + this.fmtTokens(totals.input) + " \u8F93\u51FA" + this.fmtTokens(totals.output) + "\uFF09");
-      const cs = this.cacheStats(days, monthKey);
-      const rateStr = cs.hit + cs.miss > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + "%" : "\u2014";
+      const csToday = this.cacheStats(days, today);
+      const csAll = this.cacheStats(days, "");
+      const rate = (cs) => cs.hit + cs.miss > 0 ? (cs.hit / (cs.hit + cs.miss) * 100).toFixed(3) + "%" : "\u2014";
       const rateLine = bottomRow.createDiv({ cls: "sd-usage-cache-rate" });
-      rateLine.setText("\u7F13\u5B58\u547D\u4E2D " + rateStr);
+      rateLine.setText("\u547D\u4E2D(\u4ECA\u65E5) " + rate(csToday) + " \uFF5C \u7D2F\u8BA1 " + rate(csAll));
     } catch (e) {
       body.createDiv().setText("\u5361\u7247\u6E32\u67D3\u5931\u8D25: " + String(e));
     }
@@ -17554,6 +17555,12 @@ journal:
         cache += d.codebuddy.cache || 0;
         reasoning += d.codebuddy.reasoning || 0;
       }
+      if (d.codex) {
+        input += d.codex.input || 0;
+        output += d.codex.output || 0;
+        cache += d.codex.cache || 0;
+        reasoning += d.codex.reasoning || 0;
+      }
     }
     return { input, output, cache, reasoning };
   }
@@ -17564,6 +17571,8 @@ journal:
    * - opencode: cache=tokens_cache_read（不含于 inputTokens）→ 未命中 = input
    * - workbuddy: inputTokens 已含 cached_tokens，采集时已折算为未命中 → 未命中 = input
    * - codebuddy: 同 workbuddy，inputTokens 已含 cached_tokens，采集时已折算为未命中 → 未命中 = input
+   * - codex: 同 workbuddy/codebuddy，input_tokens 已含 cached_input_tokens，采集时已折算为未命中 → 未命中 = input
+   * - prefix='' 表示全历史累计（空串在过滤判断中 falsy，天然放行所有日期）
    */
   cacheStats(days, prefix) {
     let hit = 0, miss = 0;
@@ -17591,12 +17600,16 @@ journal:
         hit += d.codebuddy.cache || 0;
         miss += d.codebuddy.input || 0;
       }
+      if (d.codex) {
+        hit += d.codex.cache || 0;
+        miss += d.codex.input || 0;
+      }
     }
     return { hit, miss };
   }
   /**
-   * 单日五源合并 token（口径统一：含 cache 与 reasoning）
-   * hermes/dsh/opencode/workbuddy/codebuddy 五源相加；reasoning 来自 opencode/workbuddy/codebuddy
+   * 单日六源合并 token（口径统一：含 cache 与 reasoning）
+   * hermes/dsh/opencode/workbuddy/codebuddy/codex 六源相加；reasoning 来自 opencode/workbuddy/codebuddy/codex
    */
   dailyTokens(d) {
     const h = d && d.hermes || {};
@@ -17604,11 +17617,12 @@ journal:
     const o = d && d.opencode || {};
     const w = d && d.workbuddy || {};
     const c = d && d.codebuddy || {};
+    const _ = d && d.codex || {};
     return {
-      input: (h.input || 0) + (s.input || 0) + (o.input || 0) + (w.input || 0) + (c.input || 0),
-      output: (h.output || 0) + (s.output || 0) + (o.output || 0) + (w.output || 0) + (c.output || 0),
-      cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0) + (w.cache || 0) + (c.cache || 0),
-      reasoning: (o.reasoning || 0) + (w.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0) + (c.reasoning || 0)
+      input: (h.input || 0) + (s.input || 0) + (o.input || 0) + (w.input || 0) + (c.input || 0) + (_.input || 0),
+      output: (h.output || 0) + (s.output || 0) + (o.output || 0) + (w.output || 0) + (c.output || 0) + (_.output || 0),
+      cache: (h.cache || 0) + (s.cache || 0) + (o.cache || 0) + (w.cache || 0) + (c.cache || 0) + (_.cache || 0),
+      reasoning: (o.reasoning || 0) + (w.reasoning || 0) + (s.reasoning || 0) + (h.reasoning || 0) + (c.reasoning || 0) + (_.reasoning || 0)
     };
   }
   fmtTokens(n) {
