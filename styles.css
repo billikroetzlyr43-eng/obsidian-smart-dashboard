@@ -1,0 +1,920 @@
+/* styles.css */
+:root {
+    --sd-warm-bg: #FFFDF7;
+    --sd-warm-card-bg: #FFFFFF;
+    --sd-warm-border: #E6C280;
+    --sd-warm-accent: #F4A261;
+    --sd-warm-accent-hover: #E76F51;
+        --sd-text: #5D4037;
+    --sd-text-light: #8D6E63;
+}
+
+.theme-dark {
+    --sd-warm-bg: #1A1A1A;
+    --sd-warm-card-bg: #2D2D2D;
+    --sd-warm-border: #444444;
+    --sd-warm-accent: #E76F51;
+    --sd-warm-accent-hover: #F4A261;
+    --sd-text: #E0E0E0;
+    --sd-text-light: #9E9E9E;
+}
+
+.smart-dashboard-container {
+    padding: 0;
+    font-family: var(--font-text);
+    color: var(--sd-text);
+    background-color: var(--sd-warm-bg) !important;
+    min-height: 100%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.smart-dashboard-container::before {
+    content: '';
+    position: absolute;
+    top: -20%; left: -10%;
+    width: 60%; height: 60%;
+    background: radial-gradient(circle, rgba(244, 162, 97, 0.15) 0%, transparent 60%);
+    border-radius: 50%;
+    z-index: 0;
+}
+.smart-dashboard-container::after {
+    content: '';
+    position: absolute;
+    bottom: -20%; right: -10%;
+    width: 50%; height: 50%;
+    background: radial-gradient(circle, rgba(231, 111, 81, 0.15) 0%, transparent 60%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+.sd-nav-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(255, 253, 247, 0.97);
+    border-bottom: 1px solid rgba(230, 194, 128, 0.3);
+}
+
+.theme-dark .sd-nav-bar {
+    background: rgba(26, 26, 26, 0.97);
+    border-bottom: 1px solid rgba(68, 68, 68, 0.3);
+}
+
+.sd-nav-tabs-container {
+    display: flex;
+    gap: 5px;
+}
+
+.sd-nav-tab {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--sd-text-light);
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.sd-nav-tab:hover {
+    color: var(--sd-text);
+    background: rgba(244, 162, 97, 0.1);
+}
+
+.sd-nav-tab.active {
+    color: var(--sd-warm-accent-hover);
+    background: transparent;
+}
+
+.sd-nav-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    width: 60%;
+    height: 3px;
+    background: var(--sd-warm-accent-hover);
+    border-radius: 3px 3px 0 0;
+}
+
+.sd-tab-content-container {
+    flex-grow: 1;
+    padding: 20px;
+    z-index: 1;
+    position: relative;
+    overflow-y: auto;
+}
+
+.sd-tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.fade-in {
+    animation: fadeInSlide 0.3s ease-out forwards;
+}
+
+@keyframes fadeInSlide {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.sd-calendar-tab-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 800px) {
+    .sd-calendar-tab-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sd-header {
+    border-bottom: 2px solid var(--sd-warm-border);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sd-header h1 {
+    color: var(--sd-warm-accent-hover);
+    margin: 0;
+}
+
+.sd-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--sd-cols, 4), 1fr);
+    grid-auto-rows: var(--sd-cell, 280px);
+    gap: 12px;
+    /* 移除 grid-auto-flow: dense（显式坐标定位不需要 dense，会干扰） */
+    background: rgba(0, 0, 0, 0.03);  /* gap 露出的底色形成方格线视觉 */
+    border-radius: 12px;
+    padding: 12px;
+    position: relative;  /* 拖拽占位 div 的定位基准 */
+}
+
+@media (max-width: 900px) {
+    .sd-grid {
+        --sd-cols: 2;
+    }
+}
+
+.sd-size-2x2 { grid-column: span 2; grid-row: span 2; }
+.sd-size-2x1 { grid-column: span 2; grid-row: span 1; }
+.sd-size-1x2 { grid-column: span 1; grid-row: span 2; }
+.sd-size-1x1 { grid-column: span 1; grid-row: span 1; }
+
+.sd-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(255, 253, 247, 0.99));
+    border: 1px solid rgba(230, 194, 128, 0.3);
+    border-radius: 12px;
+    padding: 0;                    /* padding 移入 .sd-card-body 内部 */
+    box-shadow: 0 4px 12px rgba(230, 194, 128, 0.1);
+    transition: box-shadow 0.3s ease, grid-row 0.25s ease, grid-column 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    /* 等比缩放：.sd-card 仅作定位容器，内容由 .sd-card-body 按设计尺寸渲染并整体 scale */
+}
+
+.theme-dark .sd-card {
+    background: linear-gradient(135deg, rgba(45, 45, 45, 0.97), rgba(26, 26, 26, 0.99));
+    border: 1px solid rgba(68, 68, 68, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 等比缩放内容容器：按设计尺寸（--sd-scale）整体缩放，无滚动、无变形 */
+.sd-card-body {
+    position: absolute;
+    top: 0; left: 0;
+    transform-origin: top left;
+    transform: scale(var(--sd-scale, 1));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.sd-card:hover {
+    box-shadow: 0 12px 40px rgba(230, 194, 128, 0.25);
+}
+
+.theme-dark .sd-card:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.sd-card.sd-dragging {
+    opacity: 0.6;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+    cursor: grabbing;
+}
+.sd-card.sd-dragging:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.sd-drop-target {
+    position: absolute;
+    border: 2px dashed var(--interactive-accent, #7c6cd4);
+    border-radius: 12px;
+    background: rgba(124, 108, 212, 0.08);
+    pointer-events: none;
+    z-index: 40;
+    transition: left 0.15s, top 0.15s;
+}
+
+.sd-card-full {
+    grid-column: 1 / -1;
+}
+
+.sd-section-title {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--sd-warm-accent-hover);
+    border-bottom: 1px dashed var(--sd-warm-border);
+    padding-bottom: 8px;
+}
+
+.sd-search-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.sd-search-controls select, .sd-search-controls input {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--sd-warm-border);
+    background: var(--sd-warm-bg);
+    color: var(--sd-text);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sd-create-area {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.sd-create-area button {
+    width: 100%;
+}
+
+.sd-btn {
+    padding: 10px 20px;
+    background-color: var(--sd-warm-accent);
+    color: #FFF;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(244, 162, 97, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.sd-btn:hover {
+    background-color: var(--sd-warm-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(231, 111, 81, 0.4);
+}
+
+.sd-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+}
+
+.sd-btn:active::after {
+    width: 200px; height: 200px;
+    opacity: 1;
+    transition: width 0.3s ease-out, height 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.sd-btn.secondary {
+    background-color: transparent;
+    color: var(--sd-warm-accent);
+    border: 1px solid var(--sd-warm-accent);
+    box-shadow: none;
+}
+.sd-btn.secondary:hover {
+    background-color: var(--sd-warm-bg);
+    color: var(--sd-warm-accent-hover);
+}
+.sd-btn.active {
+    background-color: var(--sd-warm-accent-hover);
+    color: white;
+}
+
+.sd-schedule-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.sd-schedule-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+
+.sd-schedule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--sd-warm-border);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.sd-schedule-item:hover {
+    background-color: var(--sd-warm-bg);
+}
+
+.sd-schedule-item:last-child {
+    border-bottom: none;
+}
+
+.sd-schedule-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sd-schedule-time {
+    font-size: 0.85em;
+    color: var(--sd-text-light);
+}
+.sd-schedule-title {
+    font-weight: 500;
+}
+
+.sd-chart-controls {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    justify-content: center;
+}
+/* 问题3：统计卡上半部分整体压缩，给图表留空间 */
+#sd-stats-section .sd-section-title { margin-bottom: 6px; }
+.sd-chart-controls .sd-btn { padding: 2px 6px; }
+
+.sd-charts-wrapper {
+    display: flex;
+    gap: 20px;
+    flex: 1;             /* 问题3：自适应占满 body 剩余高度，不再固定 280px */
+    min-height: 0;
+    height: auto;
+}
+
+.sd-chart-box {
+    flex: 1;
+    min-width: 0;        /* 允许 flex 按比例收缩分配，不被 canvas 内容宽撑住 */
+    min-height: 0;
+    position: relative;
+}
+/* 改动2：统计卡图表比例 5:5 → 4.5:5.5（饼图容器更宽，饼本体更大） */
+#sd-stats-section .sd-charts-wrapper .sd-chart-box:nth-child(1) { flex: 4.5; }
+#sd-stats-section .sd-charts-wrapper .sd-chart-box:nth-child(2) { flex: 5.5; }
+
+.sd-search-results {
+    margin-top: 15px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.sd-search-result-item {
+    padding: 12px;
+    border: 1px solid var(--sd-warm-border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background: var(--sd-warm-card-bg);
+    transition: background 0.2s;
+}
+.sd-search-result-item:hover {
+    background: var(--sd-warm-bg);
+}
+
+.sd-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    color: white;
+}
+.sd-badge-danger { background-color: #E76F51; }
+.sd-badge-warning { background-color: #F4A261; }
+.sd-badge-success { background-color: #2A9D8F; }
+
+.sd-todo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--sd-warm-border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: var(--sd-warm-card-bg);
+    cursor: grab;
+    transition: transform 0.1s;
+}
+.sd-todo-item:active { cursor: grabbing; }
+.sd-todo-item.dragging { opacity: 0.5; }
+.sd-todo-item.completed .sd-todo-text {
+    text-decoration: line-through;
+    color: var(--sd-text-light);
+}
+.sd-todo-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+.sd-todo-text { flex-grow: 1; font-weight: 500; }
+.sd-todo-time { font-size: 0.85em; color: var(--sd-text-light); }
+.sd-todo-drag-handle { color: var(--sd-warm-border); cursor: grab; padding: 0 5px; }
+
+.sd-calendar-header { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-bottom: 6px; }
+.sd-calendar-controls { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 5px; }
+/* 问题1：日历卡片内边距压缩，月历 6 行完整显示在 2×2 卡内（无裁切、无内部滚动） */
+#sd-calendar-section .sd-section-title { margin-bottom: 6px; }
+#sd-calendar-section .sd-calendar-controls { gap: 4px; }
+.sd-calendar-grid-wrapper { overflow-x: auto; overflow-y: auto; width: 100%; flex: 1; min-height: 0; }
+.sd-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto; grid-auto-rows: 1fr; gap: 0; text-align: center; border-top: 1px solid var(--sd-warm-border); border-left: 1px solid var(--sd-warm-border); min-width: 100%; }
+.sd-calendar-grid.week-mode { grid-template-columns: repeat(7, minmax(140px, 1fr)); grid-template-rows: auto 1fr; grid-auto-rows: 1fr; min-width: 980px; height: 100%; } /* 问题2：日期格行高自适应填满，底部无空白；min-width 980px 与横向滚动不变 */
+.sd-calendar-grid.week-mode .sd-calendar-day { height: auto; min-height: 0; }
+.sd-calendar-day-name { font-weight: bold; color: var(--sd-text-light); padding: 5px 0; border-right: 1px solid var(--sd-warm-border); border-bottom: 1px solid var(--sd-warm-border); }
+.sd-calendar-day { 
+    height: 72px; 
+    border-bottom: 1px solid var(--sd-warm-border); 
+    border-right: 1px solid var(--sd-warm-border);
+    padding: 4px; 
+    cursor: pointer; 
+    transition: all 0.2s; 
+    display: flex; 
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow: hidden;
+    position: relative;
+}
+.sd-calendar-day:hover { background-color: var(--sd-warm-bg); }
+.sd-calendar-day.other-month { color: #ccc; border-color: #eee; }
+.sd-calendar-day.today { background-color: rgba(244, 162, 97, 0.1); border-color: var(--sd-warm-accent); font-weight: bold; }
+.sd-calendar-emoji { 
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.1em; 
+}
+.sd-mood-stats { display: flex; gap: 8px; margin-top: 6px; justify-content: center; flex-wrap: wrap; } /* 问题1：图例上下 margin 压缩 */
+.sd-mood-stat-item { background: var(--sd-warm-bg); padding: 4px 8px; border-radius: 12px; border: 1px solid var(--sd-warm-border); font-size: 0.85em; white-space: nowrap; }
+.fade-out-complete {
+    animation: fadeOutComplete 0.4s ease-in forwards;
+}
+
+@keyframes fadeOutComplete {
+    0% { opacity: 1; transform: scale(1) translateX(0); }
+    50% { opacity: 0.5; transform: scale(0.98) translateX(10px); }
+    100% { opacity: 0; transform: scale(0.95) translateX(20px); text-decoration: line-through; }
+}
+
+.sd-todo-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-grow: 1;
+}
+
+.sd-todo-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.85em;
+    flex-wrap: wrap;
+}
+
+.sd-todo-deadline {
+    color: var(--sd-text-light);
+    font-weight: 500;
+}
+
+.deadline-warning {
+    color: #F4A261;
+}
+
+.deadline-overdue {
+    color: #E76F51;
+    font-weight: bold;
+}
+
+.sd-todo-subtask-toggle {
+    color: var(--sd-warm-accent);
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.sd-todo-subtask-toggle:hover {
+    color: var(--sd-warm-accent-hover);
+}
+
+.sd-todo-subtasks {
+    margin-top: 5px;
+    padding-left: 10px;
+    border-left: 2px solid rgba(230, 194, 128, 0.4);
+    font-size: 0.9em;
+}
+
+.sd-todo-subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.sd-todo-subtask-item span.completed {
+    text-decoration: line-through;
+    color: var(--sd-text-light);
+}
+
+.sd-subtasks-manage input[type="text"] {
+    background: transparent;
+    border: 1px solid var(--sd-warm-border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--sd-text);
+}
+.sd-calendar-indicators {
+    position: absolute;
+    bottom: 6px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+}
+
+.sd-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.schedule-dot { background-color: #2A9D8F; }
+.todo-dot { background-color: #E76F51; }
+.note-dot { background-color: #F4A261; }
+
+.sd-calendar-day {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    height: 72px;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: visible; /* to allow schedules to span */
+}
+
+.sd-todo-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+.sd-schedule-list {
+    position: relative;
+    padding-left: 20px;
+}
+
+.sd-schedule-list::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 24px;
+    width: 2px;
+    background: rgba(230, 194, 128, 0.3);
+}
+
+.sd-timeline-item {
+    position: relative;
+    padding-left: 30px;
+    padding-bottom: 20px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.sd-timeline-item:hover {
+    transform: translateX(5px);
+}
+
+.sd-timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    background: var(--sd-warm-accent);
+    border-radius: 50%;
+    border: 2px solid var(--sd-warm-card-bg);
+    box-shadow: 0 0 0 2px rgba(244, 162, 97, 0.3);
+    z-index: 1;
+}
+
+.sd-timeline-conflict {
+    background: #E76F51;
+    box-shadow: 0 0 0 2px rgba(231, 111, 81, 0.5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(231, 111, 81, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(231, 111, 81, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(231, 111, 81, 0); }
+}
+
+.sd-timeline-content {
+    background: rgba(255, 253, 247, 0.5);
+    border: 1px solid rgba(230, 194, 128, 0.2);
+    padding: 10px 15px;
+    border-radius: 8px;
+}
+
+.theme-dark .sd-timeline-content {
+    background: rgba(45, 45, 45, 0.5);
+    border: 1px solid rgba(68, 68, 68, 0.2);
+}
+
+.sd-timeline-time {
+    font-size: 0.85em;
+    color: var(--sd-text-light);
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.sd-timeline-countdown {
+    color: var(--sd-warm-accent);
+    font-weight: bold;
+}
+
+.sd-timeline-conflict-text {
+    color: #E76F51;
+    font-weight: bold;
+}
+
+.sd-timeline-title {
+    font-size: 1.05em;
+    color: var(--sd-text);
+}
+
+.sd-floating-nav {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+}
+.sd-floating-nav-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sd-warm-card-bg);
+    border: 1px solid var(--sd-warm-border);
+    color: var(--sd-warm-accent);
+    box-shadow: 0 4px 12px rgba(230, 194, 128, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s;
+    font-size: 18px;
+}
+.sd-floating-nav-btn:hover {
+    background: var(--sd-warm-accent);
+    color: white;
+    transform: scale(1.1);
+}
+
+.sd-schedule-bar-container {
+    width: 100%;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 5;
+}
+.sd-schedule-bar {
+    height: 18px;
+    font-size: 10px;
+    border-radius: 4px;
+    color: white;
+    padding: 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 18px;
+    text-align: left;
+    cursor: pointer;
+}
+.sd-schedule-bar.continue-right {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    position: relative;
+    z-index: 6;
+}
+.sd-schedule-bar.continue-left {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    color: transparent;
+}
+
+.sd-stats-overview {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px;          /* 问题3：统计数字行 padding 减半 */
+    background: rgba(244, 162, 97, 0.1);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+.sd-stat-box {
+    text-align: center;
+}
+.sd-stat-value {
+    font-size: 22px;       /* 问题3：字号降至约 0.95em */
+    font-weight: bold;
+    color: var(--sd-warm-accent-hover);
+}
+.sd-stat-label {
+    font-size: 11px;
+    color: var(--sd-text-light);
+}
+
+/* 交易复盘卡片样式 */
+/* 改动3：顶部 4 数据块单行横排（nowrap）+ 大幅压缩（总高约 45px），选择器限定 #sd-trading-section 作用域避免影响统计卡 */
+#sd-trading-section .sd-trading-stats-grid {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+#sd-trading-section .sd-trading-stat-box {
+    flex: 1;
+    min-width: 0;
+    background: var(--background-secondary);
+    padding: 4px 6px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+#sd-trading-section .sd-trading-stat-box .label {
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+#sd-trading-section .sd-trading-stat-box .value {
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: bold;
+    margin-top: 2px;
+    color: var(--text-normal);
+}
+#sd-trading-section .sd-trading-winbar-container {
+    width: 100%;
+    background: #43a047;
+    height: 4px;
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+    display: flex;
+}
+.sd-trading-winbar-fill {
+    background: #e53935;
+    height: 100%;
+    transition: width 0.5s ease;
+}
+.sd-trading-tables-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+.sd-trading-col {
+    flex: 1 1 300px;
+}
+.sd-trading-col-wide {
+    flex: 2 1 500px;
+}
+.sd-trading-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.sd-trading-table th, .sd-trading-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    text-align: left;
+}
+.sd-trading-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    position: sticky;
+    top: 0;
+    background-color: var(--background-secondary);
+    z-index: 1;
+}
+.sd-trading-link a {
+    text-decoration: none;
+    color: var(--text-accent);
+    cursor: pointer;
+}
+.sd-trading-link a:hover {
+    text-decoration: underline;
+}
+
+.sd-table-scroll-container {
+    max-height: none;      /* 问题5：2×2 卡内表格完整显示，由 .sd-trading-tables-wrapper 兜底滚动 */
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+}
+
+
+/* Token 用量日历 */
+.sd-usage-stats { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.sd-usage-heatmap { margin-bottom: 6px; }
+.sd-usage-grid { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
+.sd-usage-monthrow { display: flex; gap: 3px; padding-left: 18px; }
+.sd-usage-month { width: 12px; font-size: 9px; color: var(--text-muted); text-align: center; overflow: hidden; }
+.sd-usage-row { display: flex; gap: 3px; align-items: center; }
+.sd-usage-weeklabel { width: 14px; font-size: 9px; color: var(--text-muted); text-align: center; }
+.sd-usage-cell { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.sd-usage-lv0 { background: #ebedf0; }
+.sd-usage-lv1 { background: #9be9a8; }
+.sd-usage-lv2 { background: #40c463; }
+.sd-usage-lv3 { background: #30a14e; }
+.sd-usage-lv4 { background: #216e39; }
+.sd-usage-today { outline: 2px solid var(--text-accent); }
+.sd-usage-summary { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.sd-usage-cache-rate { font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 2px; }
+
+/* Token 用量卡片 v2 */
+.sd-usage-total { display: flex; flex-direction: column; align-items: center; padding: 10px 0 6px; }
+.sd-usage-total-label { font-size: 11px; color: var(--text-muted); }
+.sd-usage-total-value { font-size: 28px; font-weight: 700; color: var(--text-accent); line-height: 1.2; }
+.sd-usage-total-sub { font-size: 11px; color: var(--text-muted); }
+.sd-usage-seg { display: flex; gap: 4px; margin: 6px 0; }
+.sd-usage-seg .sd-btn { padding: 2px 10px; font-size: 12px; }
+.sd-usage-seg .sd-btn.active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.sd-usage-monthrow { display: flex; gap: 3px; flex-wrap: wrap; }
+.sd-usage-yeargrid { display: flex; flex-wrap: wrap; gap: 2px; width: 100%; } /* 改动1：按天顺序直排，自动换行铺满卡片宽度（不再 53×7 按周分列） */
+.sd-usage-yearcell { width: 8px; height: 7px; border-radius: 1px; flex-shrink: 0; } /* 改动1：固定 8×7px 格子 */
+.sd-usage-yearlabel { font-size: 9px; color: var(--text-muted); }
+.sd-usage-yearval { font-size: 8px; font-weight: 600; color: var(--text-normal); }
+.sd-usage-caption { font-size: 10px; color: var(--text-faint); margin-top: 2px; } /* 问题4：caption margin 压缩 */
+/* Token 用量卡片 v3 */
+.sd-usage-flow { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* 磁贴化：Token 用量内容区在 body 内 flex column 排布，溢出裁切（不滚动，靠 scale 适配） */
+.sd-usage-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
