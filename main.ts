@@ -3297,11 +3297,6 @@ class SmartDashboardView extends ItemView {
     }
 
 
-    private getPythonScriptPath(name: string): string {
-        const path = require('path');
-        return path.join(this.plugin.manifest.dir, name);
-    }
-
     private async renderUsageArea(card: HTMLElement): Promise<void> {
         try {
           // 标题 + 刷新（固定，不随数据刷新重建）
@@ -3320,8 +3315,8 @@ class SmartDashboardView extends ItemView {
             try {
               const { exec } = require('child_process');
               await new Promise<void>((resolve, reject) => {
-                exec(`python "${this.getPythonScriptPath('collect_usage.py')}" --quiet`,
-                  (error: any) => { if (error) reject(error); else resolve(); });
+                exec('python "__PLUGIN_DIR__/collect_usage.py" --quiet',
+                                  (error: any) => { if (error) reject(error); else resolve(); });
               });
             } catch (e) {
               console.error('Usage collect error:', e);
@@ -3703,8 +3698,8 @@ class SmartDashboardView extends ItemView {
             try {
               const { exec } = require('child_process');
               await new Promise<void>((resolve, reject) => {
-                exec(`python "${this.getPythonScriptPath('collect_subscriptions.py')}" collect`,
-                  (error: any) => { if (error) reject(error); else resolve(); });
+                exec('python "__PLUGIN_DIR__/collect_subscriptions.py" collect',
+                                  (error: any) => { if (error) reject(error); else resolve(); });
               });
             } catch (e) {
               console.error('Subscription collect error:', e);
@@ -3724,8 +3719,8 @@ class SmartDashboardView extends ItemView {
       }
 
       private async saveSubscriptionCredential(providerId: string, credential: string): Promise<void> {
-        // 调用 Python 脚本保存凭证（加密存储 + 合并，而非明文覆盖）
-        const scriptPath = this.getPythonScriptPath('collect_subscriptions.py');
+              // 调用 Python 脚本保存凭证（加密存储 + 合并，而非明文覆盖）
+              const scriptPath = '__PLUGIN_DIR__/collect_subscriptions.py';
         
         try {
           // 凭证键名：SCNet 用 token（登录态 cookie），其余按 authType 映射
@@ -3897,8 +3892,8 @@ class SmartDashboardView extends ItemView {
       }
 
       private async deleteSubscription(providerId: string): Promise<void> {
-        // 调用 Python 脚本删除 provider（同时清理 config 与 data，与「添加」链路对称）
-        const scriptPath = this.getPythonScriptPath('collect_subscriptions.py');
+              // 调用 Python 脚本删除 provider（同时清理 config 与 data，与「添加」链路对称）
+              const scriptPath = '__PLUGIN_DIR__/collect_subscriptions.py';
 
         try {
           const { exec } = require('child_process');

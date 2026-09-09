@@ -1,6 +1,6 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.9：脚本路径去硬编码（运行时定位）
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.9（回滚态 + git 历史隐私清洗）
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.9** 共 14 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.9** 共 14 个版本的连续变更（多会话完成）+ **v4.9.9 回滚与 git 历史隐私清洗**。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
-| **v4.9.9** | 脚本路径去硬编码（运行时定位） | main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处调用 Python 脚本的 `<workspace>/...` 硬编码路径改为运行时从插件目录拼接；esbuild.config.mjs 构建链自动拷贝 `collect_usage.py`/`collect_subscriptions.py` 到 vault 插件目录 + external 加 `"path"`；HANDOFF.md:235 用户名路径 `C:/Users/<user>` 泛化为「用户主目录」；版本升 4.9.9 | 🔧 重构 |
+| **v4.9.9** | 脚本路径去硬编码（运行时定位）→ **已回滚** ↩️ | 原：main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处 `<workspace>/...` 硬编码改运行时拼接；esbuild 拷 .py 到 vault + external `"path"`；HANDOFF:235 用户名泛化。**回滚**：真实运行中该方案致 Token/订阅卡统计不到（根因=插件目录 .py 是旧版读不出当日数据），恢复硬编码风格脚本调用；**commit 版用 `__PLUGIN_DIR__` 占位**（隐藏真实路径，符合隐私铁律），vault 本地保真实路径。git 历史已 filter-repo 隐私清洗 | ↩️ 回滚 |
 | **v4.9.8** | 移除右侧悬浮导航按钮栏 | `onOpen` 删除 `sd-floating-nav` 渲染整块（8 个圆形浮导按钮：🔍/📈/📅/✅/➕/💹/🎯/🧭 各 scrollIntoView 定位卡片）；styles.css 删除 `.sd-floating-nav` / `.sd-floating-nav-btn` / `:hover` 三组样式；不影响卡片 w/h 占格与坐标，不触碰 data.json | 🗑️ 删除 |
 | **v4.9.7** | Token 用量卡新增「累计缓存命中率」 | 卡片底部命中率从单指标（原为**本月**口径）改为**当天 + 全历史累计**两指标并存：`cacheStats` 复用现函数零新增，取 `today`（当天）与 `''`（全历史，空串前缀天然放行）两次调用；文案改 `命中(今日) X% ｜ 累计 Y%`，同一行不新增行、占格 2×1 不动；数据源于 `usage_daily.json` 已有 `input/cache` 逐日字段，`collect_usage.py` 无需改动 | ✨ 新增 |
 | **v4.9.6** | 体育卡 `(+N)` 时间解析双修复 | ① `(+1)` 周期时间去掉后缀后尾部残留空格未 trim → moment 判 Invalid → 拜仁整条联赛不显示，修复=加 `.trim()`+`/\s+/`；② 更正 `(+N)` 语义：`datetime` 存的是**北京时间最终值**，`(+1)` 仅"跨天"说明标记，原 `parseDt` 误将 `(+N)` 当作"再加 N 天"导致所有带 `(+N)` 的比赛**多显示一天**（拜仁14/森林5/F1 5场），修复=删除 `plusDay`/`d.add`，直接 `return d` | 🐛 修复 |
@@ -338,12 +338,27 @@ flowchart TD
   - ❓ 农历节日是否立项；体育卡是否挂自动刷新定时器 [待确认]
 
 ---
+## 🔐 git 历史隐私清洗（filter-repo + force-push，2026-09-09 完成）
+
+**背景**：v4.9.9 路径改造后用户质疑「git push 是否做安全隐私审查」。cbc 首轮只读审计发现**公开仓库**全历史存在大面积路径泄露（Windows 用户名 `C:/Users/<user>`、本机工作区/数据盘路径 `<workspace>`/`<hermes_dir>`/`<vault>`）；凭据类 **0 命中**（敏感配置从未入库）。另发现 `.git/config` 远端 URL 内嵌访问 token 片段。
+
+**执行**（用户批准「历史清洗 + force-push + token 处理」）：
+1. 完整备份 `.git` ×2（初始态 + pre-filterrepo）到 `<hermes_dir>/backup/`，工作区回滚态另存。
+2. `git filter-repo` 单次组合：**剔除**备份/内部文档（`collect_usage.py.bak_*`、`main.ts.bak_*`、规划 plan 文档、`deliverables/` 调查文档）；**字段替换**将上述敏感串泛化为 `C:/Users/<user>`、`__PLUGIN_DIR__`、`<workspace>`、`<hermes_dir>`、`<vault>`。
+3. 验证：重写后全历史无真实用户名/本机路径/被剔除文件，32 commits 保持。
+4. force-push：git 协议 443 无梯不通 → REST API 逐 blob/tree/commit 重建对象 + `PATCH ref main(force)`→ 远端 main `12814e02`（tree 与本地一致），远端 3 关键文件抽查 0 泄露。
+5. origin remote 重建为**干净 URL**（无内嵌 token），本地 HEAD 对齐远端。
+6. **token rotate 待办**：建议到 GitHub 后台作废旧内嵌 token 并改用 credential manager。
+
+**遗留状态**：vault 插件目录 = 回滚态（真实路径脚本调用，Obsidian 在用、Token 卡恢复）；git commit 版 = 同回滚语义但用 `__PLUGIN_DIR__` 占位（隐藏真实路径）；两者功能一致。本机脚本仍依赖本机路径（欠修复：脚本内应改 `expanduser` 获取主目录，属后续正常 commit）。
+
+---
 > 🔗 关联工作流：[[10_项目交接与上下文维持工作流]]
 
 ---
 
 ## 附录：历史版本摘要
-- **v4.9.9**：脚本路径去硬编码（main.ts `getPythonScriptPath` helper + esbuild 拷贝 2 个 .py + external `"path"`；HANDOFF.md:235 用户名路径泛化；版本 4.9.9；cbc 三轮委派；commit 5812e37 / 远程 ff0abbf）
+- **v4.9.9**：（原）脚本路径去硬编码（getPythonScriptPath + esbuild copy .py + external "path"；commit 5812e37）→ **已回滚**：真实运行致 Token/订阅卡统计不到（根因=插件目录 .py 旧版），commit 版恢复硬编码语义但用 `__PLUGIN_DIR__` 占位；git 历史已 filter-repo 清洗 + force-push（远端 12814e02）
 - **v4.9.8**：移除右侧悬浮导航按钮栏（`onOpen` 删除 `sd-floating-nav` 整块 + styles.css 删三组浮导样式；仅 UI 元素，卡片 w/h/坐标/data.json 不动；vault main.js grep 零残留）
 - **v4.9.7**：Token 用量卡底部命中率由单指标改为**当天 + 全历史累计**两指标并存（`cacheStats(days, today)` + `cacheStats(days, '')`，零新增函数；文案 `命中(今日) X% ｜ 累计 Y%`；占格 2×1 与行数不变；CDP 实测无裁剪）
 - **v4.9.6**：修复体育卡 `(+N)` 时间解析——`parseDt` 去掉 `(+N)` 后残留尾随空格未 trim 使 moment 判 Invalid、导致拜仁（全部场次带 `(+1)`）整条不显示；修复=先 `.trim()` 再 `.replace(/\s+/,'T')`；CDP 实测三联赛齐全

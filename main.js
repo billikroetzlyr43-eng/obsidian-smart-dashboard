@@ -17396,10 +17396,6 @@ journal:
       };
     });
   }
-  getPythonScriptPath(name) {
-    const path = require("path");
-    return path.join(this.plugin.manifest.dir, name);
-  }
   async renderUsageArea(card) {
     try {
       const header = card.createDiv({ cls: "sd-section-title" });
@@ -17418,7 +17414,7 @@ journal:
           const { exec } = require("child_process");
           await new Promise((resolve2, reject) => {
             exec(
-              `python "${this.getPythonScriptPath("collect_usage.py")}" --quiet`,
+              'python "__PLUGIN_DIR__/collect_usage.py" --quiet',
               (error) => {
                 if (error) reject(error);
                 else resolve2();
@@ -17785,7 +17781,7 @@ journal:
           const { exec } = require("child_process");
           await new Promise((resolve2, reject) => {
             exec(
-              `python "${this.getPythonScriptPath("collect_subscriptions.py")}" collect`,
+              'python "__PLUGIN_DIR__/collect_subscriptions.py" collect',
               (error) => {
                 if (error) reject(error);
                 else resolve2();
@@ -17811,7 +17807,7 @@ journal:
   }
   async saveSubscriptionCredential(providerId, credential) {
     var _a, _b;
-    const scriptPath = this.getPythonScriptPath("collect_subscriptions.py");
+    const scriptPath = "__PLUGIN_DIR__/collect_subscriptions.py";
     try {
       const credKey = providerId === "scnet-tokenplan" ? "token" : ((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.authType) === "cookie" ? "cookie" : "apiKey";
       const key = credential.trim();
@@ -17951,7 +17947,7 @@ journal:
   }
   async deleteSubscription(providerId) {
     var _a;
-    const scriptPath = this.getPythonScriptPath("collect_subscriptions.py");
+    const scriptPath = "__PLUGIN_DIR__/collect_subscriptions.py";
     try {
       const { exec } = require("child_process");
       await new Promise((resolve2) => {
