@@ -15944,24 +15944,6 @@ ${text}
     this.applyScale();
     cards.forEach((c) => this.bindCardDrag(c));
     this.setupGridSizing(grid);
-    const floatingNav = container.createDiv("sd-floating-nav");
-    const createNavBtn = (icon, targetId, title) => {
-      const btn = floatingNav.createEl("button", { text: icon, cls: "sd-floating-nav-btn", attr: { title } });
-      btn.onclick = () => {
-        const target = grid.querySelector(`#${targetId}`);
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      };
-    };
-    createNavBtn("\u{1F50D}", "sd-search-section", "\u667A\u80FD\u641C\u7D22");
-    createNavBtn("\u{1F4C8}", "sd-stats-section", "\u7EDF\u8BA1\u5206\u6790");
-    createNavBtn("\u{1F4C5}", "sd-calendar-section", "\u65E5\u5386");
-    createNavBtn("\u2705", "sd-schedule-section", "\u65E5\u7A0B\u5F85\u529E");
-    createNavBtn("\u2795", "sd-create-section", "\u5FEB\u901F\u521B\u5EFA");
-    createNavBtn("\u{1F4B9}", "sd-trading-section", "\u4EA4\u6613\u590D\u76D8");
-    createNavBtn("\u{1F3AF}", "sd-countdown-section", "D-Day \u5012\u8BA1\u65F6");
-    createNavBtn("\u{1F9ED}", "sd-nav-section", "\u5BFC\u822A\u5165\u53E3");
     this.registerInterval(window.setInterval(() => {
       const el = document.getElementById("sd-usage-section");
       if (el) {

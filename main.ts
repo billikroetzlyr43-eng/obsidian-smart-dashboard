@@ -1736,26 +1736,6 @@ class SmartDashboardView extends ItemView {
         cards.forEach(c => this.bindCardDrag(c));
         this.setupGridSizing(grid);
 
-        const floatingNav = container.createDiv('sd-floating-nav');
-        const createNavBtn = (icon: string, targetId: string, title: string) => {
-            const btn = floatingNav.createEl('button', {text: icon, cls: 'sd-floating-nav-btn', attr: {title}});
-            btn.onclick = () => {
-                const target = grid.querySelector(`#${targetId}`);
-                if (target) {
-                    target.scrollIntoView({behavior: 'smooth', block: 'start'});
-                }
-            };
-        };
-
-        createNavBtn('🔍', 'sd-search-section', '智能搜索');
-        createNavBtn('📈', 'sd-stats-section', '统计分析');
-        createNavBtn('📅', 'sd-calendar-section', '日历');
-        createNavBtn('✅', 'sd-schedule-section', '日程待办');
-        createNavBtn('➕', 'sd-create-section', '快速创建');
-        createNavBtn('💹', 'sd-trading-section', '交易复盘');
-        createNavBtn('🎯', 'sd-countdown-section', 'D-Day 倒计时');
-        createNavBtn('🧭', 'sd-nav-section', '导航入口');
-
         this.registerInterval(window.setInterval(() => {
             const el = document.getElementById('sd-usage-section');
             if (el) {
