@@ -335,8 +335,12 @@ def parse_codebuddy(projects_dir):
 def parse_opencode(db_path):
     """Return {date: {"input":.., "output":.., "cache":.., "reasoning":.., "cache_write":.., "calls":..}}.
 
-    Aggregates the opencode CLI session table (SQLite). time_created is a
-    millisecond epoch timestamp; input excludes cache (consistent with dsh).
+    Aggregates the opencode CLI message table (SQLite), one row per assistant
+    message. Each message is attributed to the local date of its completion
+    time ($.time.completed, falling back to $.time.created) — both are
+    millisecond epoch timestamps. This fixes long sessions spanning midnight,
+    which under session-level attribution lumped all tokens into the creation
+    day. input excludes cache (consistent with dsh).
     Missing/unreadable database yields {} with a WARN, never an exception.
     """
     stats = {}
@@ -345,7 +349,7 @@ def parse_opencode(db_path):
         return stats
     try:
         # read-only WITHOUT immutable: immutable=1 makes SQLite ignore the
-        # -wal sidecar, so sessions not yet checkpointed into the main db
+        # -wal sidecar, so messages not yet checkpointed into the main db
         # (i.e. everything recent, written while opencode was running) were
         # invisible → today's usage never reached the dashboard card.
         # Plain mode=ro still never modifies the DB but does read the WAL.
@@ -355,12 +359,25 @@ def parse_opencode(db_path):
         return stats
     try:
         cur = conn.execute(
-            "SELECT time_created, tokens_input, tokens_output, tokens_cache_read,"
-            " tokens_reasoning, tokens_cache_write"
-            " FROM session WHERE tokens_input > 0 OR tokens_output > 0"
+            r"""
+            SELECT date(COALESCE(
+                        json_extract(data,'$.time.completed'),
+                        json_extract(data,'$.time.created')) / 1000,
+                        'unixepoch','localtime') AS d,
+                   SUM(json_extract(data,'$.tokens.input')),
+                   SUM(json_extract(data,'$.tokens.output')),
+                   SUM(json_extract(data,'$.tokens.cache.read')),
+                   SUM(json_extract(data,'$.tokens.reasoning')),
+                   SUM(json_extract(data,'$.tokens.cache.write')),
+                   COUNT(*)
+            FROM message
+            WHERE json_extract(data,'$.role') = 'assistant'
+              AND COALESCE(json_extract(data,'$.time.completed'),
+                           json_extract(data,'$.time.created')) IS NOT NULL
+            GROUP BY d
+            """
         )
-        for time_created, inp, out, cache_read, reasoning, cache_write in cur.fetchall():
-            date = date_from_time(time_created)
+        for date, inp, out, cache_read, reasoning, cache_write, calls in cur.fetchall():
             if not date:
                 continue
             rec = stats.setdefault(date, {"input": 0, "output": 0, "cache": 0, "reasoning": 0, "cache_write": 0, "calls": 0})
@@ -369,7 +386,7 @@ def parse_opencode(db_path):
             rec["cache"] += int(cache_read or 0)
             rec["reasoning"] += int(reasoning or 0)
             rec["cache_write"] += int(cache_write or 0)
-            rec["calls"] += 1
+            rec["calls"] += calls or 0
     except sqlite3.Error as exc:
         print("WARN: opencode db query failed:", exc, flush=True)
         return {}
