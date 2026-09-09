@@ -1,8 +1,6 @@
 node_modules/
 *.bak
 TASK*.md
-HANDOFF.md
-collect_usage.py
 fix_jot.js
 .DS_Store
 data.json
