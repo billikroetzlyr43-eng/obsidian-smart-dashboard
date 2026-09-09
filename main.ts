@@ -593,6 +593,40 @@ export default class SmartDashboardPlugin extends Plugin {
         await this.saveData(data);
     }
 
+    // ===== 卡片大小/布局（small=6 列紧凑 / big=4 列可滚动）=====
+    async getLayoutSize(): Promise<'small' | 'big'> {
+        const data = await this.loadData();
+        return data?.layoutSize === 'big' ? 'big' : 'small';
+    }
+
+    async setLayoutSize(size: 'small' | 'big'): Promise<void> {
+        const data = (await this.loadData()) || {};   // 先取整体（保留 skin/cardVisibility/navEntries 等字段）
+        const currentSize: 'small' | 'big' = data?.layoutSize === 'big' ? 'big' : 'small';
+
+        // 1) 切走前：把当前档位的实时布局深拷贝存进源档快照字段
+        //    data.cardLayout 由 view.saveLayout 在拖拽时持续更新，即"当前档位实时布局"
+        //    必须深拷贝（JSON.parse(JSON.stringify)），禁止直接引用，否则切档重排会污染已存快照
+        if (data.cardLayout && typeof data.cardLayout === 'object') {
+            const snapshotCopy = JSON.parse(JSON.stringify(data.cardLayout));
+            if (currentSize === 'small') {
+                data.layoutSmall = snapshotCopy;
+            } else {
+                data.layoutBig = snapshotCopy;
+            }
+        }
+
+        // 2) 切换档位
+        data.layoutSize = size;
+
+        // 3) 载入目标档位已存快照（深拷贝）；无快照则置 undefined，让 onOpen→loadLayout 回退 DEFAULT_LAYOUT
+        const targetSnapshot = size === 'big' ? data.layoutBig : data.layoutSmall;
+        data.cardLayout = (targetSnapshot && typeof targetSnapshot === 'object')
+            ? JSON.parse(JSON.stringify(targetSnapshot))
+            : undefined;
+
+        await this.saveData(data);                    // 整体写回
+    }
+
     // ===== 导航入口配置 =====
     async getNavEntries(): Promise<NavEntry[]> {
         const data = await this.loadData();
@@ -1321,6 +1355,8 @@ class SmartDashboardView extends ItemView {
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
+    // 卡片大小/布局档位（small=6 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
+    private layoutSize: 'small' | 'big' = 'small';
     // 拖拽结束后吞掉紧随的一次 click，避免误触卡片内元素（如日历格）的点击
     private suppressClick = false;
     
@@ -1567,6 +1603,8 @@ class SmartDashboardView extends ItemView {
         await this.loadLayout();
 
         const grid = content.createDiv('sd-grid');
+        // 预置列数：big 档 4 列、small 档 6 列；供随后 reflowLayoutForVisibleCards 读取正确列数（setupGridSizing 稍后会覆写最终值）
+        grid.style.setProperty('--sd-cols', this.layoutSize === 'big' ? '4' : '6');
 
         const cards: HTMLElement[] = [];
         const visibility = await this.plugin.getCardVisibility();
@@ -1742,6 +1780,7 @@ class SmartDashboardView extends ItemView {
     private async loadLayout(): Promise<void> {
         let data: any = null;
         try { data = await this.plugin.loadData(); } catch { /* 数据缺失或损坏时退回默认布局 */ }
+        this.layoutSize = data?.layoutSize === 'big' ? 'big' : 'small';
         this.layoutData = (data && data.cardLayout) ? data.cardLayout : {...SmartDashboardView.DEFAULT_LAYOUT};
     }
 
@@ -1765,16 +1804,28 @@ class SmartDashboardView extends ItemView {
     }
 
     private async resetLayout(): Promise<void> {
-        this.layoutData = {...SmartDashboardView.DEFAULT_LAYOUT};
+        const data = (await this.plugin.loadData()) || {};
+        const snapshot = this.layoutSize === 'big' ? data.layoutBig : data.layoutSmall;
+        let noticeMsg: string;
+        if (snapshot && typeof snapshot === 'object') {
+            // 恢复用户保存的当前档位默认布局（深拷贝，避免后续编辑污染快照）
+            this.layoutData = JSON.parse(JSON.stringify(snapshot));
+            noticeMsg = '已恢复为你保存的默认布局';
+        } else {
+            // 无快照，回退出厂默认
+            this.layoutData = {...SmartDashboardView.DEFAULT_LAYOUT};
+            noticeMsg = '已重置为出厂默认';
+        }
         const grid = this.contentEl.querySelector('.sd-grid') as HTMLElement;
         const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 6;
         if (cols < 4) this.applyLayoutCompact(); else this.applyLayout();
         try {
-            const data = (await this.plugin.loadData()) || {};
-            data.cardLayout = undefined;
+            // 合并写：保留 skin/cardVisibility/navEntries/layoutSize/layoutSmall/layoutBig
+            // 把恢复后的布局深拷贝写回 cardLayout，绝不再清空
+            data.cardLayout = JSON.parse(JSON.stringify(this.layoutData));
             await this.plugin.saveData(data);
-        } catch { /* 清空持久化失败时保留内存中的默认布局 */ }
-        new Notice('布局已重置为默认');
+        } catch { /* 持久化失败不阻断 UI 恢复 */ }
+        new Notice(noticeMsg);
     }
 
     private applyCardSize(card: HTMLElement): void {
@@ -1814,6 +1865,18 @@ class SmartDashboardView extends ItemView {
                 grid.style.setProperty('--sd-cols', '2');
                 grid.style.setProperty('--sd-cell', `${cell}px`);
                 this.applyLayoutCompact();
+                this.applyScale();
+                return;
+            }
+
+            // 大档（big）：4 列网格，cell 仅按宽度计算（不走 cellH 高度约束）
+            // → 行数自然增多使网格总高超过滚动容器可视高，.sd-tab-content-container 的 overflow-y:auto 触发纵向滚动
+            if (this.layoutSize === 'big') {
+                const cell = Math.floor((availW - gap * 3) / 4);   // 4 列 → 3 个 gap
+                if (cell < 40) return;
+                grid.style.setProperty('--sd-cols', '4');
+                grid.style.setProperty('--sd-cell', `${cell}px`);
+                this.applyLayout();   // 坐标已由 reflowLayoutForVisibleCards 按 4 列重排
                 this.applyScale();
                 return;
             }
@@ -2041,6 +2104,32 @@ class SmartDashboardView extends ItemView {
         if (!m) return;
         const { cols } = m;
         if (cols < 4) return;  // 窄模式不重排
+
+        // 衔接 setLayoutSize 快照：若已加载的布局在当前列数下完整且合法（无越界、无重叠），保留用户拖拽位置，不重排
+        const allHaveCoords = visibleIds.every(id => this.layoutData[id]);
+        if (allHaveCoords) {
+            let collision = false;
+            let outOfBounds = false;
+            const placed: Array<{x: number; y: number; w: number; h: number}> = [];
+            for (const id of visibleIds) {
+                const p = this.layoutData[id];
+                if (!(p.w > 0 && p.h > 0 && p.x >= 1 && p.y >= 1 && p.x + p.w - 1 <= cols)) {
+                    outOfBounds = true;
+                    break;
+                }
+                const cur = {x: p.x, y: p.y, w: p.w, h: p.h};
+                if (placed.some(o => cur.x < o.x + o.w && cur.x + cur.w > o.x && cur.y < o.y + o.h && cur.y + cur.h > o.y)) {
+                    collision = true;
+                    break;
+                }
+                placed.push(cur);
+            }
+            if (!collision && !outOfBounds) {
+                this.applyLayout();
+                return;   // 快照合法，保留位置，不重排、不触发 saveLayout
+            }
+            // 否则继续走原有重排逻辑
+        }
 
         // 收集可见卡片的当前布局信息（如果存在），否则使用默认尺寸
         const visibleEntries: Array<{id: string; w: number; h: number}> = [];
@@ -3513,7 +3602,7 @@ class SmartDashboardView extends ItemView {
             const parseDt = (dt: string): moment.Moment | null => {
                 if (!dt || typeof dt !== 'string') return null;
                 const plusDay = dt.match(/\(\+(\d+)\)/);
-                const d = moment(dt.replace(/\(\+\d+\)/, '').replace(' ', 'T'));
+                const d = moment(dt.replace(/\(\+\d+\)/, '').trim().replace(/\s+/, 'T'));
                 if (!d.isValid()) return null;
                 return plusDay ? d.add(parseInt(plusDay[1], 10), 'day') : d;
             };
@@ -4043,6 +4132,22 @@ class SmartDashboardSettingTab extends PluginSettingTab {
                 dd.setValue(currentSkin);
                 dd.onChange(async (v) => {
                     await this.plugin.setSkin(v);
+                    await this.plugin.refreshView();
+                });
+            });
+
+        // ===== 卡片大小/布局 =====
+        containerEl.createEl('h3', { text: '卡片大小/布局' });
+        const currentLayoutSize = await this.plugin.getLayoutSize();
+        new Setting(containerEl)
+            .setName('布局规格')
+            .setDesc('小=6×4 紧凑（默认，一屏无滚动）；大=4 列可滚动（每格更大，向下滚动查看全部卡片。切换会保存当前尺寸布局并载入目标尺寸已存布局）')
+            .addDropdown(dd => {
+                dd.addOption('small', '小（6×4 紧凑）');
+                dd.addOption('big', '大（4 列可滚动）');
+                dd.setValue(currentLayoutSize);
+                dd.onChange(async (v: string) => {
+                    await this.plugin.setLayoutSize(v as 'small' | 'big');
                     await this.plugin.refreshView();
                 });
             });
