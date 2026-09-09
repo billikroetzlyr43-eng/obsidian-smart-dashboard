@@ -1,13 +1,14 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.8：移除右侧浮导按钮栏
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.9：脚本路径去硬编码（运行时定位）
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.8** 共 13 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.9** 共 14 个版本的连续变更（多会话完成）。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
-## 🏷️ 版本变更总览 (v4.6.1 → v4.9.8 CHANGELOG)
+## 🏷️ 版本变更总览 (v4.6.1 → v4.9.9 CHANGELOG)
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
+| **v4.9.9** | 脚本路径去硬编码（运行时定位） | main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处调用 Python 脚本的 `<workspace>/...` 硬编码路径改为运行时从插件目录拼接；esbuild.config.mjs 构建链自动拷贝 `collect_usage.py`/`collect_subscriptions.py` 到 vault 插件目录 + external 加 `"path"`；HANDOFF.md:235 用户名路径 `C:/Users/<user>` 泛化为「用户主目录」；版本升 4.9.9 | 🔧 重构 |
 | **v4.9.8** | 移除右侧悬浮导航按钮栏 | `onOpen` 删除 `sd-floating-nav` 渲染整块（8 个圆形浮导按钮：🔍/📈/📅/✅/➕/💹/🎯/🧭 各 scrollIntoView 定位卡片）；styles.css 删除 `.sd-floating-nav` / `.sd-floating-nav-btn` / `:hover` 三组样式；不影响卡片 w/h 占格与坐标，不触碰 data.json | 🗑️ 删除 |
 | **v4.9.7** | Token 用量卡新增「累计缓存命中率」 | 卡片底部命中率从单指标（原为**本月**口径）改为**当天 + 全历史累计**两指标并存：`cacheStats` 复用现函数零新增，取 `today`（当天）与 `''`（全历史，空串前缀天然放行）两次调用；文案改 `命中(今日) X% ｜ 累计 Y%`，同一行不新增行、占格 2×1 不动；数据源于 `usage_daily.json` 已有 `input/cache` 逐日字段，`collect_usage.py` 无需改动 | ✨ 新增 |
 | **v4.9.6** | 体育卡 `(+N)` 时间解析双修复 | ① `(+1)` 周期时间去掉后缀后尾部残留空格未 trim → moment 判 Invalid → 拜仁整条联赛不显示，修复=加 `.trim()`+`/\s+/`；② 更正 `(+N)` 语义：`datetime` 存的是**北京时间最终值**，`(+1)` 仅"跨天"说明标记，原 `parseDt` 误将 `(+N)` 当作"再加 N 天"导致所有带 `(+N)` 的比赛**多显示一天**（拜仁14/森林5/F1 5场），修复=删除 `plusDay`/`d.add`，直接 `return d` | 🐛 修复 |
@@ -22,7 +23,33 @@
 | **v4.9.3** | Token 卡 opencode 消耗归日修复 | `parse_opencode()` 改读 message 表按 `time.completed` 归日，修复跨天长会话消耗堆叠到创建日、之后日期显示≈0 的 bug | 🐛 修复 |
 | **v4.9.4** | 卡片大小/布局设置 | 设置页新增「卡片大小/布局」下拉：小=6×4 紧凑（默认，现状不变）/ 大=4 列可滚动；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发重排）；每卡 w/h 占格数铁律不动，仅按 4 列重排 x/y | ✨ 新增 |
 
-**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md`。
+**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md` / `esbuild.config.mjs` / `HANDOFF_path_optimize_plan.md`。
+
+---
+
+## 🔧 v4.9.9 变更说明（脚本路径去硬编码 · 运行时定位）
+
+**奏效概览**：承接 v4.9.8 路径低调优（cbc 三轮：探测→规划→执行）。前一轮 cbc 安全审查发现 main.ts 4 处硬编码 `__PLUGIN_DIR__/` 绝对路径调用 Python 采集脚本 + HANDOFF.md:235 含真实 Windows 用户名 `C:/Users/<user>`。本轮按计划 `HANDOFF_path_optimize_plan.md`（cbc 规划产出）执行改造。
+
+### 改动
+- **main.ts**：新增私有 helper `getPythonScriptPath(name)`（`path.join(this.plugin.manifest.dir, name)`，局部 `require('path')` 镜像既有 `require('child_process')` 惯用法，不新增顶层 import）；4 处 `<workspace>/...` 硬编码路径（原 3318/3701/3723/3896）全部改为 `${this.getPythonScriptPath('collect_usage.py'|'collect_subscriptions.py')}` 运行时拼接。
+- **esbuild.config.mjs**：copy 段追加 `collect_usage.py` / `collect_subscriptions.py` 自动拷贝到 vault 插件目录（existsSync 防御式）；external 数组加 `"path"`（cbc build 首报 `Could not resolve "path"`，触发计划预案 §2.5）。
+- **HANDOFF.md:235**：`C:/Users/<user>` → 「用户主目录（home 目录）」泛化。
+
+### 技术要点
+- **路径来源**：用 `this.plugin.manifest.dir`（Obsidian API 保证的插件绝对安装目录），非 View 直接 `this.manifest.dir`（4 处均在 `SmartDashboardView` 类内，须经 `this.plugin`）。
+- **为何不用 cwd 相对路径**：Obsidian 进程 cwd 不稳定（随启动方式变化），相对路径=概率性 bug；manifest.dir 是运行时保证的唯一稳定锚点。
+- **`.py` 不依赖 cwd**（输入输出全靠脚本内部绝对路径），所以从 vault 插件目录启动也能正常工作。
+- 构建 chain 改动不改变 main.js 输出（仅新增 2 份拷贝）；vault 插件目录新增 2 个 .py 不覆盖数据/布局。
+
+### 验收
+- 静态：`grep <workspace>` 在 main.ts / main.js = **0** 残留；`ls vault插件目录` 含 collect_usage.py / collect_subscriptions.py；`grep C:/Users/<user> HANDOFF.md` = 0；版本三端 4.9.9。
+- 已 commit 5812e37 → cbc 三轮验证 → REST API 推送 main（远程 ff0abbf）。
+- 动态验收（重启 Obsidian 后 Token/订阅刷新、增删订阅）留待用户真实环境确认（见 §8）。
+
+### 范围边界（本轮明确不做）
+- `collect_usage.py` 内部 5 处 `C:/Users/<user>` + 7 个硬编码绝对路径常量、`collect_subscriptions.py` `VAULT_DASHBOARD` 常量 —— 属更大病灶，本轮不扩（需重测采集链路）；cbc 建议另开一轮单独处理。
+- git 历史 8 个 commit 含用户名（改历史=force push，破坏性）——不做，靠仓库私有不公开兜底。
 
 ---
 
@@ -234,6 +261,7 @@ flowchart TD
   - [x] **v4.9.2 体育赛事卡 + 布局放大**：新增 `sd-sports-section`（2×1 格，默认 x1,y5），data 链路 `sports.json` → `renderSportsArea()`（~L3486）→ 每联赛过滤 `datetime>now` 取最近一场；渲染图标+联赛名+轮次徽标（"第N场大奖赛"/"第N轮"）+ 对手文本（足球主场 🏠）+ 日期 + 倒计时；三色左边框（F1 红 #E63946/森林绿 #2E9E4F/拜仁蓝 #2A6FDB）；布局放大 gap 12→8、网格宽度吃满真实 padding、hero 行压扁、scale 0.56→0.60、`GRID_GAP` 8（含 `getGridMetrics` 拖拽定位同步）；体育卡行距参照导航卡（flex:1 1 0 等分填满 + gap 6px + 上下零留空）
   - [x] **v4.9.3 Token 卡 opencode 消耗归日修复**：用户反馈"Token 卡只统计到 Hermes 调 opencode 的消耗、自己 TUI 直接对话的看不见"。经 opencode 深入研究（`deliverables/opencode-token-rootcause.md`）定位根因：`parse_opencode()` 原按 session 表 `time_created`（会话创建时间）归日 + 读 session 级**累计** token，导致跨天长会话（用户主目录（home 目录）下的 plan 长会话 08-22~08-24 累计 852 万 input）全部消耗堆到创建日 08-22，之后日期显示≈0，且每次刷新创建日追溯虚涨；而 Hermes 委派会话全是分钟级短命会话日期天然准确，于是呈现"只有 Hermes 统计得对"。修复=改读 message 表、逐条 assistant 消息按 `COALESCE(time.completed, time.created)` 归日（本地时区），`calls`=当日消息条数。实测 08-23 从 62 万→**560 万**（真实），08-24 从凌晨快照 6.4 万→**220 万**；session 级 vs message 级五项 token 总量守恒分毫不差（7073 万 input）。改动仅限 `parse_opencode()`，其余四源与 schema_version=5 未动
   - [x] **v4.9.4 卡片大小/布局设置**：设置页「主题皮肤」与「卡片开关」之间新增 h3「卡片大小/布局」+ Dropdown（small=小 6×4 紧凑 / big=大 4 列可滚动）。新增 `SmartDashboardPlugin.getLayoutSize()/setLayoutSize()`（类比 `getSkin/setSkin`，合并保存：先 loadData 取整体 → 改 data.layoutSize + 清空 data.cardLayout → saveData 整体写回，绝不覆盖 skin/cardVisibility/navEntries）。`SmartDashboardView` 新增 `layoutSize` 字段，`loadLayout()` 读取后存入；`onOpen` 在 grid 创建后预置 `--sd-cols`（big=4/small=6）使随后 `reflowLayoutForVisibleCards`（现成装箱算法，复用按 4 列）读取正确列数重排 x/y，**w/h 占格数铁律不动**；`setupGridSizing` 在窄屏分支后新增 big 分支：`cell=(availW-gap*3)/4`、`--sd-cols=4`、**不走 cellH 高度约束** → 行数自然增多使网格总高超过 `.sd-tab-content-container` 可视高，由其既有 `overflow-y:auto` 触发纵向滚动；小档逻辑完全不变。styles.css 无需改（正方形格子由 `repeat(var(--sd-cols), var(--sd-cell))`+`grid-auto-rows: var(--sd-cell)` 保证）。取消计划中的「舒适」第三档。切换档位会清空 cardLayout 即丢失自定义拖拽位置（用户拍板可接受）
+  - [x] **v4.9.9 脚本路径去硬编码（运行时定位）**：main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处 `<workspace>/...` 硬编码 Python 脚本路径改运行时拼接；esbuild.config.mjs copy 段自动拷贝 2 个 .py 到 vault 插件目录 + external 加 `"path"`；HANDOFF.md:235 `C:/Users/<user>` → 「用户主目录」，消除纯文本用户名泄露。cbc 三轮（探测→规划→执行）委派完成，计划文件 `HANDOFF_path_optimize_plan.md`，静态验收 4 项全过，commit 5812e37，已 API 推送远程 ff0abbf
   - [x] **v4.9.8 移除右侧悬浮导航按钮栏**：删除 `onOpen` 中 `sd-floating-nav` 渲染整块（`createNavBtn` 局部函数 + 8 个圆形浮导按钮 scrollIntoView 定位）+ styles.css 三组浮导样式。仅移除 UI，卡片 w/h 占格/坐标/data.json 全不动，「🧭 快速导航」卡保留。build 后 vault main.js grep `floating-nav`=0 残留
   - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库（v4.9.1，保留）
   - [x] vault `data.json` 同步维护：6×4 布局落盘、search 1×2（col5 行 2-3，col6 行 2-3 留空）、活动热力图条目清除
@@ -256,7 +284,8 @@ flowchart TD
   - [x] `04_当前长期项目状态.md` §1 看板 + §2.3 + §2.6 + 演进历史更新至 v4.9.2（2026-08-23 完成）
     - [x] **git 提交 v4.9.6**（含 v4.9.3~v4.9.6 全部累积变更：Token 归日修复 + 布局快照 + 体育卡 `(+N)` 解析修复）并经 GitHub REST API 推送 main（2026-08-29）
   - **⚡ 本次版本待办：**
-      - [x] **git 提交 v4.9.7 + v4.9.8**（含累积变更：累计缓存命中率 + 移除浮导按钮栏）——v4.9.7（1dc4f09）已于此前推送；v4.9.8（0813d65）经 **cbc 安全隐私审查通过**（6 文件无密钥/明文凭证，仅两处既有低风险路径）后，2026-09-09 走 GitHub REST API 推送 main → 远程 `7f53076`（树 ba78605 与本地一致，已确认落盘）
+        - [x] **git 提交 v4.9.7 + v4.9.8**（含累积变更：累计缓存命中率 + 移除浮导按钮栏）——v4.9.7（1dc4f09）已于此前推送；v4.9.8（0813d65）经 **cbc 安全隐私审查通过**（6 文件无密钥/明文凭证，仅两处既有低风险路径）后，2026-09-09 走 GitHub REST API 推送 main → 远程 `7f53076`（树 ba78605 与本地一致，已确认落盘）
+        - [x] **git 提交 v4.9.9**（路径去硬编码：cbc 三轮探测→规划→执行，commit 5812e37）并经 GitHub REST API 推送 main → 远程 `ff0abbf`（树 d670bb3 与本地一致，已确认落盘）
 - **📌 后续规划：**
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
   - [ ] 体育卡 `sports.json` 数据随赛季推进更新（F1 剩余 11 站，森林/拜仁赛程确认后补全）；体育卡目前无自动刷新计时器（与日历等静态卡一致），如需可挂共享 300s 定时器
@@ -294,6 +323,7 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
+  - 📍 v4.9.9 已改 `main.ts`（`getPythonScriptPath` helper + 4 处路径改运行时拼接）、`esbuild.config.mjs`（copy 2 个 .py + external `"path"`）、HANDOFF.md:235 泛化，build 部署（vault manifest 4.9.9），静态验收 4 项全过。已 commit 5812e37 + cbc 三轮 + REST API 推送 main（远程 ff0abbf）。**动态验收待用户**：重启 Obsidian 后验证 Token/订阅刷新、增删订阅是否正常（计划 §5.2 六步）。`collect_*.py` 内部硬编码路径属可选扩展未做
   - 📍 v4.9.8 已改 `main.ts`（删除 `onOpen` 中 `sd-floating-nav` 浮导按钮栏整块）+ `styles.css`（删除三组浮导样式），并 build 部署（vault manifest 4.9.8）；卡片 w/h 占格/坐标/data.json 未动。vault main.js `grep floating-nav`=0 残留。Obsidian 已完全重启验收。**已 git commit（0813d65）+ cbc 安全审查通过 + REST API 推送 main（远程 7f53076）**
   - 📍 v4.9.7 已改 `main.ts`（renderUsageBody 底部行 `cacheStats(days, today)` 当天 + `cacheStats(days, '')` 全历史累计，文案 `命中(今日) X% ｜ 累计 Y%`）；CDP 实测 `命中(今日) 95.521% ｜ 累计 95.272%`、占格 2×1 不变、无裁剪。同上待 git commit + REST API 推送 main
   - 📍 v4.9.5 已改 `main.ts`（`setLayoutSize` 切档存源档深拷贝快照 + 载入目标档深拷贝快照；`resetLayout` 改为读 `layoutSmall`/`layoutBig` 恢复、不再清空 `cardLayout`；`reflowLayoutForVisibleCards` 加"已合法则跳过重排"早返回；设置页 `setDesc` 文案更新）并构建部署（vault manifest 4.9.5）；styles.css 未改。本变更待 git commit + REST API 推送 main
@@ -313,6 +343,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v4.9.9**：脚本路径去硬编码（main.ts `getPythonScriptPath` helper + esbuild 拷贝 2 个 .py + external `"path"`；HANDOFF.md:235 用户名路径泛化；版本 4.9.9；cbc 三轮委派；commit 5812e37 / 远程 ff0abbf）
 - **v4.9.8**：移除右侧悬浮导航按钮栏（`onOpen` 删除 `sd-floating-nav` 整块 + styles.css 删三组浮导样式；仅 UI 元素，卡片 w/h/坐标/data.json 不动；vault main.js grep 零残留）
 - **v4.9.7**：Token 用量卡底部命中率由单指标改为**当天 + 全历史累计**两指标并存（`cacheStats(days, today)` + `cacheStats(days, '')`，零新增函数；文案 `命中(今日) X% ｜ 累计 Y%`；占格 2×1 与行数不变；CDP 实测无裁剪）
 - **v4.9.6**：修复体育卡 `(+N)` 时间解析——`parseDt` 去掉 `(+N)` 后残留尾随空格未 trim 使 moment 判 Invalid、导致拜仁（全部场次带 `(+1)`）整条不显示；修复=先 `.trim()` 再 `.replace(/\s+/,'T')`；CDP 实测三联赛齐全
