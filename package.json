@@ -1,6 +1,6 @@
 {
   "name": "obsidian-smart-dashboard",
-  "version": "4.9.9",
+  "version": "5.0.0",
   "description": "An upgraded smart dashboard for managing notes, trades and schedules.",
   "main": "main.js",
   "scripts": {
@@ -16,5 +16,8 @@
     "obsidian": "^1.4.11",
     "tslib": "^2.6.2",
     "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1"
   }
 }

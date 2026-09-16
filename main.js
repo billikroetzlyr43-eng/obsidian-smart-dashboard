@@ -19,7 +19,10 @@ var __copyProps = (to2, from2, except, desc) => {
   return to2;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+var __publicField = (obj, key, value) => {
+  __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
+};
 
 // main.ts
 var main_exports = {};
@@ -1007,14 +1010,14 @@ function _arrayUnique(items) {
   }
   return Array.from(set2);
 }
-var requestAnimFrame = (function() {
+var requestAnimFrame = function() {
   if (typeof window === "undefined") {
     return function(callback2) {
       return callback2();
     };
   }
   return window.requestAnimationFrame;
-})();
+}();
 function throttled(fn, thisArg) {
   let argsToUse = [];
   let ticking = false;
@@ -1628,7 +1631,6 @@ function drawPointLegend(ctx, options, x, y, w) {
   }
   ctx.beginPath();
   switch (style) {
-    // Default includes circle
     default:
       if (w) {
         ctx.ellipse(x, y, w / 2, radius, 0, 0, TAU);
@@ -1667,7 +1669,6 @@ function drawPointLegend(ctx, options, x, y, w) {
         break;
       }
       rad += QUARTER_PI;
-    /* falls through */
     case "rectRot":
       xOffsetW = Math.cos(rad) * (w ? w / 2 : radius);
       xOffset = Math.cos(rad) * radius;
@@ -1681,7 +1682,6 @@ function drawPointLegend(ctx, options, x, y, w) {
       break;
     case "crossRot":
       rad += QUARTER_PI;
-    /* falls through */
     case "cross":
       xOffsetW = Math.cos(rad) * (w ? w / 2 : radius);
       xOffset = Math.cos(rad) * radius;
@@ -2571,7 +2571,7 @@ function retinaScale(chart, forceRatio, forceStyle) {
   }
   return false;
 }
-var supportsEventListenerOptions = (function() {
+var supportsEventListenerOptions = function() {
   let passiveSupported = false;
   try {
     const options = {
@@ -2587,7 +2587,7 @@ var supportsEventListenerOptions = (function() {
   } catch (e) {
   }
   return passiveSupported;
-})();
+}();
 function readUsedSize(element, property) {
   const value = getStyle(element, property);
   const matches = value && value.match(/^(\d+)(\.\d+)?px$/);
@@ -14508,13 +14508,6 @@ var auto_default = Chart;
 // main.ts
 var VIEW_TYPE_SMART_DASHBOARD = "smart-dashboard-view";
 var DAILY_DIR = "05_\u4E8B\u4EF6\u8BB0\u5F55";
-var DEFAULT_NAV_ENTRIES = [
-  { id: "nav-inbox", icon: "\u{1F4E6}", name: "\u6536\u96C6\u7BB1", desc: "\u5F85\u5904\u7406\u901F\u8BB0\u4E0E\u968F\u7B14", path: "01_Inbox" },
-  { id: "nav-wiki", icon: "\u{1F4DA}", name: "\u77E5\u8BC6\u5E93", desc: "\u6C89\u6DC0\u540E\u7684\u5E38\u9752\u7B14\u8BB0", path: "02_Wiki" },
-  { id: "nav-personal", icon: "\u{1F464}", name: "\u4E2A\u4EBA\u7A7A\u95F4", desc: "\u4EA4\u6613\u590D\u76D8/\u60F3\u6CD5/\u8E29\u5751", path: "04_\u4E2A\u4EBA\u7A7A\u95F4" },
-  { id: "nav-events", icon: "\u{1F4C5}", name: "\u4E8B\u4EF6\u8BB0\u5F55", desc: "\u65E5\u8BB0\u4E0E\u4E8B\u4EF6\u5F52\u6863", path: DAILY_DIR },
-  { id: "nav-archive", icon: "\u{1F5C4}\uFE0F", name: "\u5F52\u6863", desc: "\u4E0D\u518D\u6D3B\u8DC3\u7684\u8D44\u6599", path: "03_Archive" }
-];
 var SD_SKINS = {
   warm: { label: "\u{1F305} \u6696\u6A59\uFF08\u9ED8\u8BA4\uFF09", accent: "#F4A261", accentHover: "#E76F51" },
   violet: { label: "\u{1F7E3} \u9999\u828B\u7D2B", accent: "#8b6cef", accentHover: "#7C4DFF" },
@@ -14575,8 +14568,10 @@ function getHolidayMap(year) {
   let m = holidayCacheByYear.get(year);
   if (!m) {
     m = /* @__PURE__ */ new Map();
-    for (const [md, name] of Object.entries(FESTIVALS)) m.set(`${year}-${md}`, { name, kind: "festival" });
-    for (const t of SOLAR_TERMS_21C) m.set(solarTermDate(year, t), { name: t.name, kind: "term" });
+    for (const [md, name] of Object.entries(FESTIVALS))
+      m.set(`${year}-${md}`, { name, kind: "festival" });
+    for (const t of SOLAR_TERMS_21C)
+      m.set(solarTermDate(year, t), { name: t.name, kind: "term" });
     holidayCacheByYear.set(year, m);
   }
   return m;
@@ -14584,17 +14579,6 @@ function getHolidayMap(year) {
 function getHolidayName(dateStr) {
   const year = parseInt(dateStr.substring(0, 4));
   return getHolidayMap(year).get(dateStr);
-}
-function upcomingHolidays(fromDate) {
-  const results = [];
-  const y0 = parseInt(fromDate.substring(0, 4));
-  for (const y of [y0, y0 + 1]) {
-    getHolidayMap(y).forEach((v, date) => {
-      if (date >= fromDate) results.push({ date, ...v });
-    });
-  }
-  results.sort((a, b) => a.date.localeCompare(b.date));
-  return results;
 }
 var SUBSCRIPTION_TEMPLATES = {
   "opencode-go": {
@@ -14914,7 +14898,8 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
   }
   async setCardVisibility(cardId, visible) {
     const data = await this.loadData() || {};
-    if (!data.cardVisibility) data.cardVisibility = {};
+    if (!data.cardVisibility)
+      data.cardVisibility = {};
     data.cardVisibility[cardId] = visible;
     await this.saveData(data);
   }
@@ -14928,7 +14913,7 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
     data.skin = skin;
     await this.saveData(data);
   }
-  // ===== 卡片大小/布局（small=6 列紧凑 / big=4 列可滚动）=====
+  // ===== 卡片大小/布局（small=5 列紧凑 / big=4 列可滚动）=====
   async getLayoutSize() {
     const data = await this.loadData();
     return (data == null ? void 0 : data.layoutSize) === "big" ? "big" : "small";
@@ -14947,16 +14932,6 @@ var SmartDashboardPlugin = class extends import_obsidian.Plugin {
     data.layoutSize = size;
     const targetSnapshot = size === "big" ? data.layoutBig : data.layoutSmall;
     data.cardLayout = targetSnapshot && typeof targetSnapshot === "object" ? JSON.parse(JSON.stringify(targetSnapshot)) : void 0;
-    await this.saveData(data);
-  }
-  // ===== 导航入口配置 =====
-  async getNavEntries() {
-    const data = await this.loadData();
-    return Array.isArray(data == null ? void 0 : data.navEntries) && data.navEntries.length > 0 ? data.navEntries : DEFAULT_NAV_ENTRIES.map((e) => ({ ...e }));
-  }
-  async setNavEntries(entries) {
-    const data = await this.loadData() || {};
-    data.navEntries = entries;
     await this.saveData(data);
   }
   async refreshView() {
@@ -15168,7 +15143,8 @@ var ManageTodoModal = class extends import_obsidian.Modal {
       hasTimeSetting.components[0].onChange((v) => {
         hasTime = v;
         timeSetting.settingEl.style.display = v ? "flex" : "none";
-        if (syncSetting) syncSetting.settingEl.style.display = v ? "flex" : "none";
+        if (syncSetting)
+          syncSetting.settingEl.style.display = v ? "flex" : "none";
       });
     }
     const btns = new import_obsidian.Setting(contentEl);
@@ -15179,7 +15155,8 @@ var ManageTodoModal = class extends import_obsidian.Modal {
         return;
       }
       let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
-      if (!view) return;
+      if (!view)
+        return;
       let todos = await view.getTodos();
       const prio = priority === "high" || priority === "mid" || priority === "low" ? priority : "low";
       const rep = ["none", "daily", "weekly", "monthly", "yearly"].includes(repeat) ? repeat : "none";
@@ -15192,7 +15169,8 @@ var ManageTodoModal = class extends import_obsidian.Modal {
           base.completed = view.todoEffectiveCompleted(base);
           base.lastCompleted = void 0;
         }
-        if (idx >= 0) todos[idx] = { ...base, text, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks, priority: prio, repeat: rep };
+        if (idx >= 0)
+          todos[idx] = { ...base, text, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks, priority: prio, repeat: rep };
       } else {
         todos.unshift({ id: Date.now().toString(), text, completed: false, date: hasTime ? date : void 0, time: hasTime ? time : void 0, deadline: deadline || void 0, subtasks, priority: prio, repeat: rep });
         if (hasTime && syncSchedule) {
@@ -15274,7 +15252,8 @@ var ManageScheduleModal = class extends import_obsidian.Modal {
       toggle.setValue(hasEndTime).onChange((v) => {
         hasEndTime = v;
         endSetting.settingEl.style.display = v ? "flex" : "none";
-        if (!v) endTime = "";
+        if (!v)
+          endTime = "";
       });
     });
     endSetting.addText((text) => {
@@ -15294,12 +15273,14 @@ var ManageScheduleModal = class extends import_obsidian.Modal {
         return;
       }
       let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
-      if (!view) return;
+      if (!view)
+        return;
       let schedules = await view.getSchedules();
       const rep = ["none", "daily", "weekly", "monthly", "yearly"].includes(repeat) ? repeat : "none";
       if (this.schedule) {
         const idx = schedules.findIndex((s) => s.id === this.schedule.id);
-        if (idx >= 0) schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr, repeat: rep };
+        if (idx >= 0)
+          schedules[idx] = { ...this.schedule, date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr, repeat: rep };
       } else {
         schedules.push({ id: Date.now().toString(), date, endDate, time, endTime: hasEndTime ? endTime : void 0, title, content: contentStr, repeat: rep });
         if (syncTodo) {
@@ -15429,7 +15410,8 @@ var LogMoodModal = class extends import_obsidian.Modal {
     });
     new import_obsidian.Setting(contentEl).setName("\u81EA\u5B9A\u4E49 Emoji (\u53EF\u9009)").addText((t) => {
       t.setPlaceholder("\u8F93\u5165\u4E00\u4E2AEmoji").onChange((v) => {
-        if (v) emoji = v;
+        if (v)
+          emoji = v;
       });
     });
     new import_obsidian.Setting(contentEl).addButton((btn) => btn.setButtonText("\u4FDD\u5B58\u6253\u5361").setCta().onClick(async () => {
@@ -15562,7 +15544,7 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
     this.currentTab = "overview";
     this.calendarViewMode = "month";
     this.layoutData = {};
-    // 卡片大小/布局档位（small=6 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
+    // 卡片大小/布局档位（small=5 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
     this.layoutSize = "small";
     // 拖拽结束后吞掉紧随的一次 click，避免误触卡片内元素（如日历格）的点击
     this.suppressClick = false;
@@ -15586,7 +15568,8 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async getSchedules() {
     const path = "00_System/schedules.json";
-    if (!await this.app.vault.adapter.exists(path)) return [];
+    if (!await this.app.vault.adapter.exists(path))
+      return [];
     try {
       return JSON.parse(await this.app.vault.adapter.read(path));
     } catch (e) {
@@ -15595,12 +15578,14 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async saveSchedules(schedules) {
     const path = "00_System/schedules.json";
-    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
+    if (!await this.app.vault.adapter.exists("00_System"))
+      await this.app.vault.createFolder("00_System");
     await this.app.vault.adapter.write(path, JSON.stringify(schedules, null, 2));
   }
   async getTodos() {
     const path = "00_System/todos.json";
-    if (!await this.app.vault.adapter.exists(path)) return [];
+    if (!await this.app.vault.adapter.exists(path))
+      return [];
     try {
       return JSON.parse(await this.app.vault.adapter.read(path));
     } catch (e) {
@@ -15609,12 +15594,14 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async saveTodos(todos) {
     const path = "00_System/todos.json";
-    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
+    if (!await this.app.vault.adapter.exists("00_System"))
+      await this.app.vault.createFolder("00_System");
     await this.app.vault.adapter.write(path, JSON.stringify(todos, null, 2));
   }
   async getMoods() {
     const path = "00_System/moods.json";
-    if (!await this.app.vault.adapter.exists(path)) return {};
+    if (!await this.app.vault.adapter.exists(path))
+      return {};
     try {
       return JSON.parse(await this.app.vault.adapter.read(path));
     } catch (e) {
@@ -15623,7 +15610,8 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   }
   async saveMoods(moods) {
     const path = "00_System/moods.json";
-    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
+    if (!await this.app.vault.adapter.exists("00_System"))
+      await this.app.vault.createFolder("00_System");
     await this.app.vault.adapter.write(path, JSON.stringify(moods, null, 2));
   }
   // ===== 连续活跃天数：当天有心情打卡 或 笔记新建/修改，任一即算 =====
@@ -15637,7 +15625,8 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
       }
       let streak = 0;
       const cur = (0, import_obsidian.moment)();
-      if (!activeDays.has(todayStr)) cur.subtract(1, "day");
+      if (!activeDays.has(todayStr))
+        cur.subtract(1, "day");
       while (activeDays.has(cur.format("YYYY-MM-DD")) && streak < 3650) {
         streak++;
         cur.subtract(1, "day");
@@ -15655,9 +15644,11 @@ var _SmartDashboardView = class _SmartDashboardView extends import_obsidian.Item
   async ensureDailyNoteFile(dateStr) {
     const path = this.dailyNotePath(dateStr);
     const existing = this.app.vault.getAbstractFileByPath(path);
-    if (existing instanceof import_obsidian.TFile) return existing;
+    if (existing instanceof import_obsidian.TFile)
+      return existing;
     const folder = path.substring(0, path.lastIndexOf("/"));
-    if (!await this.app.vault.adapter.exists(folder)) await this.app.vault.createFolder(folder);
+    if (!await this.app.vault.adapter.exists(folder))
+      await this.app.vault.createFolder(folder);
     const content = `---
 created: ${dateStr}
 type: \u65E5\u8BB0
@@ -15689,21 +15680,6 @@ ${text}
     await this.app.vault.modify(file, next);
     new import_obsidian.Notice(`\u5DF2\u5199\u5165\u4ECA\u65E5\u65E5\u8BB0\uFF1A${file.basename}`);
   }
-  // ===== D-Day 倒计时数据 =====
-  async getCountdowns() {
-    const path = "00_System/countdowns.json";
-    if (!await this.app.vault.adapter.exists(path)) return [];
-    try {
-      return JSON.parse(await this.app.vault.adapter.read(path));
-    } catch (e) {
-      return [];
-    }
-  }
-  async saveCountdowns(items) {
-    const path = "00_System/countdowns.json";
-    if (!await this.app.vault.adapter.exists("00_System")) await this.app.vault.createFolder("00_System");
-    await this.app.vault.adapter.write(path, JSON.stringify(items, null, 2));
-  }
   // ===== 周期日程/待办 =====
   /** 日程是否在 dateStr 发生（周期日程按模式匹配；普通日程按日期区间） */
   scheduleOccursOn(s, dateStr) {
@@ -15729,21 +15705,25 @@ ${text}
   /** 日程的下一次发生日期（今天起算，含今天）；非周期返回原 date */
   nextScheduleDate(s) {
     const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
-    if (!s.repeat || s.repeat === "none") return s.date;
+    if (!s.repeat || s.repeat === "none")
+      return s.date;
     const d = (0, import_obsidian.moment)(todayStr);
     for (let i = 0; i < 400; i++) {
       const key = d.format("YYYY-MM-DD");
-      if (this.scheduleOccursOn(s, key)) return key;
+      if (this.scheduleOccursOn(s, key))
+        return key;
       d.add(1, "day");
     }
     return s.date;
   }
   /** 周期待办是否在 dateStr 出现 */
   todoOccursOn(t, dateStr) {
-    if (!t.repeat || t.repeat === "none") return t.date === dateStr;
+    if (!t.repeat || t.repeat === "none")
+      return t.date === dateStr;
     const cur = (0, import_obsidian.moment)(dateStr);
     const base = (0, import_obsidian.moment)(t.date || (0, import_obsidian.moment)().format("YYYY-MM-DD"));
-    if (cur.isBefore(base, "day")) return false;
+    if (cur.isBefore(base, "day"))
+      return false;
     switch (t.repeat) {
       case "daily":
         return true;
@@ -15759,8 +15739,10 @@ ${text}
   }
   /** 待办在当前周期内是否已完成：普通待办看 completed；周期待办看 lastCompleted 是否落入本周期 */
   todoEffectiveCompleted(t) {
-    if (!t.repeat || t.repeat === "none") return !!t.completed;
-    if (!t.lastCompleted) return false;
+    if (!t.repeat || t.repeat === "none")
+      return !!t.completed;
+    if (!t.lastCompleted)
+      return false;
     const lc = (0, import_obsidian.moment)(t.lastCompleted);
     const now = (0, import_obsidian.moment)();
     switch (t.repeat) {
@@ -15781,7 +15763,8 @@ ${text}
     container.empty();
     container.addClass("smart-dashboard-container");
     const effectiveDark = document.body.classList.contains("theme-dark");
-    if (effectiveDark) container.addClass("theme-dark");
+    if (effectiveDark)
+      container.addClass("theme-dark");
     container.addClass("sd-skin-" + await this.plugin.getSkin());
     const streakDays = await this.getStreakDays();
     const scrollContainer = container.createDiv("sd-tab-content-container");
@@ -15819,10 +15802,14 @@ ${text}
     const refreshHero = () => {
       const h = (0, import_obsidian.moment)().hour();
       let g = "\u591C\u6DF1\u4E86 \u{1F30C}";
-      if (h >= 5 && h < 11) g = "\u65E9\u4E0A\u597D \u2600\uFE0F";
-      else if (h >= 11 && h < 14) g = "\u4E2D\u5348\u597D \u{1F371}";
-      else if (h >= 14 && h < 18) g = "\u4E0B\u5348\u597D \u{1F375}";
-      else if (h >= 18 && h < 23) g = "\u665A\u4E0A\u597D \u{1F319}";
+      if (h >= 5 && h < 11)
+        g = "\u65E9\u4E0A\u597D \u2600\uFE0F";
+      else if (h >= 11 && h < 14)
+        g = "\u4E2D\u5348\u597D \u{1F371}";
+      else if (h >= 14 && h < 18)
+        g = "\u4E0B\u5348\u597D \u{1F375}";
+      else if (h >= 18 && h < 23)
+        g = "\u665A\u4E0A\u597D \u{1F319}";
       greetEl.setText(g);
       clockEl.setText((0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm:ss"));
     };
@@ -15830,7 +15817,7 @@ ${text}
     this.registerInterval(window.setInterval(refreshHero, 1e3));
     await this.loadLayout();
     const grid = content.createDiv("sd-grid");
-    grid.style.setProperty("--sd-cols", this.layoutSize === "big" ? "4" : "6");
+    grid.style.setProperty("--sd-cols", this.layoutSize === "big" ? "4" : "5");
     const cards = [];
     const visibility = await this.plugin.getCardVisibility();
     const allCardIds = Object.keys(_SmartDashboardView.DEFAULT_LAYOUT);
@@ -15843,14 +15830,6 @@ ${text}
       const calendarBody = this.createCardBody(calendarCard);
       cards.push(calendarCard);
       await this.renderCalendarArea(calendarBody);
-    }
-    if (visibility["sd-quickjot-section"] !== false) {
-      const quickJotCard = grid.createDiv("sd-card");
-      quickJotCard.id = "sd-quickjot-section";
-      this.applyCardSize(quickJotCard);
-      const quickJotBody = this.createCardBody(quickJotCard);
-      cards.push(quickJotCard);
-      this.renderQuickJotArea(quickJotBody);
     }
     if (visibility["sd-search-section"] !== false) {
       const searchCard = grid.createDiv("sd-card");
@@ -15924,22 +15903,6 @@ ${text}
       cards.push(tradingCard);
       this.renderTradingArea(tradingBody);
     }
-    if (visibility["sd-countdown-section"] !== false) {
-      const countdownCard = grid.createDiv("sd-card");
-      countdownCard.id = "sd-countdown-section";
-      this.applyCardSize(countdownCard);
-      const countdownBody = this.createCardBody(countdownCard);
-      cards.push(countdownCard);
-      await this.renderCountdownArea(countdownBody);
-    }
-    if (visibility["sd-nav-section"] !== false) {
-      const navCard = grid.createDiv("sd-card");
-      navCard.id = "sd-nav-section";
-      this.applyCardSize(navCard);
-      const navBody = this.createCardBody(navCard);
-      cards.push(navCard);
-      await this.renderNavArea(navBody);
-    }
     this.applyLayout();
     this.applyScale();
     cards.forEach((c) => this.bindCardDrag(c));
@@ -15964,8 +15927,10 @@ ${text}
     }, 3e5));
   }
   async onClose() {
-    if (this.lineChart) this.lineChart.destroy();
-    if (this.pieChart) this.pieChart.destroy();
+    if (this.lineChart)
+      this.lineChart.destroy();
+    if (this.pieChart)
+      this.pieChart.destroy();
   }
   // ===== 磁贴布局：默认布局 / 持久化 / 重置 =====
   async loadLayout() {
@@ -15979,10 +15944,12 @@ ${text}
   }
   applyLayout() {
     const grid = this.contentEl.querySelector(".sd-grid");
-    if (!grid) return;
+    if (!grid)
+      return;
     grid.querySelectorAll(".sd-card[id]").forEach((card) => {
       const pos = this.layoutData[card.id];
-      if (!pos) return;
+      if (!pos)
+        return;
       card.style.gridColumn = `${pos.x} / span ${pos.w}`;
       card.style.gridRow = `${pos.y} / span ${pos.h}`;
     });
@@ -16007,9 +15974,13 @@ ${text}
       noticeMsg = "\u5DF2\u91CD\u7F6E\u4E3A\u51FA\u5382\u9ED8\u8BA4";
     }
     const grid = this.contentEl.querySelector(".sd-grid");
-    const cols = parseInt((grid == null ? void 0 : grid.style.getPropertyValue("--sd-cols")) || "", 10) || 6;
-    if (cols < 4) this.applyLayoutCompact();
-    else this.applyLayout();
+    const cols = parseInt((grid == null ? void 0 : grid.style.getPropertyValue("--sd-cols")) || "", 10) || 5;
+    if (cols < 4)
+      this.applyLayoutCompact();
+    else if (cols < 5)
+      await this.reflowLayoutForVisibleCards(Object.keys(this.layoutData));
+    else
+      this.applyLayout();
     try {
       data.cardLayout = JSON.parse(JSON.stringify(this.layoutData));
       await this.plugin.saveData(data);
@@ -16019,7 +15990,8 @@ ${text}
   }
   applyCardSize(card) {
     const pos = this.layoutData[card.id];
-    if (!pos) return;
+    if (!pos)
+      return;
     card.addClass(`sd-size-${pos.w}x${pos.h}`);
   }
   // 创建等比缩放的内容容器：按设计尺寸（每格 300px + GRID_GAP）设定固定宽高，整体由 --sd-scale 缩放
@@ -16041,11 +16013,13 @@ ${text}
       const padR = parseFloat(gcs.paddingRight) || 0;
       const padV = (parseFloat(gcs.paddingTop) || 0) + (parseFloat(gcs.paddingBottom) || 0);
       const availW = grid.clientWidth - padL - padR;
-      if (availW <= 0) return;
+      if (availW <= 0)
+        return;
       const gap = _SmartDashboardView.GRID_GAP;
       if (availW < 700) {
         const cell2 = Math.floor((availW - gap) / 2);
-        if (cell2 < 40) return;
+        if (cell2 < 40)
+          return;
         grid.style.setProperty("--sd-cols", "2");
         grid.style.setProperty("--sd-cell", `${cell2}px`);
         this.applyLayoutCompact();
@@ -16054,35 +16028,20 @@ ${text}
       }
       if (this.layoutSize === "big") {
         const cell2 = Math.floor((availW - gap * 3) / 4);
-        if (cell2 < 40) return;
+        if (cell2 < 40)
+          return;
         grid.style.setProperty("--sd-cols", "4");
         grid.style.setProperty("--sd-cell", `${cell2}px`);
         this.applyLayout();
         this.applyScale();
         return;
       }
-      let rows = 4;
-      for (const p of Object.values(this.layoutData)) {
-        if (!p) continue;
-        rows = Math.max(rows, p.y + p.h - 1);
-      }
-      const cellW = (availW - gap * 5) / 6;
+      const cellW = (availW - gap * 4) / 5;
       let cell = cellW;
-      const scroller = this.containerEl.querySelector(".sd-tab-content-container");
-      if (scroller) {
-        const scRect = scroller.getBoundingClientRect();
-        const gRect = grid.getBoundingClientRect();
-        const scPadB = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
-        const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
-        const availH = scroller.clientHeight - topOffset - padV - scPadB - 2;
-        if (availH > 120 && rows >= 1) {
-          const cellH = (availH - gap * (rows - 1)) / rows;
-          if (cellH > 60) cell = Math.min(cell, cellH);
-        }
-      }
       cell = Math.floor(cell);
-      if (cell < 40) return;
-      grid.style.setProperty("--sd-cols", "6");
+      if (cell < 40)
+        return;
+      grid.style.setProperty("--sd-cols", "5");
       grid.style.setProperty("--sd-cell", `${cell}px`);
       this.applyLayout();
       this.applyScale();
@@ -16096,15 +16055,18 @@ ${text}
   // 统一缩放：实际格子尺寸 / 设计基准，写入 --sd-scale 供 .sd-card-body 整体 scale
   applyScale() {
     const grid = this.contentEl.querySelector(".sd-grid");
-    if (!grid) return;
+    if (!grid)
+      return;
     const cell = parseFloat(grid.style.getPropertyValue("--sd-cell")) || 300;
-    if (cell <= 0) return;
+    if (cell <= 0)
+      return;
     const scale = cell / _SmartDashboardView.DESIGN_CELL;
     grid.style.setProperty("--sd-scale", scale.toFixed(4));
   }
   applyLayoutCompact() {
     const grid = this.contentEl.querySelector(".sd-grid");
-    if (!grid) return;
+    if (!grid)
+      return;
     grid.querySelectorAll(".sd-card[id]").forEach((card) => {
       card.style.gridColumn = "";
       card.style.gridRow = "";
@@ -16116,9 +16078,10 @@ ${text}
   }
   getGridMetrics() {
     const grid = this.getGrid();
-    if (!grid) return null;
+    if (!grid)
+      return null;
     const rect = grid.getBoundingClientRect();
-    const cols = parseInt(grid.style.getPropertyValue("--sd-cols"), 10) || 6;
+    const cols = parseInt(grid.style.getPropertyValue("--sd-cols"), 10) || 5;
     const cell = parseFloat(grid.style.getPropertyValue("--sd-cell")) || 280;
     const trackW = cols * cell + (cols - 1) * _SmartDashboardView.GRID_GAP;
     const mgcs = getComputedStyle(grid);
@@ -16132,13 +16095,17 @@ ${text}
     let dragging = false;
     let startX = 0, startY = 0;
     const isInteractive = (t) => {
-      if (!(t instanceof HTMLElement)) return true;
-      if (t.closest("textarea, input, select, button, a, .sd-todo-item, .sd-todo-drag-handle")) return true;
+      if (!(t instanceof HTMLElement))
+        return true;
+      if (t.closest("textarea, input, select, button, a, .sd-todo-item, .sd-todo-drag-handle"))
+        return true;
       return false;
     };
     card.addEventListener("pointerdown", (e) => {
-      if (isInteractive(e.target)) return;
-      if (e.button !== 0) return;
+      if (isInteractive(e.target))
+        return;
+      if (e.button !== 0)
+        return;
       startX = e.clientX;
       startY = e.clientY;
       timer = window.setTimeout(() => {
@@ -16193,7 +16160,8 @@ ${text}
     });
     card.addEventListener("pointercancel", cancel);
     card.addEventListener("pointerleave", () => {
-      if (dragging) this.clearDropTarget();
+      if (dragging)
+        this.clearDropTarget();
     });
     card.addEventListener("click", (e) => {
       if (this.suppressClick) {
@@ -16205,12 +16173,15 @@ ${text}
   }
   showDropTarget(dragged, clientX, clientY) {
     const grid = this.getGrid();
-    if (!grid) return;
+    if (!grid)
+      return;
     const m = this.getGridMetrics();
-    if (!m) return;
+    if (!m)
+      return;
     const { cols, cell, gap, rect, offsetX } = m;
     const pos = this.layoutData[dragged.id];
-    if (!pos) return;
+    if (!pos)
+      return;
     const w = pos.w, h = pos.h;
     const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
     const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
@@ -16223,18 +16194,23 @@ ${text}
   }
   clearDropTarget() {
     const grid = this.getGrid();
-    if (!grid) return;
+    if (!grid)
+      return;
     grid.querySelectorAll(".sd-drop-target").forEach((el) => el.remove());
   }
   async commitDrop(dragged, clientX, clientY) {
     const grid = this.getGrid();
-    if (!grid) return;
+    if (!grid)
+      return;
     const m = this.getGridMetrics();
-    if (!m) return;
+    if (!m)
+      return;
     const { cols, cell, gap, rect, offsetX } = m;
-    if (cols < 4) return;
+    if (cols < 4)
+      return;
     const dragPos = this.layoutData[dragged.id];
-    if (!dragPos) return;
+    if (!dragPos)
+      return;
     const w = dragPos.w, h = dragPos.h;
     const col = Math.min(Math.max(Math.floor((clientX - rect.left - 12 - offsetX) / (cell + gap)) + 1, 1), cols - w + 1);
     const row = Math.max(Math.floor((clientY - rect.top - 12) / (cell + gap)) + 1, 1);
@@ -16254,7 +16230,8 @@ ${text}
           }
         }
       }
-      if (!spot) spot = { x: 1, y: 501, w: p.w, h: p.h };
+      if (!spot)
+        spot = { x: 1, y: 501, w: p.w, h: p.h };
       placed.push(spot);
       next[id] = { x: spot.x, y: spot.y, w: p.w, h: p.h };
     }
@@ -16264,11 +16241,14 @@ ${text}
   }
   async reflowLayoutForVisibleCards(visibleIds) {
     const grid = this.getGrid();
-    if (!grid) return;
+    if (!grid)
+      return;
     const m = this.getGridMetrics();
-    if (!m) return;
+    if (!m)
+      return;
     const { cols } = m;
-    if (cols < 4) return;
+    if (cols < 4)
+      return;
     const allHaveCoords = visibleIds.every((id) => this.layoutData[id]);
     if (allHaveCoords) {
       let collision = false;
@@ -16325,7 +16305,8 @@ ${text}
           }
         }
       }
-      if (!spot) spot = { x: 1, y: 501, w, h };
+      if (!spot)
+        spot = { x: 1, y: 501, w, h };
       placed.push(spot);
       next[id] = spot;
     }
@@ -16340,7 +16321,8 @@ ${text}
       var _a;
       const cache = this.app.metadataCache.getFileCache(f);
       const val = (_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a[field];
-      if (val) set2.add(val);
+      if (val)
+        set2.add(val);
     });
     return Array.from(set2).sort();
   }
@@ -16375,25 +16357,34 @@ ${text}
       const files = this.app.vault.getMarkdownFiles();
       let matchedFiles = [];
       for (const file of files) {
-        if (loc === "notes" && !file.path.startsWith("03_Archive")) continue;
-        if (loc === "cards" && !file.path.startsWith("02_Wiki")) continue;
-        if (loc === "inbox" && !file.path.startsWith("01_Inbox")) continue;
+        if (loc === "notes" && !file.path.startsWith("03_Archive"))
+          continue;
+        if (loc === "cards" && !file.path.startsWith("02_Wiki"))
+          continue;
+        if (loc === "inbox" && !file.path.startsWith("01_Inbox"))
+          continue;
         const cache = this.app.metadataCache.getFileCache(file);
         if (type !== "\u9ED8\u8BA4") {
-          if (((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.type) !== type) continue;
+          if (((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.type) !== type)
+            continue;
         }
         if (sd || ed) {
           let created = ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b.created) ? (0, import_obsidian.moment)(cache.frontmatter.created).format("YYYY-MM-DD") : (0, import_obsidian.moment)(file.stat.ctime).format("YYYY-MM-DD");
-          if (sd && created < sd) continue;
-          if (ed && created > ed) continue;
+          if (sd && created < sd)
+            continue;
+          if (ed && created > ed)
+            continue;
         }
         if (query) {
-          if (file.basename.toLowerCase().includes(query)) matchedFiles.push(file);
+          if (file.basename.toLowerCase().includes(query))
+            matchedFiles.push(file);
           else {
             const content = await this.app.vault.cachedRead(file);
-            if (content.toLowerCase().includes(query)) matchedFiles.push(file);
+            if (content.toLowerCase().includes(query))
+              matchedFiles.push(file);
           }
-        } else matchedFiles.push(file);
+        } else
+          matchedFiles.push(file);
       }
       resultsArea.empty();
       if (matchedFiles.length === 0) {
@@ -16435,86 +16426,34 @@ ${text}
       };
     });
   }
-  renderQuickJotArea(container) {
-    container.createEl("h3", { text: "\u26A1 \u6781\u901F\u968F\u7B14", cls: "sd-section-title" });
-    const textWrapper = container.createDiv({ attr: { style: "display: flex; flex-direction: column; flex-grow: 1; margin-bottom: 10px;" } });
-    const textarea = textWrapper.createEl("textarea", { attr: { style: "width: 100%; min-height: 100px; padding: 10px; border: 1px solid var(--sd-warm-border); border-radius: 6px; resize: none; font-family: inherit; background: transparent; color: inherit;" } });
-    textarea.placeholder = "\u968F\u65F6\u8BB0\u5F55\u7075\u611F\u95EA\u73B0...";
-    const controls = container.createDiv({ attr: { style: "display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: auto;" } });
-    const typeSelect = controls.createEl("select");
-    typeSelect.style.padding = "8px 12px";
-    typeSelect.style.borderRadius = "6px";
-    typeSelect.style.border = "1px solid var(--sd-warm-border)";
-    typeSelect.style.background = "var(--sd-warm-bg)";
-    ["\u672A\u5B9A", "\u968F\u7B14", "\u65E5\u8BB0", "\u5176\u4ED6", "\u8BFB\u4E66\u7B14\u8BB0", "\u5B66\u79D1"].forEach((t) => typeSelect.createEl("option", { value: t, text: t }));
-    const saveBtn = controls.createEl("button", { text: "\u4E00\u952E\u843D\u7B14", cls: "sd-btn mod-cta", attr: { style: "background-color: var(--sd-warm-accent) !important; color: white !important;" } });
-    saveBtn.onclick = async () => {
-      const val = textarea.value.trim();
-      if (!val) {
-        new import_obsidian.Notice("\u968F\u7B14\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A\uFF01");
-        return;
-      }
-      const type = typeSelect.value;
-      const dateStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
-      const timeStr = (0, import_obsidian.moment)().format("HHmmss");
-      const folderPath = "01_Inbox";
-      if (!await this.app.vault.adapter.exists(folderPath)) await this.app.vault.createFolder(folderPath);
-      const filePath = `${folderPath}/${type}-${dateStr}-${timeStr}.md`;
-      let content = `---
-created: ${dateStr}
-type: ${type}
----
-
-${val}
-`;
-      const file = await this.app.vault.create(filePath, content);
-      new import_obsidian.Notice("\u968F\u7B14\u5DF2\u4FDD\u5B58");
-      textarea.value = "";
-    };
-    const dailyBtn = controls.createEl("button", { text: "\u{1F4DD} \u5199\u5165\u4ECA\u65E5\u65E5\u8BB0", cls: "sd-btn secondary" });
-    dailyBtn.onclick = async () => {
-      const val = textarea.value.trim();
-      if (!val) {
-        new import_obsidian.Notice("\u968F\u7B14\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A\uFF01");
-        return;
-      }
-      try {
-        await this.appendToDailyNote(val, typeSelect.value === "\u672A\u5B9A" ? "\u968F\u7B14" : typeSelect.value);
-        textarea.value = "";
-      } catch (e) {
-        new import_obsidian.Notice("\u5199\u5165\u65E5\u8BB0\u5931\u8D25: " + String(e));
-      }
-    };
-  }
   async createNote(type, subject) {
     let actualType = type === "\u667A\u80FD\u65B0\u5EFA" ? "\u672A\u5B9A" : type;
     const dateStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
     const timeStr = (0, import_obsidian.moment)().format("HHmmss");
     let title = `${actualType}-${dateStr}-${timeStr}`;
-    if (subject) title = `${subject}-${title}`;
+    if (subject)
+      title = `${subject}-${title}`;
     const folderPath = "01_Inbox";
-    if (!await this.app.vault.adapter.exists(folderPath)) await this.app.vault.createFolder(folderPath);
+    if (!await this.app.vault.adapter.exists(folderPath))
+      await this.app.vault.createFolder(folderPath);
     const filePath = `${folderPath}/${title}.md`;
     let content = `---
 created: ${dateStr}
 type: ${actualType}
 `;
-    if (type === "\u5B66\u79D1") content += `subject: ${subject}
+    if (type === "\u5B66\u79D1")
+      content += `subject: ${subject}
 ---
-
-## \u77E5\u8BC6\u70B9
-
-## \u505A\u9898\u6280\u5DE7
-
-## \u6CE8\u610F\u4E8B\u9879
 `;
-    else if (type === "\u8BFB\u4E66\u7B14\u8BB0") content += `book: ${subject}
+    else if (type === "\u8BFB\u4E66\u7B14\u8BB0")
+      content += `book: ${subject}
 author: 
 ---
 
 ## \u6279\u6CE8
 `;
-    else if (type === "\u8BBA\u6587") content += `paper: ${subject}
+    else if (type === "\u8BBA\u6587")
+      content += `paper: ${subject}
 author: 
 year: 
 journal: 
@@ -16530,7 +16469,8 @@ journal:
 
 ## \u6211\u7684\u601D\u8003
 `;
-    else content += `---
+    else
+      content += `---
 
 ## \u6B63\u6587
 `;
@@ -16615,15 +16555,18 @@ journal:
           const isStartDay = isRecurring || dateStr === s.date;
           const isEndDay = isRecurring || dateStr === (s.endDate || s.date);
           bar.innerText = isStartDay ? s.title : " ";
-          if (!isStartDay) bar.addClass("continue-left");
-          if (!isEndDay) bar.addClass("continue-right");
+          if (!isStartDay)
+            bar.addClass("continue-left");
+          if (!isEndDay)
+            bar.addClass("continue-right");
           const colors2 = ["#2A9D8F", "#F4A261", "#E76F51", "#457B9D", "#E9C46A"];
           bar.style.backgroundColor = colors2[idx % colors2.length];
           let widthStr = "";
           let marginStr = "";
           if (this.calendarViewMode === "week" && (s.time || s.endTime)) {
             const parseTime = (t) => {
-              if (!t) return null;
+              if (!t)
+                return null;
               const [h, m] = t.split(":").map(Number);
               return ((h || 0) + (m || 0) / 60) / 24 * 100;
             };
@@ -16637,14 +16580,18 @@ journal:
             }
             marginStr = !isStartDay ? `calc(${startPct}% - 5px)` : `${startPct}%`;
             let ext = 0;
-            if (!isStartDay) ext += 5;
-            if (!isEndDay) ext += 5;
+            if (!isStartDay)
+              ext += 5;
+            if (!isEndDay)
+              ext += 5;
             widthStr = `calc(${Math.max(endPct - startPct, 5)}% + ${ext}px)`;
           } else {
             marginStr = !isStartDay ? "-5px" : "0";
             let ext = 0;
-            if (!isStartDay) ext += 5;
-            if (!isEndDay) ext += 5;
+            if (!isStartDay)
+              ext += 5;
+            if (!isEndDay)
+              ext += 5;
             widthStr = `calc(100% + ${ext}px)`;
           }
           bar.style.marginLeft = marginStr;
@@ -16655,8 +16602,10 @@ journal:
           };
         });
       }
-      if (dayTodos.length > 0) indicators.createSpan({ cls: "sd-dot todo-dot", title: `${dayTodos.length} \u4E2A\u5F85\u529E` });
-      if (dayNotes.length > 0) indicators.createSpan({ cls: "sd-dot note-dot", title: `${dayNotes.length} \u7BC7\u7B14\u8BB0` });
+      if (dayTodos.length > 0)
+        indicators.createSpan({ cls: "sd-dot todo-dot", title: `${dayTodos.length} \u4E2A\u5F85\u529E` });
+      if (dayNotes.length > 0)
+        indicators.createSpan({ cls: "sd-dot note-dot", title: `${dayNotes.length} \u7BC7\u7B14\u8BB0` });
       if (moods[dateStr]) {
         const e = moods[dateStr].emoji;
         dayCell.createDiv({ text: e, cls: "sd-calendar-emoji" });
@@ -16707,10 +16656,12 @@ journal:
         var _a, _b;
         const aOver = !a.completed && !!a.deadline && a.deadline < todayStr ? 0 : 1;
         const bOver = !b.completed && !!b.deadline && b.deadline < todayStr ? 0 : 1;
-        if (aOver !== bOver) return aOver - bOver;
+        if (aOver !== bOver)
+          return aOver - bOver;
         const pa = (_a = priRank[a.priority || "low"]) != null ? _a : 2;
         const pb = (_b = priRank[b.priority || "low"]) != null ? _b : 2;
-        if (pa !== pb) return pa - pb;
+        if (pa !== pb)
+          return pa - pb;
         return 0;
       });
       if (displayTodos.length === 0) {
@@ -16752,8 +16703,10 @@ journal:
           const target = currentTodos.find((x) => x.id === t.id);
           if (target) {
             if (target.repeat && target.repeat !== "none") {
-              if (cb.checked) target.lastCompleted = (0, import_obsidian.moment)().format("YYYY-MM-DD");
-              else target.lastCompleted = void 0;
+              if (cb.checked)
+                target.lastCompleted = (0, import_obsidian.moment)().format("YYYY-MM-DD");
+              else
+                target.lastCompleted = void 0;
             } else {
               target.completed = cb.checked;
             }
@@ -16784,9 +16737,12 @@ journal:
           const daysLeft = (0, import_obsidian.moment)(t.deadline).diff((0, import_obsidian.moment)().startOf("day"), "days");
           const warningCls = daysLeft < 0 ? "deadline-overdue" : daysLeft <= 2 ? "deadline-warning" : "";
           let deadlineText = `\u23F3 \u622A\u6B62: ${t.deadline}`;
-          if (daysLeft < 0) deadlineText += ` (\u5DF2\u903E\u671F)`;
-          else if (daysLeft === 0) deadlineText += ` (\u4ECA\u5929)`;
-          else deadlineText += ` (\u5269 ${daysLeft} \u5929)`;
+          if (daysLeft < 0)
+            deadlineText += ` (\u5DF2\u903E\u671F)`;
+          else if (daysLeft === 0)
+            deadlineText += ` (\u4ECA\u5929)`;
+          else
+            deadlineText += ` (\u5269 ${daysLeft} \u5929)`;
           metaDiv.createSpan({ text: deadlineText, cls: `sd-todo-deadline ${warningCls}` });
         }
         if (t.subtasks && t.subtasks.length > 0) {
@@ -16818,7 +16774,8 @@ journal:
           };
         }
         item.onclick = (e) => {
-          if (e.target !== cb) new ManageTodoModal(this.app, this.plugin, t, renderList).open();
+          if (e.target !== cb)
+            new ManageTodoModal(this.app, this.plugin, t, renderList).open();
         };
       });
     };
@@ -16859,8 +16816,10 @@ journal:
       });
       schedules = schedules.filter((s) => {
         const eff = s._eff;
-        if (currentTab === "past") return eff < today;
-        if (currentTab === "present") return eff >= today && eff <= future3;
+        if (currentTab === "past")
+          return eff < today;
+        if (currentTab === "present")
+          return eff >= today && eff <= future3;
         return eff > future3;
       });
       schedules.sort((a, b) => (a._eff || a.date).localeCompare(b._eff || b.date) || (a.time || "").localeCompare(b.time || ""));
@@ -16913,8 +16872,10 @@ journal:
           timeHeader.createSpan({ text: ` \u{1F501}${repLabel}`, cls: "sd-timeline-repeat", attr: { title: `\u539F\u59CB\u65E5\u671F ${s.date}\uFF0C\u6BCF${repLabel}\u91CD\u590D` } });
         }
         timeHeader.createSpan({ text: ` \u23F1 ${daysLabel}`, cls: `sd-timeline-countdown sd-schedule-days ${daysCls}` });
-        if (countdownStr) timeHeader.createSpan({ text: countdownStr, cls: "sd-timeline-countdown" });
-        if (isConflict) timeHeader.createSpan({ text: " \u26A0\uFE0F \u51B2\u7A81", cls: "sd-timeline-conflict-text" });
+        if (countdownStr)
+          timeHeader.createSpan({ text: countdownStr, cls: "sd-timeline-countdown" });
+        if (isConflict)
+          timeHeader.createSpan({ text: " \u26A0\uFE0F \u51B2\u7A81", cls: "sd-timeline-conflict-text" });
         content.createDiv({ text: s.title, cls: "sd-timeline-title" });
         content.onclick = () => new ManageScheduleModal(this.app, this.plugin, s, renderList).open();
       });
@@ -16964,7 +16925,8 @@ journal:
     auto_default.defaults.color = textColor;
     auto_default.defaults.borderColor = gridColor;
     const container = document.querySelector(".sd-charts-wrapper");
-    if (!container) return;
+    if (!container)
+      return;
     let lineCanvas = container.querySelector(".sd-chart-box:nth-child(1) canvas");
     let pieCanvas = container.querySelector(".sd-chart-box:nth-child(2) canvas");
     const files = this.app.vault.getMarkdownFiles();
@@ -17022,12 +16984,18 @@ journal:
                   const label = context[0].label;
                   const d = dataMap[label];
                   let str = [];
-                  if (d["\u5B66\u79D1"]) str.push(`\u5B66\u79D1: ${d["\u5B66\u79D1"]}`);
-                  if (d["\u8BFB\u4E66\u7B14\u8BB0"]) str.push(`\u8BFB\u4E66: ${d["\u8BFB\u4E66\u7B14\u8BB0"]}`);
-                  if (d["\u8BBA\u6587"]) str.push(`\u8BBA\u6587: ${d["\u8BBA\u6587"]}`);
-                  if (d["\u65E5\u8BB0"]) str.push(`\u65E5\u8BB0: ${d["\u65E5\u8BB0"]}`);
-                  if (d["\u968F\u7B14"]) str.push(`\u968F\u7B14: ${d["\u968F\u7B14"]}`);
-                  if (d["\u5176\u4ED6"]) str.push(`\u5176\u4ED6: ${d["\u5176\u4ED6"]}`);
+                  if (d["\u5B66\u79D1"])
+                    str.push(`\u5B66\u79D1: ${d["\u5B66\u79D1"]}`);
+                  if (d["\u8BFB\u4E66\u7B14\u8BB0"])
+                    str.push(`\u8BFB\u4E66: ${d["\u8BFB\u4E66\u7B14\u8BB0"]}`);
+                  if (d["\u8BBA\u6587"])
+                    str.push(`\u8BBA\u6587: ${d["\u8BBA\u6587"]}`);
+                  if (d["\u65E5\u8BB0"])
+                    str.push(`\u65E5\u8BB0: ${d["\u65E5\u8BB0"]}`);
+                  if (d["\u968F\u7B14"])
+                    str.push(`\u968F\u7B14: ${d["\u968F\u7B14"]}`);
+                  if (d["\u5176\u4ED6"])
+                    str.push(`\u5176\u4ED6: ${d["\u5176\u4ED6"]}`);
                   return str.length ? "\n" + str.join(" | ") : "";
                 }
               }
@@ -17064,60 +17032,56 @@ journal:
       });
     }
   }
-  async renderTradingArea(container) {
+  // ===== 交易复盘：数据层 =====
+  /** 读取 trades.json（按时间倒序）+ 唯一标的列表（录入时作输入建议）*/
+  async readTrades() {
     const jsonPath = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8/trades.json";
     let records = [];
     if (await this.app.vault.adapter.exists(jsonPath)) {
-      const content = await this.app.vault.adapter.read(jsonPath);
       try {
-        records = JSON.parse(content);
+        records = JSON.parse(await this.app.vault.adapter.read(jsonPath));
       } catch (e) {
         console.error("Failed to parse trades.json", e);
       }
     }
     records.sort((a, b) => (0, import_obsidian.moment)(b.timestamp).valueOf() - (0, import_obsidian.moment)(a.timestamp).valueOf());
-    const uniqueTickers = Array.from(new Set(records.map((r) => r.ticker).filter((t) => t)));
-    const headerContainer = container.createDiv({ attr: { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;" } });
-    headerContainer.createEl("h3", { text: "\u{1F4B9} \u9AD8\u9636\u4EA4\u6613\u590D\u76D8\u7CFB\u7EDF", cls: "sd-section-title", attr: { style: "margin:0" } });
-    const quickAddBtn = headerContainer.createEl("button", { text: "+ \u5FEB\u6377\u5F55\u5165", cls: "sd-btn mod-cta" });
-    quickAddBtn.onclick = () => {
-      new CreateTradeModal(this.app, this.plugin, uniqueTickers, async (tradeDate, ticker, action, price, volume) => {
-        const timeStr = (0, import_obsidian.moment)().format("HHmmss");
-        const folderPath = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8";
-        if (!await this.app.vault.adapter.exists(folderPath)) await this.app.vault.createFolder(folderPath);
-        let trades = [];
-        if (await this.app.vault.adapter.exists(jsonPath)) {
-          const content = await this.app.vault.adapter.read(jsonPath);
-          try {
-            trades = JSON.parse(content);
-          } catch (e) {
-            console.error("Failed to parse trades.json", e);
-          }
-        }
-        trades.push({
-          id: `trade-${tradeDate}-${timeStr}`,
-          date: tradeDate,
-          timestamp: (0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm:ss"),
-          ticker,
-          action,
-          price: parseFloat(price.toString()),
-          volume: parseFloat(volume.toString()),
-          strategy: "",
-          pnl: 0,
-          discipline_score: 5,
-          bad_habits: [],
-          ai_review: ""
-        });
-        await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
-        new import_obsidian.Notice("\u4EA4\u6613\u5DF2\u8BB0\u5F55\u81F3 trades.json");
-        container.empty();
-        this.renderTradingArea(container);
-      }).open();
-    };
-    if (records.length === 0) {
-      container.createDiv({ text: "\u6682\u65E0\u4EA4\u6613\u8BB0\u5F55\u3002", cls: "sd-empty-state" });
-      return;
+    return { records, uniqueTickers: Array.from(new Set(records.map((r) => r.ticker).filter((t) => t))) };
+  }
+  /** 追加一条交易记录（合并写，保留 trades.json 中已有记录）*/
+  async appendTrade(t) {
+    const jsonPath = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8/trades.json";
+    const timeStr = (0, import_obsidian.moment)().format("HHmmss");
+    const folderPath = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8";
+    if (!await this.app.vault.adapter.exists(folderPath))
+      await this.app.vault.createFolder(folderPath);
+    let trades = [];
+    if (await this.app.vault.adapter.exists(jsonPath)) {
+      const content = await this.app.vault.adapter.read(jsonPath);
+      try {
+        trades = JSON.parse(content);
+      } catch (e) {
+        console.error("Failed to parse trades.json", e);
+      }
     }
+    trades.push({
+      id: `trade-${t.date}-${timeStr}`,
+      date: t.date,
+      timestamp: (0, import_obsidian.moment)().format("YYYY-MM-DD HH:mm:ss"),
+      ticker: t.ticker,
+      action: t.action,
+      price: parseFloat(t.price.toString()),
+      volume: parseFloat(t.volume.toString()),
+      strategy: "",
+      pnl: 0,
+      discipline_score: 5,
+      bad_habits: [],
+      ai_review: ""
+    });
+    await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
+    new import_obsidian.Notice("\u4EA4\u6613\u5DF2\u8BB0\u5F55\u81F3 trades.json");
+  }
+  // ===== 交易复盘：统计计算 =====
+  computeTradingSummary(records) {
     let totalTrades = 0;
     let winTrades = 0;
     let lossTrades = 0;
@@ -17142,9 +17106,11 @@ journal:
       }
       if (r.bad_habits && Array.isArray(r.bad_habits)) {
         r.bad_habits.forEach((bh) => {
-          if (!bh) return;
+          if (!bh)
+            return;
           const cleanBh = bh.replace("#", "");
-          if (!badHabitsMap.has(cleanBh)) badHabitsMap.set(cleanBh, { count: 0, loss: 0 });
+          if (!badHabitsMap.has(cleanBh))
+            badHabitsMap.set(cleanBh, { count: 0, loss: 0 });
           const entry = badHabitsMap.get(cleanBh);
           entry.count += 1;
           entry.loss += pnl;
@@ -17155,26 +17121,57 @@ journal:
     const avgWin = winTrades > 0 ? totalWinAmount / winTrades : 0;
     const avgLoss = lossTrades > 0 ? Math.abs(totalLossAmount) / lossTrades : 0;
     const pnlRatio = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : avgWin > 0 ? "MAX" : "0.00";
+    return { totalTrades, totalPnL, winRate, pnlRatio, badHabitsMap };
+  }
+  // ===== 交易复盘：统计框渲染（1×1 卡内 2×2 排布）=====
+  renderTradingStatsBlock(container, summary) {
     const redColor = "#e53935";
     const greenColor = "#43a047";
-    const pnlColor = totalPnL >= 0 ? redColor : greenColor;
-    const pnlSign = totalPnL > 0 ? "+" : "";
+    const pnlColor = summary.totalPnL >= 0 ? redColor : greenColor;
+    const pnlSign = summary.totalPnL > 0 ? "+" : "";
     const statsGrid = container.createDiv("sd-trading-stats-grid");
     const createStat = (label, value, color2, extra) => {
       const box = statsGrid.createDiv("sd-trading-stat-box");
       box.createDiv({ text: label, cls: "label" });
       const valEl = box.createDiv({ text: value, cls: "value" });
-      if (color2) valEl.style.color = color2;
-      if (extra) box.appendChild(extra);
+      if (color2)
+        valEl.style.color = color2;
+      if (extra)
+        box.appendChild(extra);
     };
-    createStat("\u603B\u4EA4\u6613\u7B14\u6570", `${totalTrades}`);
-    createStat("\u7D2F\u8BA1\u603B\u76C8\u4E8F", `${pnlSign}${totalPnL.toFixed(2)}`, pnlColor);
+    createStat("\u603B\u4EA4\u6613\u7B14\u6570", `${summary.totalTrades}`);
+    createStat("\u7D2F\u8BA1\u603B\u76C8\u4E8F", `${pnlSign}${summary.totalPnL.toFixed(2)}`, pnlColor);
     const winBarContainer = document.createElement("div");
     winBarContainer.className = "sd-trading-winbar-container";
     const winBar = winBarContainer.createDiv("sd-trading-winbar-fill");
-    winBar.style.width = `${winRate}%`;
-    createStat("\u6574\u4F53\u80DC\u7387", `${winRate}%`, void 0, winBarContainer);
-    createStat("\u5E73\u5747\u76C8\u4E8F\u6BD4", `${pnlRatio}`);
+    winBar.style.width = `${summary.winRate}%`;
+    createStat("\u6574\u4F53\u80DC\u7387", `${summary.winRate}%`, void 0, winBarContainer);
+    createStat("\u5E73\u5747\u76C8\u4E8F\u6BD4", `${summary.pnlRatio}`);
+  }
+  // ===== 交易复盘卡（1×1）：标题行 + 2×2 统计框 + 明细入口 =====
+  async renderTradingArea(container) {
+    const headerContainer = container.createDiv({ attr: { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;" } });
+    headerContainer.createEl("h3", { text: "\u{1F4B9} \u4EA4\u6613\u590D\u76D8", cls: "sd-section-title", attr: { style: "margin:0" } });
+    const quickAddBtn = headerContainer.createEl("button", { text: "\uFF0B \u5FEB\u6377\u5F55\u5165", cls: "sd-btn mod-cta" });
+    quickAddBtn.onclick = () => {
+      void (async () => {
+        const { uniqueTickers } = await this.readTrades();
+        new CreateTradeModal(this.app, this.plugin, uniqueTickers, async (tradeDate, ticker, action, price, volume) => {
+          await this.appendTrade({ date: tradeDate, ticker, action, price, volume });
+        }).open();
+      })();
+    };
+    const { records } = await this.readTrades();
+    this.renderTradingStatsBlock(container, this.computeTradingSummary(records));
+    const actions = container.createDiv("sd-trading-actions");
+    const detailBtn = actions.createEl("button", { text: "\u{1F4CB} \u590D\u76D8\u660E\u7EC6", cls: "sd-btn secondary" });
+    detailBtn.onclick = () => new TradingTablesModal(this.app, this).open();
+  }
+  // ===== 交易复盘：明细表格渲染（TradingTablesModal 用）=====
+  renderTradingTablesBlock(container, records, uniqueTickers, summary, onChanged) {
+    const redColor = "#e53935";
+    const greenColor = "#43a047";
+    const badHabitsMap = summary.badHabitsMap;
     const tablesWrapper = container.createDiv("sd-trading-tables-wrapper");
     const habitsCol = tablesWrapper.createDiv("sd-trading-col");
     habitsCol.createEl("h4", { text: "\u26A0\uFE0F \u4E8F\u635F\u5F52\u56E0 (\u574F\u4E60\u60EF)" });
@@ -17210,19 +17207,18 @@ journal:
       const a = fileLink.createEl("a", { text: r.ticker || "\u672A\u547D\u540D" });
       a.onclick = () => {
         new ViewTradeModal(this.app, this.plugin, r, uniqueTickers, async (updatedTrade) => {
-          const jsonPath2 = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8/trades.json";
+          const jsonPath = "04_\u4E2A\u4EBA\u7A7A\u95F4/\u4EA4\u6613\u590D\u76D8/trades.json";
           let trades = [];
-          if (await this.app.vault.adapter.exists(jsonPath2)) {
-            const content = await this.app.vault.adapter.read(jsonPath2);
+          if (await this.app.vault.adapter.exists(jsonPath)) {
+            const content = await this.app.vault.adapter.read(jsonPath);
             trades = JSON.parse(content);
           }
           const idx = trades.findIndex((t) => t.id === updatedTrade.id);
           if (idx !== -1) {
             trades[idx] = updatedTrade;
-            await this.app.vault.adapter.write(jsonPath2, JSON.stringify(trades, null, 2));
+            await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
             new import_obsidian.Notice("\u4EA4\u6613\u8BB0\u5F55\u5DF2\u66F4\u65B0");
-            container.empty();
-            this.renderTradingArea(container);
+            onChanged();
           }
         }).open();
       };
@@ -17230,7 +17226,8 @@ journal:
       tr.createEl("td", { text: `${r.price}` });
       tr.createEl("td", { text: `${r.volume}` });
       const pnlTd = tr.createEl("td", { text: `${r.pnl > 0 ? "+" : ""}${r.pnl}` });
-      if (r.pnl !== 0) pnlTd.style.color = r.pnl > 0 ? redColor : greenColor;
+      if (r.pnl !== 0)
+        pnlTd.style.color = r.pnl > 0 ? redColor : greenColor;
       pnlTd.style.fontWeight = "bold";
       tr.createEl("td", { text: r.strategy });
       tr.createEl("td", { text: `${r.score || "-"}` });
@@ -17251,9 +17248,12 @@ journal:
       var _a;
       const cache = this.app.metadataCache.getFileCache(f);
       let created = ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.created) ? (0, import_obsidian.moment)(cache.frontmatter.created) : (0, import_obsidian.moment)(f.stat.ctime);
-      if (created.isSameOrAfter(startOfMonth)) monthCount++;
-      if (created.isSameOrAfter(startOfWeek)) weekCount++;
-      if (created.format("YYYY-MM-DD") === todayStr) todayCount++;
+      if (created.isSameOrAfter(startOfMonth))
+        monthCount++;
+      if (created.isSameOrAfter(startOfWeek))
+        weekCount++;
+      if (created.format("YYYY-MM-DD") === todayStr)
+        todayCount++;
     });
     let openTodoCount = 0;
     try {
@@ -17309,93 +17309,6 @@ journal:
     };
     setTimeout(() => this.updateCharts(true), 50);
   }
-  // ===== D-Day 倒计时卡：统一事件源（自定义 + 节日 + 节气），只显示最近三个 =====
-  async renderCountdownArea(container) {
-    container.createEl("h3", { text: "\u{1F3AF} D-Day \u5012\u8BA1\u65F6", cls: "sd-section-title" });
-    const rerender = () => {
-      container.empty();
-      this.renderCountdownArea(container);
-    };
-    const headerRow = container.createDiv({ attr: { style: "display:flex; justify-content:flex-end; gap:4px; margin-bottom:4px" } });
-    headerRow.createEl("button", { text: "\u{1F4CB} \u5168\u90E8", cls: "sd-btn secondary", attr: { style: "font-size: 0.8em; padding: 2px 8px;", title: "\u7BA1\u7406\u5168\u90E8\u81EA\u5B9A\u4E49\u5012\u8BA1\u65F6" } }).onclick = () => new CountdownListModal(this.app, this.plugin, rerender).open();
-    headerRow.createEl("button", { text: "\uFF0B \u65B0\u4E8B\u4EF6", cls: "sd-btn secondary", attr: { style: "font-size: 0.8em; padding: 2px 8px;" } }).onclick = () => new ManageCountdownModal(this.app, this.plugin, null, rerender).open();
-    const todayStr = (0, import_obsidian.moment)().format("YYYY-MM-DD");
-    const entries = [];
-    for (const c of await this.getCountdowns()) {
-      if (c.targetDate >= todayStr) entries.push({ title: c.title, date: c.targetDate, kind: "custom", item: c });
-    }
-    for (const h of upcomingHolidays(todayStr)) {
-      entries.push({ title: h.name, date: h.date, kind: h.kind });
-    }
-    entries.sort((a, b) => a.date.localeCompare(b.date));
-    const top = entries.slice(0, 3);
-    if (top.length === 0) {
-      container.createDiv({
-        text: "\u6682\u65E0\u5373\u5C06\u5230\u6765\u7684\u5012\u8BA1\u65F6\u3002",
-        attr: { style: "padding: 10px; color: var(--text-muted); font-size: 13px;" }
-      });
-      return;
-    }
-    const list = container.createDiv("sd-countdown-list");
-    for (const e of top) {
-      const daysLeft = (0, import_obsidian.moment)(e.date).diff((0, import_obsidian.moment)().startOf("day"), "days");
-      const stateCls = daysLeft < 0 ? "sd-dd-past" : daysLeft <= 7 ? "sd-dd-soon" : "";
-      const row = list.createDiv(`sd-countdown-item ${stateCls}`);
-      if (e.kind === "custom") {
-        row.onclick = () => new ManageCountdownModal(this.app, this.plugin, e.item, rerender).open();
-      } else {
-        row.setAttribute("title", `${e.kind === "term" ? "\u8282\u6C14" : "\u8282\u65E5"} \xB7 \u6BCF\u5E74\u81EA\u52A8\u751F\u6210`);
-      }
-      const info = row.createDiv("sd-countdown-info");
-      info.createDiv({ text: e.title, cls: "sd-countdown-title" });
-      info.createDiv({
-        text: (0, import_obsidian.moment)(e.date).format("YYYY-MM-DD") + (e.kind === "festival" ? " \xB7 \u8282\u65E5" : e.kind === "term" ? " \xB7 \u8282\u6C14" : ""),
-        cls: "sd-countdown-date"
-      });
-      const daysEl = row.createDiv("sd-countdown-days");
-      if (daysLeft === 0) {
-        daysEl.createSpan({ text: "\u4ECA\u5929", cls: "sd-countdown-num" });
-        daysEl.createSpan({ text: " \u{1F389}", cls: "sd-countdown-unit" });
-      } else {
-        daysEl.createSpan({ text: `${Math.abs(daysLeft)}`, cls: "sd-countdown-num" });
-        daysEl.createSpan({ text: daysLeft > 0 ? " \u5929" : " \u5929\u524D", cls: "sd-countdown-unit" });
-      }
-    }
-  }
-  // ===== 导航入口卡片（纯色按钮竖排，五色轮换）=====
-  async renderNavArea(container) {
-    container.createEl("h3", { text: "\u{1F9ED} \u5FEB\u901F\u5BFC\u822A", cls: "sd-section-title" });
-    const entries = await this.plugin.getNavEntries();
-    const grid = container.createDiv("sd-nav-grid");
-    const palette = ["#E76F51", "#2A9D8F", "#457B9D", "#E29A38", "#7c5cff"];
-    entries.forEach((e, idx) => {
-      const card = grid.createDiv("sd-nav-entry-card");
-      card.style.backgroundColor = palette[idx % palette.length];
-      card.setAttribute("title", `${e.name} \xB7 ${e.desc}
-\u2192 ${e.path}\uFF08\u5728\u8BBE\u7F6E\u4E2D\u53EF\u4FEE\u6539\u5165\u53E3\u8DEF\u5F84\uFF09`);
-      card.createSpan({ text: e.icon, cls: "sd-nav-entry-icon" });
-      card.createSpan({ text: e.name, cls: "sd-nav-entry-name" });
-      card.onclick = async () => {
-        var _a, _b, _c;
-        try {
-          const target = this.app.vault.getAbstractFileByPath(e.path);
-          if (!target) {
-            new import_obsidian.Notice(`\u5165\u53E3\u8DEF\u5F84\u4E0D\u5B58\u5728\uFF1A${e.path}`);
-            return;
-          }
-          if (target instanceof import_obsidian.TFile) {
-            await this.app.workspace.getLeaf(false).openFile(target);
-          } else {
-            const fe = (_b = (_a = this.app.internalPlugins) == null ? void 0 : _a.getPluginById) == null ? void 0 : _b.call(_a, "file-explorer");
-            if ((_c = fe == null ? void 0 : fe.instance) == null ? void 0 : _c.revealInFolder) fe.instance.revealInFolder(target);
-            else new import_obsidian.Notice(`\u6587\u4EF6\u5939\uFF1A${e.path}`);
-          }
-        } catch (err) {
-          new import_obsidian.Notice("\u6253\u5F00\u5165\u53E3\u5931\u8D25: " + String(err));
-        }
-      };
-    });
-  }
   async renderUsageArea(card) {
     try {
       const header = card.createDiv({ cls: "sd-section-title" });
@@ -17414,10 +17327,12 @@ journal:
           const { exec } = require("child_process");
           await new Promise((resolve2, reject) => {
             exec(
-              'python "__PLUGIN_DIR__/collect_usage.py" --quiet',
+              'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
               (error) => {
-                if (error) reject(error);
-                else resolve2();
+                if (error)
+                  reject(error);
+                else
+                  resolve2();
               }
             );
           });
@@ -17454,7 +17369,8 @@ journal:
       const monthKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
       let monthAll = { input: 0, output: 0, cache: 0, reasoning: 0 };
       for (const k of Object.keys(days)) {
-        if (!k.startsWith(monthKey)) continue;
+        if (!k.startsWith(monthKey))
+          continue;
         const dt = this.dailyTokens(days[k]);
         monthAll.input += dt.input;
         monthAll.output += dt.output;
@@ -17474,8 +17390,10 @@ journal:
       const heat = body.createDiv({ cls: "sd-usage-heatmap" });
       const render = (view) => {
         heat.empty();
-        if (view === "month") this.renderMonthHeatmap(heat, days, today, now);
-        else this.renderYearHeatmap(heat, days, today, now);
+        if (view === "month")
+          this.renderMonthHeatmap(heat, days, today, now);
+        else
+          this.renderYearHeatmap(heat, days, today, now);
       };
       mBtn.onclick = () => {
         mBtn.addClass("active");
@@ -17559,7 +17477,8 @@ journal:
   cacheStats(days, prefix) {
     let hit = 0, miss = 0;
     for (const k of Object.keys(days)) {
-      if (prefix && !k.startsWith(prefix)) continue;
+      if (prefix && !k.startsWith(prefix))
+        continue;
       const d = days[k];
       if (d.hermes) {
         const hIn = d.hermes.input || 0, hC = d.hermes.cache || 0;
@@ -17608,10 +17527,13 @@ journal:
     };
   }
   fmtTokens(n) {
-    if (!n) return "0";
+    if (!n)
+      return "0";
     const m = n / 1e6;
-    if (m >= 1) return m.toFixed(1) + "M";
-    if (m >= 0.01) return m.toFixed(2) + "M";
+    if (m >= 1)
+      return m.toFixed(1) + "M";
+    if (m >= 0.01)
+      return m.toFixed(2) + "M";
     return String(Math.round(n));
   }
   sumRange(days, n) {
@@ -17635,12 +17557,17 @@ journal:
         const total = dt.input + dt.output + dt.cache + dt.reasoning;
         const cell = flow.createDiv({ cls: "sd-usage-cell" });
         let lv = 0;
-        if (total > 5e8) lv = 4;
-        else if (total > 15e7) lv = 3;
-        else if (total > 4e7) lv = 2;
-        else if (total > 1e7) lv = 1;
+        if (total > 5e8)
+          lv = 4;
+        else if (total > 15e7)
+          lv = 3;
+        else if (total > 4e7)
+          lv = 2;
+        else if (total > 1e7)
+          lv = 1;
         cell.addClass("sd-usage-lv" + lv);
-        if (key === today) cell.addClass("sd-usage-today");
+        if (key === today)
+          cell.addClass("sd-usage-today");
         cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + "\uFF09");
       }
       const label = container.createDiv({ cls: "sd-usage-caption" });
@@ -17661,12 +17588,17 @@ journal:
         const total = dt.input + dt.output + dt.cache + dt.reasoning;
         const cell = grid.createDiv({ cls: "sd-usage-yearcell" });
         let lv = 0;
-        if (total > 5e8) lv = 4;
-        else if (total > 15e7) lv = 3;
-        else if (total > 4e7) lv = 2;
-        else if (total > 1e7) lv = 1;
+        if (total > 5e8)
+          lv = 4;
+        else if (total > 15e7)
+          lv = 3;
+        else if (total > 4e7)
+          lv = 2;
+        else if (total > 1e7)
+          lv = 1;
         cell.addClass("sd-usage-lv" + lv);
-        if (key === today) cell.addClass("sd-usage-today");
+        if (key === today)
+          cell.addClass("sd-usage-today");
         cell.setAttribute("title", key + " \u603B" + this.fmtTokens(total) + "\uFF08\u8F93\u5165" + this.fmtTokens(dt.input) + " \u8F93\u51FA" + this.fmtTokens(dt.output) + "\uFF09");
       }
       const label = container.createDiv({ cls: "sd-usage-caption" });
@@ -17691,16 +17623,19 @@ journal:
       const data = JSON.parse(raw);
       const leagues = (data == null ? void 0 : data.leagues) || [];
       const parseDt = (dt) => {
-        if (!dt || typeof dt !== "string") return null;
+        if (!dt || typeof dt !== "string")
+          return null;
         const d = (0, import_obsidian.moment)(dt.replace(/\(\+\d+\)/, "").trim().replace(/\s+/, "T"));
-        if (!d.isValid()) return null;
+        if (!d.isValid())
+          return null;
         return d;
       };
       const entries = [];
       for (const league of leagues) {
         const now = (0, import_obsidian.moment)();
         const upcoming = (league.events || []).map((ev) => ({ ev, dt: parseDt(ev.datetime) })).filter((x) => x.dt && x.dt.isAfter(now)).sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
-        if (!upcoming.length) continue;
+        if (!upcoming.length)
+          continue;
         const next = upcoming[0];
         entries.push({
           icon: league.icon || "\u{1F3C5}",
@@ -17721,7 +17656,8 @@ journal:
       const list = body.createDiv({ cls: "sd-sports-list" });
       for (const en of entries) {
         const item = list.createDiv({ cls: "sd-sports-item" });
-        if (en.id) item.setAttribute("data-league", en.id.toLowerCase());
+        if (en.id)
+          item.setAttribute("data-league", en.id.toLowerCase());
         const info = item.createDiv({ cls: "sd-sports-info" });
         info.createDiv({ cls: "sd-sports-icon", text: en.icon });
         info.createDiv({ cls: "sd-sports-name", text: en.name });
@@ -17781,10 +17717,12 @@ journal:
           const { exec } = require("child_process");
           await new Promise((resolve2, reject) => {
             exec(
-              'python "__PLUGIN_DIR__/collect_subscriptions.py" collect',
+              'python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
               (error) => {
-                if (error) reject(error);
-                else resolve2();
+                if (error)
+                  reject(error);
+                else
+                  resolve2();
               }
             );
           });
@@ -17807,7 +17745,7 @@ journal:
   }
   async saveSubscriptionCredential(providerId, credential) {
     var _a, _b;
-    const scriptPath = "__PLUGIN_DIR__/collect_subscriptions.py";
+    const scriptPath = "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py";
     try {
       const credKey = providerId === "scnet-tokenplan" ? "token" : ((_a = SUBSCRIPTION_TEMPLATES[providerId]) == null ? void 0 : _a.authType) === "cookie" ? "cookie" : "apiKey";
       const key = credential.trim();
@@ -17816,14 +17754,16 @@ journal:
         exec(
           `python "${scriptPath}" add ${providerId} ${credKey} "${key.replace(/"/g, '\\"')}"`,
           (error) => {
-            if (error) console.error("Add credential error:", error);
+            if (error)
+              console.error("Add credential error:", error);
             resolve2();
           }
         );
       });
       await new Promise((resolve2) => {
         exec(`python "${scriptPath}" collect`, (error) => {
-          if (error) console.error("Collect error:", error);
+          if (error)
+            console.error("Collect error:", error);
           resolve2();
         });
       });
@@ -17867,9 +17807,12 @@ journal:
           if (granted > 0 || toppedUp > 0) {
             const detail = balDivInner.createDiv({ cls: "sd-subscriptions-balance-detail" });
             const parts = [];
-            if (toppedUp > 0) parts.push(`\u5145${toppedUp.toFixed(2)}`);
-            if (granted > 0) parts.push(`\u8D60${granted.toFixed(2)}`);
-            if (parts.length) detail.setText(parts.join(" / "));
+            if (toppedUp > 0)
+              parts.push(`\u5145${toppedUp.toFixed(2)}`);
+            if (granted > 0)
+              parts.push(`\u8D60${granted.toFixed(2)}`);
+            if (parts.length)
+              detail.setText(parts.join(" / "));
           }
           const deleteBtn2 = item.createEl("button", {
             text: "\u{1F5D1}\uFE0F",
@@ -17947,14 +17890,15 @@ journal:
   }
   async deleteSubscription(providerId) {
     var _a;
-    const scriptPath = "__PLUGIN_DIR__/collect_subscriptions.py";
+    const scriptPath = "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py";
     try {
       const { exec } = require("child_process");
       await new Promise((resolve2) => {
         exec(
           `python "${scriptPath}" remove ${providerId}`,
           (error) => {
-            if (error) console.error("Remove subscription error:", error);
+            if (error)
+              console.error("Remove subscription error:", error);
             resolve2();
           }
         );
@@ -17981,33 +17925,27 @@ _SmartDashboardView.DESIGN_CELL = 300;
 _SmartDashboardView.GRID_GAP = 8;
 // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
 _SmartDashboardView.DEFAULT_LAYOUT = {
-  // ===== 6 列 × 4 行填满 + 第 5 行扩展（setupGridSizing 按布局数据自动扩行）=====
-  "sd-countdown-section": { x: 1, y: 1, w: 1, h: 1 },
-  // D-Day 倒计时
-  "sd-quickjot-section": { x: 2, y: 1, w: 1, h: 1 },
-  // 极速随笔
-  "sd-nav-section": { x: 3, y: 1, w: 1, h: 1 },
-  // 导航入口
-  "sd-create-section": { x: 4, y: 1, w: 1, h: 1 },
-  // 快捷创建
-  "sd-schedule-section": { x: 5, y: 1, w: 1, h: 1 },
-  // 日程
-  "sd-todo-section": { x: 6, y: 1, w: 1, h: 1 },
-  // 待办
-  "sd-calendar-section": { x: 1, y: 2, w: 2, h: 2 },
+  // ===== 5 列 × 4 行填满（20 格，setupGridSizing 按布局数据自动扩行）=====
+  "sd-calendar-section": { x: 1, y: 1, w: 2, h: 2 },
   // 日历 2×2
-  "sd-stats-section": { x: 3, y: 2, w: 2, h: 2 },
-  // 统计 2×2
-  "sd-search-section": { x: 5, y: 2, w: 1, h: 2 },
-  // 全库检索 1×2 纵向（右侧留空）
-  "sd-usage-section": { x: 1, y: 4, w: 2, h: 1 },
+  "sd-stats-section": { x: 3, y: 1, w: 2, h: 2 },
+  // 统计分析 2×2
+  "sd-search-section": { x: 5, y: 1, w: 1, h: 2 },
+  // 智能检索 1×2
+  "sd-usage-section": { x: 1, y: 3, w: 2, h: 1 },
   // Token 用量 2×1
-  "sd-trading-section": { x: 3, y: 4, w: 2, h: 1 },
-  // 交易复盘 2×1
-  "sd-subscriptions-section": { x: 5, y: 4, w: 2, h: 1 },
+  "sd-subscriptions-section": { x: 3, y: 3, w: 2, h: 1 },
   // 订阅额度 2×1
-  "sd-sports-section": { x: 1, y: 5, w: 2, h: 1 }
-  // 体育赛事 2×1（第 5 行新行）
+  "sd-trading-section": { x: 5, y: 3, w: 1, h: 1 },
+  // 交易复盘 1×1
+  "sd-sports-section": { x: 1, y: 4, w: 2, h: 1 },
+  // 体育赛事 2×1
+  "sd-create-section": { x: 3, y: 4, w: 1, h: 1 },
+  // 快捷创建
+  "sd-schedule-section": { x: 4, y: 4, w: 1, h: 1 },
+  // 日程管理
+  "sd-todo-section": { x: 5, y: 4, w: 1, h: 1 }
+  // 待办事项
 };
 var SmartDashboardView = _SmartDashboardView;
 var ViewTradeModal = class extends import_obsidian.Modal {
@@ -18049,97 +17987,28 @@ var ViewTradeModal = class extends import_obsidian.Modal {
     contentEl.empty();
   }
 };
-var ManageCountdownModal = class extends import_obsidian.Modal {
-  constructor(app, plugin, item, onSave) {
+var TradingTablesModal = class extends import_obsidian.Modal {
+  constructor(app, view) {
     super(app);
-    this.plugin = plugin;
-    this.item = item;
-    this.onSave = onSave;
-  }
-  onOpen() {
-    var _a, _b;
-    const { contentEl } = this;
-    contentEl.createEl("h2", { text: this.item ? "\u7F16\u8F91\u5012\u8BA1\u65F6" : "\u65B0\u5EFA\u5012\u8BA1\u65F6" });
-    let title = ((_a = this.item) == null ? void 0 : _a.title) || "";
-    let targetDate = ((_b = this.item) == null ? void 0 : _b.targetDate) || (0, import_obsidian.moment)().format("YYYY-MM-DD");
-    new import_obsidian.Setting(contentEl).setName("\u4E8B\u4EF6\u540D\u79F0").addText((t) => {
-      t.setValue(title).onChange((v) => title = v);
-      t.inputEl.style.width = "100%";
-      t.setPlaceholder("\u5982\uFF1A\u9879\u76EE\u4E0A\u7EBF");
-    });
-    new import_obsidian.Setting(contentEl).setName("\u76EE\u6807\u65E5\u671F").addText((t) => {
-      t.inputEl.type = "date";
-      t.setValue(targetDate).onChange((v) => targetDate = v);
-    });
-    const btns = new import_obsidian.Setting(contentEl);
-    btns.addButton((btn) => btn.setButtonText("\u4FDD\u5B58").setCta().onClick(async () => {
-      var _a2;
-      if (!title.trim() || !targetDate) {
-        new import_obsidian.Notice("\u8BF7\u586B\u5199\u4E8B\u4EF6\u540D\u79F0\u4E0E\u76EE\u6807\u65E5\u671F");
-        return;
-      }
-      let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
-      if (!view) return;
-      let items = await view.getCountdowns();
-      if (this.item) {
-        const idx = items.findIndex((x) => x.id === this.item.id);
-        if (idx >= 0) items[idx] = { ...this.item, title: title.trim(), targetDate };
-      } else {
-        items.push({ id: Date.now().toString(), title: title.trim(), targetDate });
-      }
-      await view.saveCountdowns(items);
-      this.close();
-      this.onSave();
-    }));
-    if (this.item) {
-      btns.addButton((btn) => btn.setButtonText("\u5220\u9664").setWarning().onClick(async () => {
-        var _a2;
-        let view = (_a2 = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a2.view;
-        if (!view) return;
-        const items = (await view.getCountdowns()).filter((x) => x.id !== this.item.id);
-        await view.saveCountdowns(items);
-        this.close();
-        this.onSave();
-      }));
-    }
-  }
-  onClose() {
-    this.contentEl.empty();
-  }
-};
-var CountdownListModal = class extends import_obsidian.Modal {
-  constructor(app, plugin, onSave) {
-    super(app);
-    this.plugin = plugin;
-    this.onSave = onSave;
+    this.view = view;
+    this.modalEl.style.width = "min(1080px, 92vw)";
   }
   async onOpen() {
-    await this.renderList();
+    await this.render();
   }
-  async renderList() {
-    var _a;
+  async render() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "\u5168\u90E8\u5012\u8BA1\u65F6\u4E8B\u4EF6\uFF08\u81EA\u5B9A\u4E49\uFF09" });
-    let view = (_a = this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]) == null ? void 0 : _a.view;
-    if (!view) return;
-    const items = (await view.getCountdowns()).slice().sort((a, b) => a.targetDate.localeCompare(b.targetDate));
-    if (!items.length) {
-      contentEl.createEl("div", { text: "\u6682\u65E0\u81EA\u5B9A\u4E49\u5012\u8BA1\u65F6\u3002", attr: { style: "color: var(--text-muted); padding: 10px;" } });
+    contentEl.addClass("sd-trading-modal");
+    contentEl.createEl("h2", { text: "\u{1F4CB} \u4EA4\u6613\u590D\u76D8\u660E\u7EC6" });
+    const { records, uniqueTickers } = await this.view.readTrades();
+    if (records.length === 0) {
+      contentEl.createEl("div", { text: "\u6682\u65E0\u4EA4\u6613\u8BB0\u5F55\u3002", cls: "sd-empty-state" });
+      return;
     }
-    for (const c of items) {
-      const daysLeft = (0, import_obsidian.moment)(c.targetDate).diff((0, import_obsidian.moment)().startOf("day"), "days");
-      const status = daysLeft >= 0 ? `\u8FD8\u5269 ${daysLeft} \u5929` : `\u5DF2\u8FC7 ${-daysLeft} \u5929`;
-      new import_obsidian.Setting(contentEl).setName(c.title).setDesc(`${c.targetDate} \xB7 ${status}`).addButton((b) => b.setButtonText("\u7F16\u8F91").onClick(() => {
-        this.close();
-        new ManageCountdownModal(this.app, this.plugin, c, this.onSave).open();
-      })).addButton((b) => b.setButtonText("\u5220\u9664").setWarning().onClick(async () => {
-        await view.saveCountdowns((await view.getCountdowns()).filter((x) => x.id !== c.id));
-        this.onSave();
-        await this.renderList();
-      }));
-    }
-    contentEl.createEl("p", { text: "\u8282\u65E5\u4E0E\u8282\u6C14\u4E3A\u81EA\u52A8\u751F\u6210\uFF0C\u65E0\u9700\u5728\u6B64\u7BA1\u7406\u3002", attr: { style: "color: var(--text-muted); font-size: 12px;" } });
+    this.view.renderTradingTablesBlock(contentEl, records, uniqueTickers, this.view.computeTradingSummary(records), () => {
+      void this.render();
+    });
   }
   onClose() {
     this.contentEl.empty();
@@ -18147,7 +18016,6 @@ var CountdownListModal = class extends import_obsidian.Modal {
 };
 var CARD_LABELS = {
   "sd-calendar-section": "\u65E5\u5386",
-  "sd-quickjot-section": "\u6781\u901F\u968F\u7B14",
   "sd-search-section": "\u667A\u80FD\u68C0\u7D22",
   "sd-create-section": "\u5FEB\u6377\u521B\u5EFA",
   "sd-stats-section": "\u7EDF\u8BA1\u5206\u6790",
@@ -18156,9 +18024,7 @@ var CARD_LABELS = {
   "sd-sports-section": "\u4F53\u80B2\u8D5B\u4E8B",
   "sd-schedule-section": "\u65E5\u7A0B\u7BA1\u7406",
   "sd-todo-section": "\u5F85\u529E\u4E8B\u9879",
-  "sd-trading-section": "\u4EA4\u6613\u590D\u76D8",
-  "sd-countdown-section": "D-Day \u5012\u8BA1\u65F6",
-  "sd-nav-section": "\u5BFC\u822A\u5165\u53E3"
+  "sd-trading-section": "\u4EA4\u6613\u590D\u76D8"
 };
 var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
@@ -18184,8 +18050,8 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
     });
     containerEl.createEl("h3", { text: "\u5361\u7247\u5927\u5C0F/\u5E03\u5C40" });
     const currentLayoutSize = await this.plugin.getLayoutSize();
-    new import_obsidian.Setting(containerEl).setName("\u5E03\u5C40\u89C4\u683C").setDesc("\u5C0F=6\xD74 \u7D27\u51D1\uFF08\u9ED8\u8BA4\uFF0C\u4E00\u5C4F\u65E0\u6EDA\u52A8\uFF09\uFF1B\u5927=4 \u5217\u53EF\u6EDA\u52A8\uFF08\u6BCF\u683C\u66F4\u5927\uFF0C\u5411\u4E0B\u6EDA\u52A8\u67E5\u770B\u5168\u90E8\u5361\u7247\u3002\u5207\u6362\u4F1A\u4FDD\u5B58\u5F53\u524D\u5C3A\u5BF8\u5E03\u5C40\u5E76\u8F7D\u5165\u76EE\u6807\u5C3A\u5BF8\u5DF2\u5B58\u5E03\u5C40\uFF09").addDropdown((dd) => {
-      dd.addOption("small", "\u5C0F\uFF086\xD74 \u7D27\u51D1\uFF09");
+    new import_obsidian.Setting(containerEl).setName("\u5E03\u5C40\u89C4\u683C").setDesc("\u5C0F=5\xD74 \u7D27\u51D1\uFF08\u5BBD\u5EA6\u94FA\u6EE1\uFF1B\u7EB5\u5411\u53EF\u6EDA\u52A8\uFF09\uFF1B\u5927=4 \u5217\u53EF\u6EDA\u52A8\uFF08\u6BCF\u683C\u66F4\u5927\uFF0C\u5411\u4E0B\u6EDA\u52A8\u67E5\u770B\u5168\u90E8\u5361\u7247\u3002\u5207\u6362\u4F1A\u4FDD\u5B58\u5F53\u524D\u5C3A\u5BF8\u5E03\u5C40\u5E76\u8F7D\u5165\u76EE\u6807\u5C3A\u5BF8\u5DF2\u5B58\u5E03\u5C40\uFF09").addDropdown((dd) => {
+      dd.addOption("small", "\u5C0F\uFF085\xD74 \u7D27\u51D1\uFF09");
       dd.addOption("big", "\u5927\uFF084 \u5217\u53EF\u6EDA\u52A8\uFF09");
       dd.setValue(currentLayoutSize);
       dd.onChange(async (v) => {
@@ -18203,25 +18069,6 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
         })
       );
     }
-    containerEl.createEl("h3", { text: "\u5BFC\u822A\u5165\u53E3" });
-    containerEl.createEl("p", { text: "\u4FEE\u6539\u5404\u5165\u53E3\u5361\u7247\u6307\u5411\u7684\u5E93\u5185\u8DEF\u5F84\uFF08\u6587\u4EF6\u5939\u6216 md \u6587\u4EF6\uFF09\u3002\u7559\u7A7A\u6062\u590D\u9ED8\u8BA4\u3002" });
-    const entries = await this.plugin.getNavEntries();
-    for (const entry of entries) {
-      new import_obsidian.Setting(containerEl).setName(`${entry.icon} ${entry.name}`).setDesc(`\u5F53\u524D\uFF1A${entry.path}`).addText((text) => {
-        text.setPlaceholder(entry.path);
-        text.inputEl.style.width = "100%";
-        text.onChange(async (v) => {
-          if (!v.trim() || v.trim() === entry.path) return;
-          const all = await this.plugin.getNavEntries();
-          const target = all.find((x) => x.id === entry.id);
-          if (target) {
-            target.path = v.trim();
-            await this.plugin.setNavEntries(all);
-            new import_obsidian.Notice(`\u5DF2\u66F4\u65B0\u300C${entry.name}\u300D\u5165\u53E3\u8DEF\u5F84`);
-          }
-        });
-      });
-    }
   }
 };
 /*! Bundled license information:
@@ -18235,6 +18082,13 @@ var SmartDashboardSettingTab = class extends import_obsidian.PluginSettingTab {
    *)
 
 chart.js/dist/chunks/helpers.dataset.js:
+  (*!
+   * Chart.js v4.5.1
+   * https://www.chartjs.org
+   * (c) 2025 Chart.js Contributors
+   * Released under the MIT License
+   *)
+
 chart.js/dist/chart.js:
   (*!
    * Chart.js v4.5.1

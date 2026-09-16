@@ -40,31 +40,7 @@ interface MoodItem {
     text: string;
 }
 
-// ===== D-Day 倒计时 =====
-interface CountdownItem {
-    id: string;
-    title: string;
-    targetDate: string; // YYYY-MM-DD
-}
-
-// ===== 导航入口卡片 =====
-interface NavEntry {
-    id: string;
-    icon: string;
-    name: string;
-    desc: string;
-    path: string; // 库内文件夹或 md 文件路径
-}
-
 const DAILY_DIR = '05_事件记录';
-
-const DEFAULT_NAV_ENTRIES: NavEntry[] = [
-    { id: 'nav-inbox', icon: '📦', name: '收集箱', desc: '待处理速记与随笔', path: '01_Inbox' },
-    { id: 'nav-wiki', icon: '📚', name: '知识库', desc: '沉淀后的常青笔记', path: '02_Wiki' },
-    { id: 'nav-personal', icon: '👤', name: '个人空间', desc: '交易复盘/想法/踩坑', path: '04_个人空间' },
-    { id: 'nav-events', icon: '📅', name: '事件记录', desc: '日记与事件归档', path: DAILY_DIR },
-    { id: 'nav-archive', icon: '🗄️', name: '归档', desc: '不再活跃的资料', path: '03_Archive' },
-];
 
 // ===== 主题皮肤预设（灵感：小红书九大流派调色板） =====
 const SD_SKINS: Record<string, { label: string; accent: string; accentHover: string }> = {
@@ -593,14 +569,14 @@ export default class SmartDashboardPlugin extends Plugin {
         await this.saveData(data);
     }
 
-    // ===== 卡片大小/布局（small=6 列紧凑 / big=4 列可滚动）=====
+    // ===== 卡片大小/布局（small=5 列紧凑 / big=4 列可滚动）=====
     async getLayoutSize(): Promise<'small' | 'big'> {
         const data = await this.loadData();
         return data?.layoutSize === 'big' ? 'big' : 'small';
     }
 
     async setLayoutSize(size: 'small' | 'big'): Promise<void> {
-        const data = (await this.loadData()) || {};   // 先取整体（保留 skin/cardVisibility/navEntries 等字段）
+        const data = (await this.loadData()) || {};   // 先取整体（保留 skin/cardVisibility 等其他字段）
         const currentSize: 'small' | 'big' = data?.layoutSize === 'big' ? 'big' : 'small';
 
         // 1) 切走前：把当前档位的实时布局深拷贝存进源档快照字段
@@ -625,19 +601,6 @@ export default class SmartDashboardPlugin extends Plugin {
             : undefined;
 
         await this.saveData(data);                    // 整体写回
-    }
-
-    // ===== 导航入口配置 =====
-    async getNavEntries(): Promise<NavEntry[]> {
-        const data = await this.loadData();
-        return Array.isArray(data?.navEntries) && data.navEntries.length > 0
-            ? data.navEntries : DEFAULT_NAV_ENTRIES.map(e => ({ ...e }));
-    }
-
-    async setNavEntries(entries: NavEntry[]): Promise<void> {
-        const data = (await this.loadData()) || {};
-        data.navEntries = entries;
-        await this.saveData(data);
     }
 
     async refreshView(): Promise<void> {
@@ -1323,6 +1286,15 @@ class DayDetailModal extends Modal {
     onClose() { this.contentEl.empty(); }
 }
 
+// ===== 交易复盘统计汇总（卡内统计框与明细弹窗共用）=====
+interface TradingSummary {
+    totalTrades: number;
+    totalPnL: number;
+    winRate: string;
+    pnlRatio: string;
+    badHabitsMap: Map<string, {count: number; loss: number}>;
+}
+
 class SmartDashboardView extends ItemView {
     plugin: SmartDashboardPlugin;
     lineChart: any = null;
@@ -1338,24 +1310,21 @@ class SmartDashboardView extends ItemView {
 
     // 卡片 id → 默认格数与坐标（x,y 从 1 开始；w=列数 h=行数）
     private static DEFAULT_LAYOUT: Record<string, {x: number; y: number; w: number; h: number}> = {
-        // ===== 6 列 × 4 行填满 + 第 5 行扩展（setupGridSizing 按布局数据自动扩行）=====
-        'sd-countdown-section': {x: 1, y: 1, w: 1, h: 1},   // D-Day 倒计时
-        'sd-quickjot-section':  {x: 2, y: 1, w: 1, h: 1},   // 极速随笔
-        'sd-nav-section':       {x: 3, y: 1, w: 1, h: 1},   // 导航入口
-        'sd-create-section':    {x: 4, y: 1, w: 1, h: 1},   // 快捷创建
-        'sd-schedule-section':  {x: 5, y: 1, w: 1, h: 1},   // 日程
-        'sd-todo-section':      {x: 6, y: 1, w: 1, h: 1},   // 待办
-        'sd-calendar-section':  {x: 1, y: 2, w: 2, h: 2},   // 日历 2×2
-        'sd-stats-section':     {x: 3, y: 2, w: 2, h: 2},   // 统计 2×2
-        'sd-search-section':    {x: 5, y: 2, w: 1, h: 2},   // 全库检索 1×2 纵向（右侧留空）
-        'sd-usage-section':     {x: 1, y: 4, w: 2, h: 1},   // Token 用量 2×1
-        'sd-trading-section':   {x: 3, y: 4, w: 2, h: 1},   // 交易复盘 2×1
-        'sd-subscriptions-section': {x: 5, y: 4, w: 2, h: 1}, // 订阅额度 2×1
-        'sd-sports-section':     {x: 1, y: 5, w: 2, h: 1},   // 体育赛事 2×1（第 5 行新行）
+        // ===== 5 列 × 4 行填满（20 格，setupGridSizing 按布局数据自动扩行）=====
+        'sd-calendar-section':      {x: 1, y: 1, w: 2, h: 2},   // 日历 2×2
+        'sd-stats-section':         {x: 3, y: 1, w: 2, h: 2},   // 统计分析 2×2
+        'sd-search-section':        {x: 5, y: 1, w: 1, h: 2},   // 智能检索 1×2
+        'sd-usage-section':         {x: 1, y: 3, w: 2, h: 1},   // Token 用量 2×1
+        'sd-subscriptions-section': {x: 3, y: 3, w: 2, h: 1},   // 订阅额度 2×1
+        'sd-trading-section':       {x: 5, y: 3, w: 1, h: 1},   // 交易复盘 1×1
+        'sd-sports-section':        {x: 1, y: 4, w: 2, h: 1},   // 体育赛事 2×1
+        'sd-create-section':        {x: 3, y: 4, w: 1, h: 1},   // 快捷创建
+        'sd-schedule-section':      {x: 4, y: 4, w: 1, h: 1},   // 日程管理
+        'sd-todo-section':          {x: 5, y: 4, w: 1, h: 1},   // 待办事项
     };
 
     private layoutData: Record<string, {x: number; y: number; w: number; h: number}> = {};
-    // 卡片大小/布局档位（small=6 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
+    // 卡片大小/布局档位（small=5 列紧凑 / big=4 列可滚动），由 loadLayout 从 data.json 读取
     private layoutSize: 'small' | 'big' = 'small';
     // 拖拽结束后吞掉紧随的一次 click，避免误触卡片内元素（如日历格）的点击
     private suppressClick = false;
@@ -1463,18 +1432,6 @@ class SmartDashboardView extends ItemView {
         const next = old.replace(/\s*$/, '') + `\n\n## ${stamp} ${tag}\n${text}\n`;
         await this.app.vault.modify(file, next);
         new Notice(`已写入今日日记：${file.basename}`);
-    }
-
-    // ===== D-Day 倒计时数据 =====
-    async getCountdowns(): Promise<CountdownItem[]> {
-        const path = '00_System/countdowns.json';
-        if (!(await this.app.vault.adapter.exists(path))) return [];
-        try { return JSON.parse(await this.app.vault.adapter.read(path)); } catch { return []; }
-    }
-    async saveCountdowns(items: CountdownItem[]) {
-        const path = '00_System/countdowns.json';
-        if (!(await this.app.vault.adapter.exists('00_System'))) await this.app.vault.createFolder('00_System');
-        await this.app.vault.adapter.write(path, JSON.stringify(items, null, 2));
     }
 
     // ===== 周期日程/待办 =====
@@ -1603,8 +1560,8 @@ class SmartDashboardView extends ItemView {
         await this.loadLayout();
 
         const grid = content.createDiv('sd-grid');
-        // 预置列数：big 档 4 列、small 档 6 列；供随后 reflowLayoutForVisibleCards 读取正确列数（setupGridSizing 稍后会覆写最终值）
-        grid.style.setProperty('--sd-cols', this.layoutSize === 'big' ? '4' : '6');
+        // 预置列数：big 档 4 列、small 档 5 列；供随后 reflowLayoutForVisibleCards 读取正确列数（setupGridSizing 稍后会覆写最终值）
+        grid.style.setProperty('--sd-cols', this.layoutSize === 'big' ? '4' : '5');
 
         const cards: HTMLElement[] = [];
         const visibility = await this.plugin.getCardVisibility();
@@ -1620,15 +1577,6 @@ class SmartDashboardView extends ItemView {
             const calendarBody = this.createCardBody(calendarCard);
             cards.push(calendarCard);
             await this.renderCalendarArea(calendarBody);
-        }
-
-        if (visibility['sd-quickjot-section'] !== false) {
-            const quickJotCard = grid.createDiv('sd-card');
-            quickJotCard.id = 'sd-quickjot-section';
-            this.applyCardSize(quickJotCard);
-            const quickJotBody = this.createCardBody(quickJotCard);
-            cards.push(quickJotCard);
-            this.renderQuickJotArea(quickJotBody);
         }
 
         if (visibility['sd-search-section'] !== false) {
@@ -1712,24 +1660,6 @@ class SmartDashboardView extends ItemView {
             this.renderTradingArea(tradingBody);
         }
 
-        if (visibility['sd-countdown-section'] !== false) {
-            const countdownCard = grid.createDiv('sd-card');
-            countdownCard.id = 'sd-countdown-section';
-            this.applyCardSize(countdownCard);
-            const countdownBody = this.createCardBody(countdownCard);
-            cards.push(countdownCard);
-            await this.renderCountdownArea(countdownBody);
-        }
-
-        if (visibility['sd-nav-section'] !== false) {
-            const navCard = grid.createDiv('sd-card');
-            navCard.id = 'sd-nav-section';
-            this.applyCardSize(navCard);
-            const navBody = this.createCardBody(navCard);
-            cards.push(navCard);
-            await this.renderNavArea(navBody);
-        }
-
         // 先应用布局，再绑定拖拽、启动网格尺寸自适应
         this.applyLayout();
         this.applyScale();
@@ -1797,10 +1727,12 @@ class SmartDashboardView extends ItemView {
             noticeMsg = '已重置为出厂默认';
         }
         const grid = this.contentEl.querySelector('.sd-grid') as HTMLElement;
-        const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 6;
-        if (cols < 4) this.applyLayoutCompact(); else this.applyLayout();
+        const cols = parseInt(grid?.style.getPropertyValue('--sd-cols') || '', 10) || 5;
+        if (cols < 4) this.applyLayoutCompact();
+        else if (cols < 5) await this.reflowLayoutForVisibleCards(Object.keys(this.layoutData));
+        else this.applyLayout();
         try {
-            // 合并写：保留 skin/cardVisibility/navEntries/layoutSize/layoutSmall/layoutBig
+            // 合并写：保留 skin/cardVisibility/layoutSize/layoutSmall/layoutBig
             // 把恢复后的布局深拷贝写回 cardLayout，绝不再清空
             data.cardLayout = JSON.parse(JSON.stringify(this.layoutData));
             await this.plugin.saveData(data);
@@ -1861,32 +1793,14 @@ class SmartDashboardView extends ItemView {
                 return;
             }
 
-            // 宽屏：固定 6 列 × 当前布局占用行数，格子恒为正方形（宽高约束取较小值）
-            let rows = 4; // 默认布局即 4 行
-            for (const p of Object.values(this.layoutData)) {
-                if (!p) continue;
-                rows = Math.max(rows, p.y + p.h - 1);
-            }
-            const cellW = (availW - gap * 5) / 6;
+            // 宽度优先：格子按容器宽度铺满（横向不留白）；纵向超出由滚动容器自然滚动
+            // 2026-09-16 用户要求：面板两侧不留白
+            const cellW = (availW - gap * 4) / 5;
             let cell = cellW;
-            const scroller = this.containerEl.querySelector('.sd-tab-content-container') as HTMLElement | null;
-            if (scroller) {
-                const scRect = scroller.getBoundingClientRect();
-                const gRect = grid.getBoundingClientRect();
-                // 滚动容器底部 padding 必须计入，否则内容溢出会出现滚动条
-                const scPadB = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
-                // 网格顶部到滚动容器顶部的布局距离（补偿滚动量，结果与当前滚动位置无关）
-                const topOffset = Math.max(0, gRect.top - scRect.top + scroller.scrollTop);
-                const availH = scroller.clientHeight - topOffset - padV - scPadB - 2;
-                if (availH > 120 && rows >= 1) {
-                    const cellH = (availH - gap * (rows - 1)) / rows;
-                    if (cellH > 60) cell = Math.min(cell, cellH);
-                }
-            }
 
             cell = Math.floor(cell);
             if (cell < 40) return;                 // 异常小值保护
-            grid.style.setProperty('--sd-cols', '6');
+            grid.style.setProperty('--sd-cols', '5');
             grid.style.setProperty('--sd-cell', `${cell}px`);
             this.applyLayout();
             this.applyScale();
@@ -1928,7 +1842,7 @@ class SmartDashboardView extends ItemView {
         const grid = this.getGrid();
         if (!grid) return null;
         const rect = grid.getBoundingClientRect();
-        const cols = parseInt(grid.style.getPropertyValue('--sd-cols'), 10) || 6;
+        const cols = parseInt(grid.style.getPropertyValue('--sd-cols'), 10) || 5;
         const cell = parseFloat(grid.style.getPropertyValue('--sd-cell')) || 280;
         // 轨道总宽（不含 padding）；justify-content:center 时计算水平居中偏移
         const trackW = cols * cell + (cols - 1) * SmartDashboardView.GRID_GAP;
@@ -2278,52 +2192,6 @@ class SmartDashboardView extends ItemView {
         });
     }
 
-    renderQuickJotArea(container: Element) {
-        container.createEl('h3', {text: '⚡ 极速随笔', cls: 'sd-section-title'});
-        const textWrapper = container.createDiv({attr: {style: 'display: flex; flex-direction: column; flex-grow: 1; margin-bottom: 10px;'}});
-        const textarea = textWrapper.createEl('textarea', {attr: {style: 'width: 100%; min-height: 100px; padding: 10px; border: 1px solid var(--sd-warm-border); border-radius: 6px; resize: none; font-family: inherit; background: transparent; color: inherit;'}});
-        textarea.placeholder = "随时记录灵感闪现...";
-
-        const controls = container.createDiv({attr: {style: 'display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: auto;'}});
-        const typeSelect = controls.createEl('select');
-        typeSelect.style.padding = '8px 12px';
-        typeSelect.style.borderRadius = '6px';
-        typeSelect.style.border = '1px solid var(--sd-warm-border)';
-        typeSelect.style.background = 'var(--sd-warm-bg)';
-        
-        ['未定', '随笔', '日记', '其他', '读书笔记', '学科'].forEach(t => typeSelect.createEl('option', {value: t, text: t}));
-        
-        const saveBtn = controls.createEl('button', {text: '一键落笔', cls: 'sd-btn mod-cta', attr: {style: 'background-color: var(--sd-warm-accent) !important; color: white !important;'}});
-        saveBtn.onclick = async () => {
-            const val = textarea.value.trim();
-            if (!val) { new Notice('随笔内容不能为空！'); return; }
-            const type = typeSelect.value;
-            const dateStr = moment().format('YYYY-MM-DD');
-            const timeStr = moment().format('HHmmss');
-            const folderPath = '01_Inbox';
-            if (!(await this.app.vault.adapter.exists(folderPath))) await this.app.vault.createFolder(folderPath);
-
-            const filePath = `${folderPath}/${type}-${dateStr}-${timeStr}.md`;
-            let content = `---\ncreated: ${dateStr}\ntype: ${type}\n---\n\n${val}\n`;
-            const file = await this.app.vault.create(filePath, content);
-            new Notice('随笔已保存');
-            textarea.value = '';
-        };
-
-        // 主页日记联动：追加到当日日记（无日记按模板创建，有则文末 append）
-        const dailyBtn = controls.createEl('button', {text: '📝 写入今日日记', cls: 'sd-btn secondary'});
-        dailyBtn.onclick = async () => {
-            const val = textarea.value.trim();
-            if (!val) { new Notice('随笔内容不能为空！'); return; }
-            try {
-                await this.appendToDailyNote(val, typeSelect.value === '未定' ? '随笔' : typeSelect.value);
-                textarea.value = '';
-            } catch (e) {
-                new Notice('写入日记失败: ' + String(e));
-            }
-        };
-    }
-
     async createNote(type: string, subject?: string) {
         let actualType = type === '智能新建' ? '未定' : type;
         const dateStr = moment().format('YYYY-MM-DD');
@@ -2336,7 +2204,7 @@ class SmartDashboardView extends ItemView {
 
         const filePath = `${folderPath}/${title}.md`;
         let content = `---\ncreated: ${dateStr}\ntype: ${actualType}\n`;
-        if (type === '学科') content += `subject: ${subject}\n---\n\n## 知识点\n\n## 做题技巧\n\n## 注意事项\n`;
+        if (type === '学科') content += `subject: ${subject}\n---\n`;
         else if (type === '读书笔记') content += `book: ${subject}\nauthor: \n---\n\n## 批注\n`;
         else if (type === '论文') content += `paper: ${subject}\nauthor: \nyear: \njournal: \n---\n\n## 研究背景\n\n## 核心假设\n\n## 数据与模型\n\n## 研究结论\n\n## 我的思考\n`;
         else content += `---\n\n## 正文\n`;
@@ -2926,70 +2794,56 @@ class SmartDashboardView extends ItemView {
         }
     }
 
-    async renderTradingArea(container: Element) {
+    // ===== 交易复盘：数据层 =====
+    /** 读取 trades.json（按时间倒序）+ 唯一标的列表（录入时作输入建议）*/
+    async readTrades(): Promise<{records: any[]; uniqueTickers: string[]}> {
         const jsonPath = '04_个人空间/交易复盘/trades.json';
         let records: any[] = [];
         if (await this.app.vault.adapter.exists(jsonPath)) {
+            try { records = JSON.parse(await this.app.vault.adapter.read(jsonPath)); } catch (e) { console.error('Failed to parse trades.json', e); }
+        }
+        records.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
+        return { records, uniqueTickers: Array.from(new Set(records.map(r => r.ticker).filter(t => t))) };
+    }
+
+    /** 追加一条交易记录（合并写，保留 trades.json 中已有记录）*/
+    private async appendTrade(t: {date: string; ticker: string; action: string; price: string; volume: string}): Promise<void> {
+        const jsonPath = '04_个人空间/交易复盘/trades.json';
+        const timeStr = moment().format('HHmmss');
+        const folderPath = '04_个人空间/交易复盘';
+        if (!(await this.app.vault.adapter.exists(folderPath))) await this.app.vault.createFolder(folderPath);
+
+        let trades: any[] = [];
+        if (await this.app.vault.adapter.exists(jsonPath)) {
             const content = await this.app.vault.adapter.read(jsonPath);
             try {
-                records = JSON.parse(content);
+                trades = JSON.parse(content);
             } catch (e) {
                 console.error('Failed to parse trades.json', e);
             }
         }
-        
-        records.sort((a, b) => moment(b.timestamp).valueOf() - moment(a.timestamp).valueOf());
-        
-        const uniqueTickers = Array.from(new Set(records.map(r => r.ticker).filter(t => t)));
 
-        const headerContainer = container.createDiv({attr: {style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;'}});
-        headerContainer.createEl('h3', {text: '💹 高阶交易复盘系统', cls: 'sd-section-title', attr: {style: 'margin:0'}});
-        const quickAddBtn = headerContainer.createEl('button', {text: '+ 快捷录入', cls: 'sd-btn mod-cta'});
-        quickAddBtn.onclick = () => {
-            new CreateTradeModal(this.app, this.plugin, uniqueTickers, async (tradeDate, ticker, action, price, volume) => {
-                const timeStr = moment().format('HHmmss');
-                const folderPath = '04_个人空间/交易复盘';
-                if (!(await this.app.vault.adapter.exists(folderPath))) await this.app.vault.createFolder(folderPath);
-                
-                let trades = [];
-                if (await this.app.vault.adapter.exists(jsonPath)) {
-                    const content = await this.app.vault.adapter.read(jsonPath);
-                    try {
-                        trades = JSON.parse(content);
-                    } catch (e) {
-                        console.error('Failed to parse trades.json', e);
-                    }
-                }
-                
-                trades.push({
-                    id: `trade-${tradeDate}-${timeStr}`,
-                    date: tradeDate,
-                    timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
-                    ticker,
-                    action,
-                    price: parseFloat(price.toString()),
-                    volume: parseFloat(volume.toString()),
-                    strategy: '',
-                    pnl: 0,
-                    discipline_score: 5,
-                    bad_habits: [],
-                    ai_review: ''
-                });
-                
-                await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
-                new Notice('交易已记录至 trades.json');
-                
-                // Refresh the view
-                container.empty();
-                this.renderTradingArea(container);
-            }).open();
-        };
+        trades.push({
+            id: `trade-${t.date}-${timeStr}`,
+            date: t.date,
+            timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
+            ticker: t.ticker,
+            action: t.action,
+            price: parseFloat(t.price.toString()),
+            volume: parseFloat(t.volume.toString()),
+            strategy: '',
+            pnl: 0,
+            discipline_score: 5,
+            bad_habits: [],
+            ai_review: ''
+        });
 
-        if (records.length === 0) {
-            container.createDiv({text: '暂无交易记录。', cls: 'sd-empty-state'});
-            return;
-        }
+        await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
+        new Notice('交易已记录至 trades.json');
+    }
 
+    // ===== 交易复盘：统计计算 =====
+    computeTradingSummary(records: any[]): TradingSummary {
         let totalTrades = 0;
         let winTrades = 0;
         let lossTrades = 0;
@@ -3028,13 +2882,18 @@ class SmartDashboardView extends ItemView {
         const avgLoss = lossTrades > 0 ? (Math.abs(totalLossAmount) / lossTrades) : 0;
         const pnlRatio = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : (avgWin > 0 ? "MAX" : "0.00");
 
+        return { totalTrades, totalPnL, winRate, pnlRatio, badHabitsMap };
+    }
+
+    // ===== 交易复盘：统计框渲染（1×1 卡内 2×2 排布）=====
+    private renderTradingStatsBlock(container: Element, summary: TradingSummary): void {
         const redColor = "#e53935";
         const greenColor = "#43a047";
-        const pnlColor = totalPnL >= 0 ? redColor : greenColor;
-        const pnlSign = totalPnL > 0 ? "+" : "";
+        const pnlColor = summary.totalPnL >= 0 ? redColor : greenColor;
+        const pnlSign = summary.totalPnL > 0 ? "+" : "";
 
         const statsGrid = container.createDiv('sd-trading-stats-grid');
-        
+
         const createStat = (label: string, value: string, color?: string, extra?: HTMLElement) => {
             const box = statsGrid.createDiv('sd-trading-stat-box');
             box.createDiv({text: label, cls: 'label'});
@@ -3043,16 +2902,46 @@ class SmartDashboardView extends ItemView {
             if (extra) box.appendChild(extra);
         };
 
-        createStat('总交易笔数', `${totalTrades}`);
-        createStat('累计总盈亏', `${pnlSign}${totalPnL.toFixed(2)}`, pnlColor);
-        
+        createStat('总交易笔数', `${summary.totalTrades}`);
+        createStat('累计总盈亏', `${pnlSign}${summary.totalPnL.toFixed(2)}`, pnlColor);
+
         const winBarContainer = document.createElement('div');
         winBarContainer.className = 'sd-trading-winbar-container';
         const winBar = winBarContainer.createDiv('sd-trading-winbar-fill');
-        winBar.style.width = `${winRate}%`;
-        createStat('整体胜率', `${winRate}%`, undefined, winBarContainer);
-        
-        createStat('平均盈亏比', `${pnlRatio}`);
+        winBar.style.width = `${summary.winRate}%`;
+        createStat('整体胜率', `${summary.winRate}%`, undefined, winBarContainer);
+
+        createStat('平均盈亏比', `${summary.pnlRatio}`);
+    }
+
+    // ===== 交易复盘卡（1×1）：标题行 + 2×2 统计框 + 明细入口 =====
+    async renderTradingArea(container: Element) {
+        const headerContainer = container.createDiv({attr: {style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;'}});
+        headerContainer.createEl('h3', {text: '💹 交易复盘', cls: 'sd-section-title', attr: {style: 'margin:0'}});
+        const quickAddBtn = headerContainer.createEl('button', {text: '＋ 快捷录入', cls: 'sd-btn mod-cta'});
+        quickAddBtn.onclick = () => {
+            // 标的建议列表点击时才读盘，保证数据最新
+            void (async () => {
+                const { uniqueTickers } = await this.readTrades();
+                new CreateTradeModal(this.app, this.plugin, uniqueTickers, async (tradeDate, ticker, action, price, volume) => {
+                    await this.appendTrade({date: tradeDate, ticker, action, price, volume});
+                }).open();
+            })();
+        };
+
+        const { records } = await this.readTrades();
+        this.renderTradingStatsBlock(container, this.computeTradingSummary(records));
+
+        const actions = container.createDiv('sd-trading-actions');
+        const detailBtn = actions.createEl('button', {text: '📋 复盘明细', cls: 'sd-btn secondary'});
+        detailBtn.onclick = () => new TradingTablesModal(this.app, this).open();
+    }
+
+    // ===== 交易复盘：明细表格渲染（TradingTablesModal 用）=====
+    renderTradingTablesBlock(container: Element, records: any[], uniqueTickers: string[], summary: TradingSummary, onChanged: () => void): void {
+        const redColor = "#e53935";
+        const greenColor = "#43a047";
+        const badHabitsMap = summary.badHabitsMap;
 
         const tablesWrapper = container.createDiv('sd-trading-tables-wrapper');
 
@@ -3109,8 +2998,7 @@ class SmartDashboardView extends ItemView {
                         trades[idx] = updatedTrade;
                         await this.app.vault.adapter.write(jsonPath, JSON.stringify(trades, null, 2));
                         new Notice('交易记录已更新');
-                        container.empty();
-                        this.renderTradingArea(container);
+                        onChanged();
                     }
                 }).open();
             };
@@ -3205,98 +3093,6 @@ class SmartDashboardView extends ItemView {
         setTimeout(() => this.updateCharts(true), 50);
     }
 
-    // ===== D-Day 倒计时卡：统一事件源（自定义 + 节日 + 节气），只显示最近三个 =====
-    async renderCountdownArea(container: Element) {
-        container.createEl('h3', {text: '🎯 D-Day 倒计时', cls: 'sd-section-title'});
-        const rerender = () => { container.empty(); this.renderCountdownArea(container); };
-
-        const headerRow = container.createDiv({attr: {style: 'display:flex; justify-content:flex-end; gap:4px; margin-bottom:4px'}});
-        headerRow.createEl('button', {text: '📋 全部', cls: 'sd-btn secondary', attr: {style: 'font-size: 0.8em; padding: 2px 8px;', title: '管理全部自定义倒计时'}})
-            .onclick = () => new CountdownListModal(this.app, this.plugin, rerender).open();
-        headerRow.createEl('button', {text: '＋ 新事件', cls: 'sd-btn secondary', attr: {style: 'font-size: 0.8em; padding: 2px 8px;'}})
-            .onclick = () => new ManageCountdownModal(this.app, this.plugin, null, rerender).open();
-
-        const todayStr = moment().format('YYYY-MM-DD');
-        type Entry = {title: string; date: string; kind: 'custom' | 'festival' | 'term'; item?: CountdownItem};
-        const entries: Entry[] = [];
-
-        // 自定义事件（仅未来）
-        for (const c of await this.getCountdowns()) {
-            if (c.targetDate >= todayStr) entries.push({title: c.title, date: c.targetDate, kind: 'custom', item: c});
-        }
-        // 节日 / 节气（每年自动生成，含今天）
-        for (const h of upcomingHolidays(todayStr)) {
-            entries.push({title: h.name, date: h.date, kind: h.kind});
-        }
-
-        entries.sort((a, b) => a.date.localeCompare(b.date));
-        const top = entries.slice(0, 3); // ④ 卡片只显示最近的三个
-
-        if (top.length === 0) {
-            container.createDiv({text: '暂无即将到来的倒计时。',
-                attr: {style: 'padding: 10px; color: var(--text-muted); font-size: 13px;'}});
-            return;
-        }
-        const list = container.createDiv('sd-countdown-list');
-        for (const e of top) {
-            const daysLeft = moment(e.date).diff(moment().startOf('day'), 'days');
-            const stateCls = daysLeft < 0 ? 'sd-dd-past' : (daysLeft <= 7 ? 'sd-dd-soon' : '');
-            const row = list.createDiv(`sd-countdown-item ${stateCls}`);
-            if (e.kind === 'custom') {
-                row.onclick = () => new ManageCountdownModal(this.app, this.plugin, e.item!, rerender).open();
-            } else {
-                row.setAttribute('title', `${e.kind === 'term' ? '节气' : '节日'} · 每年自动生成`);
-            }
-            const info = row.createDiv('sd-countdown-info');
-            info.createDiv({text: e.title, cls: 'sd-countdown-title'});
-            info.createDiv({
-                text: moment(e.date).format('YYYY-MM-DD') +
-                    (e.kind === 'festival' ? ' · 节日' : e.kind === 'term' ? ' · 节气' : ''),
-                cls: 'sd-countdown-date'
-            });
-            const daysEl = row.createDiv('sd-countdown-days');
-            if (daysLeft === 0) {
-                daysEl.createSpan({text: '今天', cls: 'sd-countdown-num'});
-                daysEl.createSpan({text: ' 🎉', cls: 'sd-countdown-unit'});
-            } else {
-                daysEl.createSpan({text: `${Math.abs(daysLeft)}`, cls: 'sd-countdown-num'});
-                daysEl.createSpan({text: daysLeft > 0 ? ' 天' : ' 天前', cls: 'sd-countdown-unit'});
-            }
-        }
-    }
-
-    // ===== 导航入口卡片（纯色按钮竖排，五色轮换）=====
-    async renderNavArea(container: Element) {
-        container.createEl('h3', {text: '🧭 快速导航', cls: 'sd-section-title'});
-        const entries = await this.plugin.getNavEntries();
-        const grid = container.createDiv('sd-nav-grid');
-        const palette = ['#E76F51', '#2A9D8F', '#457B9D', '#E29A38', '#7c5cff'];
-        entries.forEach((e, idx) => {
-            const card = grid.createDiv('sd-nav-entry-card');
-            card.style.backgroundColor = palette[idx % palette.length];
-            card.setAttribute('title', `${e.name} · ${e.desc}\n→ ${e.path}（在设置中可修改入口路径）`);
-            card.createSpan({text: e.icon, cls: 'sd-nav-entry-icon'});
-            card.createSpan({text: e.name, cls: 'sd-nav-entry-name'});
-            card.onclick = async () => {
-                try {
-                    const target = this.app.vault.getAbstractFileByPath(e.path);
-                    if (!target) { new Notice(`入口路径不存在：${e.path}`); return; }
-                    if (target instanceof TFile) {
-                        await this.app.workspace.getLeaf(false).openFile(target);
-                    } else {
-                        // 文件夹：在左侧文件列表中定位展开
-                        const fe = (this.app as any).internalPlugins?.getPluginById?.('file-explorer');
-                        if (fe?.instance?.revealInFolder) fe.instance.revealInFolder(target);
-                        else new Notice(`文件夹：${e.path}`);
-                    }
-                } catch (err) {
-                    new Notice('打开入口失败: ' + String(err));
-                }
-            };
-        });
-    }
-
-
     private async renderUsageArea(card: HTMLElement): Promise<void> {
         try {
           // 标题 + 刷新（固定，不随数据刷新重建）
@@ -3315,7 +3111,7 @@ class SmartDashboardView extends ItemView {
             try {
               const { exec } = require('child_process');
               await new Promise<void>((resolve, reject) => {
-                exec('python "__PLUGIN_DIR__/collect_usage.py" --quiet',
+                exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_usage.py" --quiet',
                                   (error: any) => { if (error) reject(error); else resolve(); });
               });
             } catch (e) {
@@ -3698,7 +3494,7 @@ class SmartDashboardView extends ItemView {
             try {
               const { exec } = require('child_process');
               await new Promise<void>((resolve, reject) => {
-                exec('python "__PLUGIN_DIR__/collect_subscriptions.py" collect',
+                exec('python "D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py" collect',
                                   (error: any) => { if (error) reject(error); else resolve(); });
               });
             } catch (e) {
@@ -3720,7 +3516,7 @@ class SmartDashboardView extends ItemView {
 
       private async saveSubscriptionCredential(providerId: string, credential: string): Promise<void> {
               // 调用 Python 脚本保存凭证（加密存储 + 合并，而非明文覆盖）
-              const scriptPath = '__PLUGIN_DIR__/collect_subscriptions.py';
+              const scriptPath = 'D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py';
         
         try {
           // 凭证键名：SCNet 用 token（登录态 cookie），其余按 authType 映射
@@ -3893,7 +3689,7 @@ class SmartDashboardView extends ItemView {
 
       private async deleteSubscription(providerId: string): Promise<void> {
               // 调用 Python 脚本删除 provider（同时清理 config 与 data，与「添加」链路对称）
-              const scriptPath = '__PLUGIN_DIR__/collect_subscriptions.py';
+              const scriptPath = 'D:/workspace/01_Projects/obsidian-smart-dashboard/collect_subscriptions.py';
 
         try {
           const { exec } = require('child_process');
@@ -3977,108 +3773,32 @@ class ViewTradeModal extends Modal {
     }
 }
 
-// ===== D-Day 倒计时编辑弹窗 =====
-class ManageCountdownModal extends Modal {
-    item: CountdownItem | null;
-    plugin: SmartDashboardPlugin;
-    onSave: () => void;
+// ===== 交易复盘明细弹窗（原卡内明细表格：习惯表 + 流水表）=====
+class TradingTablesModal extends Modal {
+    view: SmartDashboardView;
 
-    constructor(app: App, plugin: SmartDashboardPlugin, item: CountdownItem | null, onSave: () => void) {
+    constructor(app: App, view: SmartDashboardView) {
         super(app);
-        this.plugin = plugin;
-        this.item = item;
-        this.onSave = onSave;
-    }
-
-    onOpen() {
-        const {contentEl} = this;
-        contentEl.createEl('h2', {text: this.item ? '编辑倒计时' : '新建倒计时'});
-
-        let title = this.item?.title || '';
-        let targetDate = this.item?.targetDate || moment().format('YYYY-MM-DD');
-
-        new Setting(contentEl).setName('事件名称').addText(t => {
-            t.setValue(title).onChange(v => title = v);
-            t.inputEl.style.width = '100%';
-            t.setPlaceholder('如：项目上线');
-        });
-        new Setting(contentEl).setName('目标日期').addText(t => {
-            t.inputEl.type = 'date';
-            t.setValue(targetDate).onChange(v => targetDate = v);
-        });
-
-        const btns = new Setting(contentEl);
-        btns.addButton(btn => btn.setButtonText('保存').setCta().onClick(async () => {
-            if (!title.trim() || !targetDate) { new Notice('请填写事件名称与目标日期'); return; }
-            let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
-            if (!view) return;
-            let items = await view.getCountdowns();
-            if (this.item) {
-                const idx = items.findIndex(x => x.id === this.item!.id);
-                if (idx >= 0) items[idx] = { ...this.item, title: title.trim(), targetDate };
-            } else {
-                items.push({ id: Date.now().toString(), title: title.trim(), targetDate });
-            }
-            await view.saveCountdowns(items);
-            this.close();
-            this.onSave();
-        }));
-        if (this.item) {
-            btns.addButton(btn => btn.setButtonText('删除').setWarning().onClick(async () => {
-                let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
-                if (!view) return;
-                const items = (await view.getCountdowns()).filter(x => x.id !== this.item!.id);
-                await view.saveCountdowns(items);
-                this.close();
-                this.onSave();
-            }));
-        }
-    }
-    onClose() { this.contentEl.empty(); }
-}
-
-// ===== 全部倒计时事件管理弹窗 =====
-class CountdownListModal extends Modal {
-    plugin: SmartDashboardPlugin;
-    onSave: () => void;
-
-    constructor(app: App, plugin: SmartDashboardPlugin, onSave: () => void) {
-        super(app);
-        this.plugin = plugin;
-        this.onSave = onSave;
+        this.view = view;
+        // 双表并排需要宽度（左表 300px 起 + 右表 500px 起）
+        this.modalEl.style.width = 'min(1080px, 92vw)';
     }
 
     async onOpen() {
-        await this.renderList();
+        await this.render();
     }
 
-    private async renderList() {
-        const {contentEl} = this;
+    private async render() {
+        const { contentEl } = this;
         contentEl.empty();
-        contentEl.createEl('h2', {text: '全部倒计时事件（自定义）'});
-        let view = (this.app.workspace.getLeavesOfType(VIEW_TYPE_SMART_DASHBOARD)[0]?.view as SmartDashboardView);
-        if (!view) return;
-        const items = (await view.getCountdowns()).slice().sort((a, b) => a.targetDate.localeCompare(b.targetDate));
-        if (!items.length) {
-            contentEl.createEl('div', {text: '暂无自定义倒计时。', attr: {style: 'color: var(--text-muted); padding: 10px;'}});
+        contentEl.addClass('sd-trading-modal');
+        contentEl.createEl('h2', {text: '📋 交易复盘明细'});
+        const { records, uniqueTickers } = await this.view.readTrades();
+        if (records.length === 0) {
+            contentEl.createEl('div', {text: '暂无交易记录。', cls: 'sd-empty-state'});
+            return;
         }
-        for (const c of items) {
-            const daysLeft = moment(c.targetDate).diff(moment().startOf('day'), 'days');
-            const status = daysLeft >= 0 ? `还剩 ${daysLeft} 天` : `已过 ${-daysLeft} 天`;
-            new Setting(contentEl)
-                .setName(c.title)
-                .setDesc(`${c.targetDate} · ${status}`)
-                .addButton(b => b.setButtonText('编辑').onClick(() => {
-                    this.close();
-                    new ManageCountdownModal(this.app, this.plugin, c, this.onSave).open();
-                }))
-                .addButton(b => b.setButtonText('删除').setWarning().onClick(async () => {
-                    await view.saveCountdowns((await view.getCountdowns()).filter(x => x.id !== c.id));
-                    this.onSave();
-                    await this.renderList();
-                }));
-        }
-        contentEl.createEl('p', {text: '节日与节气为自动生成，无需在此管理。', attr: {style: 'color: var(--text-muted); font-size: 12px;'}});
+        this.view.renderTradingTablesBlock(contentEl, records, uniqueTickers, this.view.computeTradingSummary(records), () => { void this.render(); });
     }
 
     onClose() { this.contentEl.empty(); }
@@ -4086,7 +3806,6 @@ class CountdownListModal extends Modal {
 
 const CARD_LABELS: Record<string, string> = {
     'sd-calendar-section': '日历',
-    'sd-quickjot-section': '极速随笔',
     'sd-search-section': '智能检索',
     'sd-create-section': '快捷创建',
     'sd-stats-section': '统计分析',
@@ -4096,8 +3815,6 @@ const CARD_LABELS: Record<string, string> = {
     'sd-schedule-section': '日程管理',
     'sd-todo-section': '待办事项',
     'sd-trading-section': '交易复盘',
-    'sd-countdown-section': 'D-Day 倒计时',
-    'sd-nav-section': '导航入口',
 };
 
 class SmartDashboardSettingTab extends PluginSettingTab {
@@ -4136,9 +3853,9 @@ class SmartDashboardSettingTab extends PluginSettingTab {
         const currentLayoutSize = await this.plugin.getLayoutSize();
         new Setting(containerEl)
             .setName('布局规格')
-            .setDesc('小=6×4 紧凑（默认，一屏无滚动）；大=4 列可滚动（每格更大，向下滚动查看全部卡片。切换会保存当前尺寸布局并载入目标尺寸已存布局）')
+            .setDesc('小=5×4 紧凑（宽度铺满；纵向可滚动）；大=4 列可滚动（每格更大，向下滚动查看全部卡片。切换会保存当前尺寸布局并载入目标尺寸已存布局）')
             .addDropdown(dd => {
-                dd.addOption('small', '小（6×4 紧凑）');
+                dd.addOption('small', '小（5×4 紧凑）');
                 dd.addOption('big', '大（4 列可滚动）');
                 dd.setValue(currentLayoutSize);
                 dd.onChange(async (v: string) => {
@@ -4163,30 +3880,6 @@ class SmartDashboardSettingTab extends PluginSettingTab {
                         await this.plugin.refreshView();
                     })
                 );
-        }
-
-        // ===== 导航入口配置 =====
-        containerEl.createEl('h3', { text: '导航入口' });
-        containerEl.createEl('p', { text: '修改各入口卡片指向的库内路径（文件夹或 md 文件）。留空恢复默认。' });
-        const entries = await this.plugin.getNavEntries();
-        for (const entry of entries) {
-            new Setting(containerEl)
-                .setName(`${entry.icon} ${entry.name}`)
-                .setDesc(`当前：${entry.path}`)
-                .addText(text => {
-                    text.setPlaceholder(entry.path);
-                    text.inputEl.style.width = '100%';
-                    text.onChange(async (v) => {
-                        if (!v.trim() || v.trim() === entry.path) return;
-                        const all = await this.plugin.getNavEntries();
-                        const target = all.find(x => x.id === entry.id);
-                        if (target) {
-                            target.path = v.trim();
-                            await this.plugin.setNavEntries(all);
-                            new Notice(`已更新「${entry.name}」入口路径`);
-                        }
-                    });
-                });
         }
     }
 }

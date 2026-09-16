@@ -166,7 +166,7 @@
 .sd-grid {
     display: grid;
     /* 正方形格子：列宽与行高统一由 --sd-cell 驱动（JS 按面板宽高取较小值计算） */
-    grid-template-columns: repeat(var(--sd-cols, 6), var(--sd-cell, 200px));
+    grid-template-columns: repeat(var(--sd-cols, 5), var(--sd-cell, 200px));
     grid-auto-rows: var(--sd-cell, 200px);
     gap: 8px;
     justify-content: center;   /* 高度受限时整板水平居中，两侧留白对称 */
@@ -756,12 +756,10 @@ body.theme-dark .sd-card:hover {
 }
 
 /* 交易复盘卡片样式 */
-/* 改动3：顶部 4 数据块单行横排（nowrap）+ 大幅压缩（总高约 45px），选择器限定 #sd-trading-section 作用域避免影响统计卡 */
+/* 1×1 卡：4 个数据块改为 2×2 网格排布以适配单格宽度，选择器限定 #sd-trading-section 作用域避免影响统计卡 */
 #sd-trading-section .sd-trading-stats-grid {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 6px;
     margin-bottom: 10px;
 }
@@ -848,6 +846,22 @@ body.theme-dark .sd-card:hover {
     overflow-y: auto;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
+}
+
+/* 1×1 卡底部「📋 复盘明细」入口按钮（全宽） */
+.sd-trading-actions {
+    margin-top: 8px;
+}
+.sd-trading-actions .sd-btn {
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 14px;
+}
+
+/* 明细弹窗内表格限高，避免超长流水表把弹窗撑到全屏 */
+.sd-trading-modal .sd-table-scroll-container {
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
 
@@ -1241,91 +1255,6 @@ body.theme-dark .sd-usage-lv4,
 .sd-todo-priority-mid  { background: #f4a261; color: #3a2415; }
 .sd-todo-priority-low  { background: #7c6ee6; }
 
-/* ===== 6. D-Day 倒计时卡 ===== */
-.sd-countdown-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 0;
-}
-.sd-countdown-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 10px;
-    border: 1px solid var(--sd-warm-border);
-    border-radius: 8px;
-    background: var(--sd-warm-card-bg);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.sd-countdown-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
-    border-color: var(--sd-warm-accent);
-}
-.sd-countdown-info { min-width: 0; }
-.sd-countdown-title {
-    font-weight: 600;
-    font-size: 13px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.sd-countdown-date { font-size: 11px; color: var(--text-muted); }
-.sd-countdown-days { display: flex; align-items: baseline; gap: 2px; flex-shrink: 0; }
-.sd-countdown-num { font-size: 22px; font-weight: 700; color: var(--sd-warm-accent-hover); }
-.sd-countdown-unit { font-size: 11px; color: var(--text-muted); }
-/* ≤7 天橙色预警；已过期红色降透明 */
-.sd-countdown-item.sd-dd-soon { border-color: rgba(249, 115, 22, 0.55); }
-.sd-countdown-item.sd-dd-soon .sd-countdown-num { color: #f97316; }
-.sd-countdown-item.sd-dd-past { opacity: 0.75; }
-.sd-countdown-item.sd-dd-past .sd-countdown-num { color: #ef4444; }
-
-/* ===== 8. 导航入口卡片（1×1 纯色按钮单行竖排，等分填满卡片）===== */
-.sd-nav-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-}
-.sd-nav-entry-card {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 2px 10px;
-    border: none;
-    border-radius: 8px;
-    background: var(--sd-warm-accent); /* JS 按条目覆盖为纯色 */
-    color: #fff;
-    cursor: pointer;
-    flex: 1 1 0;      /* 五个按钮等分卡片高度，恰好填满不滚动 */
-    min-height: 0;
-    min-width: 0;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-}
-.sd-nav-entry-card:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.07);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
-}
-/* 负外边距把整组左移半个图标位，使文字（不含emoji）恰好居中 */
-.sd-nav-entry-icon { font-size: 15px; line-height: 1; flex-shrink: 0; margin-left: -26px; }
-.sd-nav-entry-name {
-    font-weight: 600;
-    font-size: 13px;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 /* ======================================================================
    v4.8.0 增补：日程倒计时 / 周期日程待办 / 节日节气
    ====================================================================== */
@@ -1389,9 +1318,6 @@ body.theme-dark .sd-todo-repeat,
     background: rgba(179, 157, 255, 0.15);
 }
 
-/* 倒计时卡来源小字（· 节日 / · 节气）*/
-.sd-countdown-date { display: flex; align-items: center; gap: 2px; }
-
 /* ======================================================================
    体育赛事卡片（2×1）：F1/英超/德甲 接下来最近一场，紧凑列表不裁剪
    颜色沿用 --sd-* 变量映射，深色由 .theme-dark 容器遮蔽自动适配
@@ -1420,7 +1346,7 @@ body.theme-dark .sd-todo-repeat,
     overflow: hidden;
 }
 
-/* 三行等分填满卡片高度，间隙仅 6px，上下无多余留白（对齐 .sd-nav-grid）
+/* 三行等分填满卡片高度，间隙仅 6px，上下无多余留白
    padding 收紧（3/8→3/6）、item 内部 gap 收紧（8→6），为再放大一档的左侧字体腾出横向空间，
    保证对手行不出现省略号截断；右侧 .sd-sports-meta flex-shrink:0 宽度不受挤压影响 */
 .sd-sports-item {

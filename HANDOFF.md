@@ -1,13 +1,14 @@
-# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v4.9.9（回滚态 + git 历史隐私清洗）
+# 🚀 项目交接文档 (HANDOFF.md) — HANDOFF — Smart Dashboard v5.0.0（10 卡 · 5×4 布局 · 交易复盘卡重构）
 
-> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v4.9.9** 共 14 个版本的连续变更（多会话完成）+ **v4.9.9 回滚与 git 历史隐私清洗**。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
+> **更新文件**：本文件为 Smart Dashboard（Obsidian 插件 `obsidian-smart-dashboard`）的版本交接文档，记录 **v4.6.1 → v5.0.0** 共 15 个版本的连续变更（多会话完成）+ **v5.0.0 大版本重构（删 3 卡 / 交易卡 1×1 / 布局 5 列×4 行 / 两侧铺满）**。严格套用《06_项目交接文档模板》8 节结构与 [[10_项目交接与上下文维持工作流]]。
 
 ---
 
-## 🏷️ 版本变更总览 (v4.6.1 → v4.9.9 CHANGELOG)
+## 🏷️ 版本变更总览 (v4.6.1 → v5.0.0 CHANGELOG)
 
 | 版本 | 主题 | 核心变更 | 类型 |
 | :--- | :--- | :--- | :---: |
+| **v5.0.0** | 10 卡 · 5×4 布局 · 交易复盘卡重构（里程碑） | 删极速随笔/快速导航/D-Day 倒计时三卡；交易复盘 2×1→1×1（统计框留卡 2×2 + 快捷录入保留 + 表格收起为「📋 复盘明细」按钮 → TradingTablesModal 弹窗）；布局 6 列→5 列×4 行（10 卡 20 格填满，新 DEFAULT_LAYOUT 方案 A）；两侧不留白（cell 宽度优先，纵向可滚动）；修复 chart.js 依赖缺失；vault data.json 迁移（删 3 个旧布局快照字段） | 🔧 重构 |
 | **v4.9.9** | 脚本路径去硬编码（运行时定位）→ **已回滚** ↩️ | 原：main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处 `<workspace>/...` 硬编码改运行时拼接；esbuild 拷 .py 到 vault + external `"path"`；HANDOFF:235 用户名泛化。**回滚**：真实运行中该方案致 Token/订阅卡统计不到（根因=插件目录 .py 是旧版读不出当日数据），恢复硬编码风格脚本调用；**commit 版用 `__PLUGIN_DIR__` 占位**（隐藏真实路径，符合隐私铁律），vault 本地保真实路径。git 历史已 filter-repo 隐私清洗 | ↩️ 回滚 |
 | **v4.9.8** | 移除右侧悬浮导航按钮栏 | `onOpen` 删除 `sd-floating-nav` 渲染整块（8 个圆形浮导按钮：🔍/📈/📅/✅/➕/💹/🎯/🧭 各 scrollIntoView 定位卡片）；styles.css 删除 `.sd-floating-nav` / `.sd-floating-nav-btn` / `:hover` 三组样式；不影响卡片 w/h 占格与坐标，不触碰 data.json | 🗑️ 删除 |
 | **v4.9.7** | Token 用量卡新增「累计缓存命中率」 | 卡片底部命中率从单指标（原为**本月**口径）改为**当天 + 全历史累计**两指标并存：`cacheStats` 复用现函数零新增，取 `today`（当天）与 `''`（全历史，空串前缀天然放行）两次调用；文案改 `命中(今日) X% ｜ 累计 Y%`，同一行不新增行、占格 2×1 不动；数据源于 `usage_daily.json` 已有 `input/cache` 逐日字段，`collect_usage.py` 无需改动 | ✨ 新增 |
@@ -23,7 +24,54 @@
 | **v4.9.3** | Token 卡 opencode 消耗归日修复 | `parse_opencode()` 改读 message 表按 `time.completed` 归日，修复跨天长会话消耗堆叠到创建日、之后日期显示≈0 的 bug | 🐛 修复 |
 | **v4.9.4** | 卡片大小/布局设置 | 设置页新增「卡片大小/布局」下拉：小=6×4 紧凑（默认，现状不变）/ 大=4 列可滚动；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发重排）；每卡 w/h 占格数铁律不动，仅按 4 列重排 x/y | ✨ 新增 |
 
-**本次变更涉及文件**：`main.ts` / `main.js` / `manifest.json` / `package.json` / `HANDOFF.md` / `esbuild.config.mjs` / `HANDOFF_path_optimize_plan.md`。
+**本次变更涉及文件**：`main.ts` / `main.js` / `styles.css` / `manifest.json` / `package.json` / `HANDOFF.md` / vault `data.json`（迁移清理）；依赖变化：补装 `chart.js`（^4.5.1 入 dependencies）。
+
+---
+
+## 🚀 v5.0.0 变更说明（10 卡 · 5列×4行 · 交易复盘卡重构）
+
+**奏效概览**：用户提出 5 项看板改造需求（①删快速随笔 ②删快速导航 ③删 D-Day 倒计时 ④交易复盘卡缩为 1×1、下方表格收起 ⑤布局改 4行×5列），经 CBC 两轮委派（只读调研产出 648 行实施计划 `D:/Hermes/tasks/sd_rework_plan_v1.md` → 执行改码 + 构建），Hermes 负责补构建、数据迁移（趁 Obsidian 完全退出）与 CDP 实测验收；交付后追加「面板两侧不留白」微调（cell 宽度优先）。版本号 4.9.9 → **5.0.0**（里程碑：卡片体系与布局基准变更）。
+
+### 1. 删除三张卡片
+- **删除**：`sd-quickjot-section`（极速随笔）/ `sd-nav-section`（快速导航）/ `sd-countdown-section`（D-Day 倒计时）——渲染函数（renderQuickJotArea / renderNavArea / renderCountdownArea）、onOpen 创建块、DEFAULT_LAYOUT 与 CARD_LABELS 条目、接口（CountdownItem / NavEntry）、常量（DEFAULT_NAV_ENTRIES）、plugin 方法（getNavEntries / setNavEntries / getCountdowns / saveCountdowns）、Modal 类（ManageCountdownModal / CountdownListModal）、设置面板「导航入口配置」段、相关 CSS 全部清除。
+- **保留（防误伤）**：FESTIVALS / SOLAR_TERMS_21C / getHolidayName（日历节日角标用）、appendToDailyNote（日记联动）、`.sd-nav-tab` 顶部页签栏、`.sd-timeline-countdown`（日程徽章）。
+
+### 2. 交易复盘卡重构（2×1 → 1×1）
+- **版式**：标题行（💹 交易复盘 + ＋快捷录入按钮）→ 统计框区 4 框（原单行横排改 **2×2** 适配 1×1 宽度；正=红/负=绿配色与胜率条内嵌均保留）→ 「📋 复盘明细」全宽入口按钮。
+- **新增 `TradingTablesModal`**（宽度 min(1080px,92vw)）：承载原表格内容（左「⚠️ 亏损归因(坏习惯)」表 + 右「📝 近期流水」表），标的点击 → ViewTradeModal 编辑回写后重渲染弹窗自身。
+- **逻辑抽取**（卡片与弹窗复用）：`readTrades` / `appendTrade` / `computeTradingSummary` / `renderTradingStatsBlock` / `renderTradingTablesBlock`（onChanged 回调参数化）。
+- **CSS**：`#sd-trading-section .sd-trading-stats-grid` 改 grid 2×2；新增 `.sd-trading-actions`、`.sd-trading-modal .sd-table-scroll-container{max-height:60vh}`。
+
+### 3. 布局 6 列 → 5 列 × 4 行（10 卡 20 格填满）
+- **新 DEFAULT_LAYOUT（方案 A）**：日历(1,1)2×2 / 统计(3,1)2×2 / 检索(5,1)1×2 // 用量(1,3)2×1 / 订阅(3,3)2×1 / 交易(5,3)1×1 // 体育(1,4)2×1 / 创建(3,4) / 日程(4,4) / 待办(5,4) 各 1×1——零重叠零空洞。
+- **`--sd-cols` 触点全改**：onOpen 预置（'6'→'5'）/ 宽屏 cellW 公式 `(availW-gap*4)/5` / 宽屏 setProperty('5') / 两处兜底 `|| 5` / styles.css 兜底 5 / 设置面板文案「小=5×4 紧凑」。
+- **resetLayout 三分支加固**：`cols<4 → compact / cols<5 → reflow / else → applyLayout`，消除 big 档（4 列）点重置时 5 列坐标一次性越界的瑕疵。
+
+### 4. 两侧不留白（宽度优先 · 用户追加需求）
+- `setupGridSizing` 宽屏分支：cell 从 `min(宽约束cellW, 高约束cellH)` 改为**宽度优先**（删除高度约束块；纵向超出由 `.sd-tab-content-container` 自然滚动）。
+- **数学事实**：窗口宽高比 > 约 1.25 时「铺满宽度」与「一屏无滚动」不可兼得；1440×912 窗口实测：修改前网格 937px vs 容器内容区 1080px（两侧各留白 ~85px），修改后 1077px（残差仅 3px）、滚动量 110px。
+
+### 5. 修复与数据迁移
+- **chart.js 依赖补装**：node_modules 与 package.json 均无 chart.js（main.ts 引用 `chart.js/auto`），导致 `npm run build` 报 `Could not resolve "chart.js/auto"` → `npm install chart.js`（^4.5.1 入 dependencies）。
+- **vault data.json 迁移**（趁 Obsidian 完全退出时执行、先备份）：删除 `cardLayout` / `layoutSmall` / `layoutBig` 三个旧布局快照字段（均为 13 卡 6 列旧坐标，与新 5 列/10 卡冲突；其余 cardVisibility/layoutSize 保留）。迁移后启动即按新 DEFAULT_LAYOUT 方案 A 渲染。
+
+### 验收记录（CDP 实测）
+- 卡片集合 = 10 张（无缺失无多余）；网格列数 = 5；逐卡坐标与方案 A 完全一致。
+- 全部卡片无裁切（scrollHeight ≤ clientHeight 逐卡断言）；已删卡 DOM 残留 = 0。
+- 交易复盘卡：`sd-size-1x1`、按钮 [＋快捷录入, 📋 复盘明细]（含统计框 4、胜率条正常）。
+- 明细弹窗冒烟：打开 → 内容渲染（2 表）→ 关闭 闭环正常。
+- 铺满验证：网格内容 1077px / 容器内容区 1080px（残差 3px）；滚动量 110px。
+- 插件热重载（disable/enable）后行为一致；用户目视确认版式。
+
+### 涉及文件与产物
+- 代码：`main.ts` / `main.js` / `styles.css` / `manifest.json` / `package.json`（版本三端 5.0.0）
+- 数据：vault `data.json`（迁移清理）
+- 计划与脚本：`D:/Hermes/tasks/sd_rework_plan_v1.md`（648 行）；验收脚本（skill scripts：obs_verify_sdrework.js / obs_reload_verify.js / obs_shot_dashboard.js）
+- 备份：`D:/Hermes/backup/smart_dashboard/`（main.ts / styles.css / data.json / esbuild.config.mjs，时间戳 20260916_1331xx）
+
+### 遗留与说明
+- `tradeFilter`（历史死代码）与 `padV`（本轮改动后无引用）保留未清，无编译/运行影响。
+- 推送：如需 git push，须先走 cbc 隐私审查（铁律）；注意 main.ts 自 v4.9.9 起含硬编码工作区路径（既有状态）。
 
 ---
 
@@ -203,9 +251,9 @@ CDP 实测（`obs_verify_sports_bayern.js`）：拜仁首轮显示 **8月29日 0
 
 ## 1. 项目概况与当前状态
 - **项目名称：** Smart Dashboard（Obsidian 插件，id: `obsidian-smart-dashboard`）
-- **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/倒计时/导航/Token 用量/订阅额度/交易复盘等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
-- **当前阶段：** 灵感落地完毕——13 张磁贴卡按 **6 列 × 4 行正方形网格**一屏显示无滚动（新增体育赛事卡）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示、卡片大小/布局两档切换（小=6×4 紧凑 / 大=4 列可滚动）；拖拽/缩放交互正常。**用户双档默认布局已固化**：小档摆位存 `layoutSmall`、大档摆位存 `layoutBig`，「↺ 重置布局」按钮恢复当前档所存默认（不再清空、不再回出厂）。
-- **版本：** 交接版本 **v4.9.7**（manifest.json 4.9.7 / package.json 4.9.7 对齐）；日期 **2026-09-01**
+- **项目目标：** 在 Obsidian 内提供统一智能看板，聚合日历/待办/日程/Token 用量/订阅额度/交易复盘/体育赛事等磁贴卡片，Knowledge OS 式整合笔记与时间管理。
+- **当前阶段：** **10 张磁贴卡按 5 列 × 4 行正方形网格铺满显示**（2026-09-16 v5.0.0 大改造：删除极速随笔/快速导航/D-Day 倒计时三卡、交易复盘卡重构为 1×1、两侧不留白宽度优先）；支持周期日程/待办、节日节气自动生成、四套皮肤一键切换、体育赛事赛程展示、卡片大小/布局两档切换（小=5×4 铺满 / 大=4 列可滚动）；拖拽/缩放交互正常。
+- **版本：** 交接版本 **v5.0.0**（manifest.json 5.0.0 / package.json 5.0.0 对齐）；日期 **2026-09-16**
 - **作者：** kroetz　**仓库：** https://github.com/billikroetzlyr43-eng/obsidian-smart-dashboard　**分支：** main
 
 ## 2. 任务执行全流程结构图 (Mermaid Workflow)
@@ -245,7 +293,7 @@ flowchart TD
 
 | 主要项目 | 当前阶段/版本 | 本次进展 | 下一步 |
 | :--- | :--- | :--- | :--- |
-| **Smart Dashboard 插件** | **v4.9.4（2026-08-27）** | 设置页新增「卡片大小/布局」两档（小=6×4 紧凑 / 大=4 列可滚动）；新增 `layoutSize` 持久化字段（合并保存，切换时清空 cardLayout 触发按 4 列重排，w/h 占格数铁律不动）；styles.css 无需改（正方形格子 + overflow-y:auto 已就绪） | git 提交 v4.9.4 推送 main；用户重启 Obsidian 验收两档切换 |
+| **Smart Dashboard 插件** | **v5.0.0（2026-09-16）** | 大版本重构：删 3 卡（极速随笔/快速导航/D-Day 倒计时）、交易复盘卡 1×1（统计框 2×2 留卡 + 明细表格弹窗化）、布局 5 列×4 行方案 A（10 卡 20 格填满）、两侧不留白（宽度优先）、chart.js 依赖修复、vault data.json 旧布局快照迁移 | git 提交 v5.0.0 推送 main（须先 cbc 隐私审查） |
 | Obsidian 知识库 LLM Wiki 重构 | 方案一/二/三 100% 落地 | — | 持续维护事件记录/知识卡片 |
 | Hermes 消息通道 QQ 迁移 | 100% 完成（2026-08-12） | — | 旧微信凭据备份待清理 |
 | 新闻获取能力升级 | 基础设施 100% 部署 | — | 服务持久化 [待确认]；AnySearch 提额评估 |
@@ -262,6 +310,7 @@ flowchart TD
   - [x] **v4.9.3 Token 卡 opencode 消耗归日修复**：用户反馈"Token 卡只统计到 Hermes 调 opencode 的消耗、自己 TUI 直接对话的看不见"。经 opencode 深入研究（`deliverables/opencode-token-rootcause.md`）定位根因：`parse_opencode()` 原按 session 表 `time_created`（会话创建时间）归日 + 读 session 级**累计** token，导致跨天长会话（用户主目录（home 目录）下的 plan 长会话 08-22~08-24 累计 852 万 input）全部消耗堆到创建日 08-22，之后日期显示≈0，且每次刷新创建日追溯虚涨；而 Hermes 委派会话全是分钟级短命会话日期天然准确，于是呈现"只有 Hermes 统计得对"。修复=改读 message 表、逐条 assistant 消息按 `COALESCE(time.completed, time.created)` 归日（本地时区），`calls`=当日消息条数。实测 08-23 从 62 万→**560 万**（真实），08-24 从凌晨快照 6.4 万→**220 万**；session 级 vs message 级五项 token 总量守恒分毫不差（7073 万 input）。改动仅限 `parse_opencode()`，其余四源与 schema_version=5 未动
   - [x] **v4.9.4 卡片大小/布局设置**：设置页「主题皮肤」与「卡片开关」之间新增 h3「卡片大小/布局」+ Dropdown（small=小 6×4 紧凑 / big=大 4 列可滚动）。新增 `SmartDashboardPlugin.getLayoutSize()/setLayoutSize()`（类比 `getSkin/setSkin`，合并保存：先 loadData 取整体 → 改 data.layoutSize + 清空 data.cardLayout → saveData 整体写回，绝不覆盖 skin/cardVisibility/navEntries）。`SmartDashboardView` 新增 `layoutSize` 字段，`loadLayout()` 读取后存入；`onOpen` 在 grid 创建后预置 `--sd-cols`（big=4/small=6）使随后 `reflowLayoutForVisibleCards`（现成装箱算法，复用按 4 列）读取正确列数重排 x/y，**w/h 占格数铁律不动**；`setupGridSizing` 在窄屏分支后新增 big 分支：`cell=(availW-gap*3)/4`、`--sd-cols=4`、**不走 cellH 高度约束** → 行数自然增多使网格总高超过 `.sd-tab-content-container` 可视高，由其既有 `overflow-y:auto` 触发纵向滚动；小档逻辑完全不变。styles.css 无需改（正方形格子由 `repeat(var(--sd-cols), var(--sd-cell))`+`grid-auto-rows: var(--sd-cell)` 保证）。取消计划中的「舒适」第三档。切换档位会清空 cardLayout 即丢失自定义拖拽位置（用户拍板可接受）
   - [x] **v4.9.9 脚本路径去硬编码（运行时定位）**：main.ts 新增 `getPythonScriptPath` helper（`this.plugin.manifest.dir` + 局部 `require('path')`），4 处 `<workspace>/...` 硬编码 Python 脚本路径改运行时拼接；esbuild.config.mjs copy 段自动拷贝 2 个 .py 到 vault 插件目录 + external 加 `"path"`；HANDOFF.md:235 `C:/Users/<user>` → 「用户主目录」，消除纯文本用户名泄露。cbc 三轮（探测→规划→执行）委派完成，计划文件 `HANDOFF_path_optimize_plan.md`，静态验收 4 项全过，commit 5812e37，已 API 推送远程 ff0abbf
+  - [x] **v5.0.0 大版本重构（10 卡 / 5 列×4 行 / 交易卡 1×1）**：① 删除 `sd-quickjot-section` / `sd-nav-section` / `sd-countdown-section` 三卡（渲染函数/创建块/接口/常量/Modal 类/设置段/CSS 全清；节日算法与日记联动保留）② 交易复盘卡 2×1→1×1：统计框区留卡上（4 框改 2×2 适配）+ 「＋快捷录入」保留 + 下方表格收起为「📋 复盘明细」按钮 → 新增 `TradingTablesModal`（min(1080px,92vw)）；数据/渲染抽为 View 方法复用 ③ 布局 6 列→5 列×4 行：DEFAULT_LAYOUT 方案 A（10 卡 20 格填满）、`--sd-cols` 全部触点（5/4/2 三档）、resetLayout 三分支加固 ④ 两侧不留白：`setupGridSizing` 宽屏 cell 改宽度优先（删高度约束，纵向可滚动）⑤ 修复 chart.js 依赖缺失（^4.5.1 入 dependencies）；vault data.json 迁删除 3 个旧布局快照字段。CBC 两轮委派（648 行计划 → 执行）+ Hermes 补 build/数据迁移/CDP 验收；CDP 实测 10 卡坐标全对、零裁切、弹窗闭环、铺满残差 3px、滚动量 110px
   - [x] **v4.9.8 移除右侧悬浮导航按钮栏**：删除 `onOpen` 中 `sd-floating-nav` 渲染整块（`createNavBtn` 局部函数 + 8 个圆形浮导按钮 scrollIntoView 定位）+ styles.css 三组浮导样式。仅移除 UI，卡片 w/h 占格/坐标/data.json 全不动，「🧭 快速导航」卡保留。build 后 vault main.js grep `floating-nav`=0 残留
   - [x] **collect_usage.py**：`parse_opencode` 去掉 `immutable=1`（改 `mode=ro`）以读取 `-wal` 侧车——此前启用 immutable 使 SQLite 忽略 WAL，opencode 运行中未 checkpoint 的近期会话（即当天用量）不可见，导致 Token 卡当日数据缺失；`mode=ro` 仍只读不写库（v4.9.1，保留）
   - [x] vault `data.json` 同步维护：6×4 布局落盘、search 1×2（col5 行 2-3，col6 行 2-3 留空）、活动热力图条目清除
@@ -286,6 +335,7 @@ flowchart TD
   - **⚡ 本次版本待办：**
         - [x] **git 提交 v4.9.7 + v4.9.8**（含累积变更：累计缓存命中率 + 移除浮导按钮栏）——v4.9.7（1dc4f09）已于此前推送；v4.9.8（0813d65）经 **cbc 安全隐私审查通过**（6 文件无密钥/明文凭证，仅两处既有低风险路径）后，2026-09-09 走 GitHub REST API 推送 main → 远程 `7f53076`（树 ba78605 与本地一致，已确认落盘）
         - [x] **git 提交 v4.9.9**（路径去硬编码：cbc 三轮探测→规划→执行，commit 5812e37）并经 GitHub REST API 推送 main → 远程 `ff0abbf`（树 d670bb3 与本地一致，已确认落盘）
+        - [ ] **git 提交 v5.0.0 + 推送**（大版本重构：推送前须先走 cbc 隐私审查——main.ts 含硬编码脚本调用属 v4.9.9 起既有状态；审查通过后走 GitHub REST API）
 - **📌 后续规划：**
   - [ ] 农历节日（春节/中秋等）接入评估——需引入农历换算算法或 solarlunar 库，现仅公历节日+节气 [待确认]
   - [ ] 体育卡 `sports.json` 数据随赛季推进更新（F1 剩余 11 站，森林/拜仁赛程确认后补全）；体育卡目前无自动刷新计时器（与日历等静态卡一致），如需可挂共享 300s 定时器
@@ -294,6 +344,9 @@ flowchart TD
 
 ## 6. 踩坑记录与避坑指南 (Lessons Learned & Pitfalls)
 - **已踩过的坑：**
+  - ⚠️ **[v5.0.0 环境坑] chart.js 依赖丢失致 build 失败**：node_modules 与 package.json 均无 chart.js（main.ts 引用 `chart.js/auto`）→ `npm install chart.js` 修复（^4.5.1 入 dependencies）。另：cbc 撞 max-turns 时 build 尾巴由 Hermes 补做（先 `npx tsc --noEmit` 自查——项目有 4 处历史遗留 TS 错：chart.js 类型/onChange/隐式 any/obsidian.d.ts，判据=错误行是否在本轮 diff 内）
+  - ⚠️ **[v5.0.0 验收坑] Obsidian 1.13.7 modal 关闭按钮 class 变更**：旧 `.modal-close-button` 已不存在，现为 `.modal-header-button`（modal 首个子元素）；CDP 自动化点关闭须用新 selector（点 `.modal-bg` 遮罩亦可关闭）
+  - ⚠️ **[v5.0.0 流程坑] 数据迁移必须趁 Obsidian 完全退出**：删 data.json 布局字段前必须退出（否则内存态回写覆盖）；重启后窗口默认尺寸（1016px 宽）会触发窄屏 2 列降级——验收 5 列须先拉宽窗口（CDP `window.resizeTo`）
   - ⚠️ **[v4.9.5 严重坑] 验收收尾误清用户布局，造成不可逆丢失**：多轮验收脚本在最后一步执行"清理快照/还原出厂"（delete d.layoutSmall/layoutBig、cardLayout=undefined），把用户手工摆的默认布局源数据从 data.json 清掉且未留备份，导致无法原样还原。**立铁律（已写入 Hermes 记忆）**：凡涉及 data.json（layoutSmall/layoutBig/cardLayout）或 main.ts 的任何改动，执行前必须先把 data.json + main.ts 全量备份到 `<hermes_dir>/backup/smart_dashboard/`（带时间戳 bak_YYYYMMDD_HHMMSS，不删不覆盖）；任何"清理快照/还原出厂/重置布局"类操作严禁自动执行，必须先征求确认且只动目标字段；验收脚本一律不得写/删 layout* 字段、不做还原收尾。违反=严重错误。
   - ⚠️ **[v4.9.5 验收陷阱] 脚本 refreshView 会冲掉 cardLayout**：CDP 实测脚本里 `plugin.saveData({cardLayout:...})` 后若调 `refreshView()`，onOpen→reflow→saveLayout 会把 cardLayout 覆盖回 DEFAULT_LAYOUT 重排结果，导致随后 `setLayoutSize` 读到的 data.cardLayout 是重排后的（仍是 object 所以仍能存快照，但若想验证"用户自定义布局"须通过 Obsidian API 正常写、且不要在切档前 refreshView 冲掉）。验证快照落盘应直接读磁盘 data.json，而非依赖 loadData 缓存。
   - ⚠️ **[v4.9.1 关键坑] `justify-content:center` 导致"卡片拖不动"**：居中使轨道起点偏离 grid 左缘，拖拽占位框坐标未扣偏移 → 被钳死在最后一列。修复=`getGridMetrics` 计算 `offsetX = (rect.width − 24 − trackW)/2` 并在 `showDropTarget/commitDrop` 的列换算中扣除
@@ -306,7 +359,7 @@ flowchart TD
 - **已知 Bug / 限制：**
   - 🐛 节气寿星公式个别年份 ±1 天误差；农历节日（春节/中秋/端午等）尚未实现
   - 🐛 周期待办的日历圆点按「当前周期未完成」粗粒度过滤，历史周期日期上的点展示为已完成态
-  - 🐛 导航卡点击文件夹依赖 internalPlugins file-explorer 的 `revealInFolder`（非公开 API，Obsidian 大版本升级需回归验证）
+  - 🐛 ~~导航卡点击文件夹依赖 internalPlugins file-explorer 的 `revealInFolder`（非公开 API，Obsidian 大版本升级需回归验证）~~ —— v5.0.0 已随快速导航卡删除，此条失效
 
 ## 7. 项目规范与硬性约束 (Rules & Constraints)
 - **代码/文件规范：**
@@ -323,6 +376,7 @@ flowchart TD
 
 ## 8. 断点快照 (Current State Snapshot)
 - **上次停下的位置：**
+  - 📍 v5.0.0 大改造完成（2026-09-16）：三卡删除 + 交易复盘卡 1×1 重构 + 布局 5 列×4 行 + 两侧铺满 + chart.js 修复 + vault data.json 迁移；CDP 实测全过（10 卡坐标全对/零裁切/弹窗闭环/铺满残差 3px；当前窗口 1440 宽、滚动量 110px）；插件热重载验证通过。备份在 `D:/Hermes/backup/smart_dashboard/`（20260916_1331xx）。版本三端 5.0.0 已改，**待办：git commit + 推送（须先走 cbc 隐私审查）**。计划文档 `D:/Hermes/tasks/sd_rework_plan_v1.md`（648 行）
   - 📍 v4.9.9 已改 `main.ts`（`getPythonScriptPath` helper + 4 处路径改运行时拼接）、`esbuild.config.mjs`（copy 2 个 .py + external `"path"`）、HANDOFF.md:235 泛化，build 部署（vault manifest 4.9.9），静态验收 4 项全过。已 commit 5812e37 + cbc 三轮 + REST API 推送 main（远程 ff0abbf）。**动态验收待用户**：重启 Obsidian 后验证 Token/订阅刷新、增删订阅是否正常（计划 §5.2 六步）。`collect_*.py` 内部硬编码路径属可选扩展未做
   - 📍 v4.9.8 已改 `main.ts`（删除 `onOpen` 中 `sd-floating-nav` 浮导按钮栏整块）+ `styles.css`（删除三组浮导样式），并 build 部署（vault manifest 4.9.8）；卡片 w/h 占格/坐标/data.json 未动。vault main.js `grep floating-nav`=0 残留。Obsidian 已完全重启验收。**已 git commit（0813d65）+ cbc 安全审查通过 + REST API 推送 main（远程 7f53076）**
   - 📍 v4.9.7 已改 `main.ts`（renderUsageBody 底部行 `cacheStats(days, today)` 当天 + `cacheStats(days, '')` 全历史累计，文案 `命中(今日) X% ｜ 累计 Y%`）；CDP 实测 `命中(今日) 95.521% ｜ 累计 95.272%`、占格 2×1 不变、无裁剪。同上待 git commit + REST API 推送 main
@@ -371,6 +425,7 @@ flowchart TD
 ---
 
 ## 附录：历史版本摘要
+- **v5.0.0**：10 卡 · 5×4 布局 · 交易复盘卡重构（里程碑）——删极速随笔/快速导航/D-Day 倒计时三卡；交易卡 2×1→1×1（统计框 2×2 留卡 + 表格收起为「📋 复盘明细」按钮 → TradingTablesModal 弹窗）；布局 6 列→5 列×4 行方案 A（10 卡 20 格填满）；`--sd-cols` 触点全改 + resetLayout 三分支加固；两侧不留白（cell 宽度优先，纵向可滚动）；chart.js 依赖修复（^4.5.1）；vault data.json 旧布局快照三字段迁移清除；CDP 实测全过（10 卡坐标全对/零裁切/弹窗闭环/铺满残差 3px）
 - **v4.9.9**：（原）脚本路径去硬编码（getPythonScriptPath + esbuild copy .py + external "path"；commit 5812e37）→ **已回滚**：真实运行致 Token/订阅卡统计不到（根因=插件目录 .py 旧版），commit 版恢复硬编码语义但用 `__PLUGIN_DIR__` 占位；git 历史已 filter-repo 清洗 + force-push（远端 12814e02）
 - **v4.9.8**：移除右侧悬浮导航按钮栏（`onOpen` 删除 `sd-floating-nav` 整块 + styles.css 删三组浮导样式；仅 UI 元素，卡片 w/h/坐标/data.json 不动；vault main.js grep 零残留）
 - **v4.9.7**：Token 用量卡底部命中率由单指标改为**当天 + 全历史累计**两指标并存（`cacheStats(days, today)` + `cacheStats(days, '')`，零新增函数；文案 `命中(今日) X% ｜ 累计 Y%`；占格 2×1 与行数不变；CDP 实测无裁剪）
